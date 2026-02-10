@@ -7,6 +7,9 @@ interface RawDataPoint {
   Timestamp: string;
   'Temperature Filtered(F)': string | number;
   'Temperature CSV(F)': string | number;
+  'CO2 Rechts': string | number;
+  'CO2 Links': string | number;
+  'CO2 CSV(%)': string | number;
   [key: string]: unknown;
 }
 

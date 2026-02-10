@@ -7,7 +7,7 @@
         --radius: 0.5rem;
         
         /* Clean white theme with olive accent #65714B */
-        --background: 1 0 0;
+        --background: 0.98 0 0;
         --foreground: 0.20 0.01 90;
         --card: 1 0 0;
         --card-foreground: 0.20 0.01 90;
@@ -32,12 +32,14 @@
         --input: 0.90 0.005 90;
         --ring: 0.48 0.04 110;
         
-        /* Chart colors - red for both temperature series */
-        --chart-1: 0.58 0.24 25;
-        --chart-2: 0.58 0.24 25;
-        --chart-3: 0.55 0.15 250;
-        --chart-4: 0.60 0.12 180;
-        --chart-5: 0.50 0.14 25;
+        /* Chart colors - darker red for temperature series */
+        --chart-1: 0.50 0.20 25;
+        --chart-2: 0.48 0.18 25;
+        
+        /* Chart colors - dark green for CO2 series */
+        --chart-co2-1: 0.42 0.08 145;
+        --chart-co2-2: 0.38 0.10 145;
+        --chart-co2-3: 0.35 0.12 145;
     }
 
     .dark {
@@ -67,12 +69,14 @@
         --input: 0.28 0.01 90;
         --ring: 0.58 0.05 110;
         
-        /* Chart colors for dark mode - red temperature lines */
-        --chart-1: 0.62 0.26 25;
-        --chart-2: 0.62 0.26 25;
-        --chart-3: 0.65 0.18 250;
-        --chart-4: 0.70 0.15 180;
-        --chart-5: 0.60 0.16 25;
+        /* Chart colors for dark mode - darker red temperature lines */
+        --chart-1: 0.58 0.22 25;
+        --chart-2: 0.56 0.20 25;
+        
+        /* Chart colors for dark mode - dark green CO2 lines */
+        --chart-co2-1: 0.52 0.10 145;
+        --chart-co2-2: 0.48 0.12 145;
+        --chart-co2-3: 0.45 0.14 145;
     }
 
     * {

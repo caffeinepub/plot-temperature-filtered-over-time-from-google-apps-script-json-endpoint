@@ -1,63 +1,54 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Dashboard UI text, header accent color, and chart legend labeling updates",
+  "title": "Remove header logo entirely and revert CO₂ units/scaling to percentages",
   "requirements": [
     {
-      "id": "REQ-20",
-      "summary": "Replace the dashboard footer credit pill/link with plain text credit.",
+      "id": "REQ-50",
+      "summary": "Remove the dashboard header logo and all logo-related header UI so only the title/subtitle text block remains.",
       "acceptanceCriteria": [
-        "In TemperatureDashboardPage, the footer no longer displays the words “Built with love using” or “caffeine.ai”.",
-        "The footer displays exactly: “Built by Hannes @Petersime”.",
-        "The footer remains visually consistent with the existing footer layout (centered, small text), and does not introduce new user-facing text beyond the requested string."
+        "In frontend/src/pages/TemperatureDashboardPage.tsx, the <img> logo element and its surrounding logo-only wrapper are removed from the header layout.",
+        "The header still shows the title \"Conceptmachine Live Data\" and the subtitle \"data logging • Updated every 10-20 min\" with clean alignment and spacing.",
+        "There is no user-facing logo-related text (e.g., no logo error/fallback messages) anywhere in the header."
       ],
       "file_operations": [
         {
           "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
           "operation": "modify",
-          "description": "Update the footer credit area to remove the styled pill and external link, and render the plain text “Built by Hannes @Petersime” while preserving the existing centered small-text footer layout."
+          "description": "Remove the logo <img> and its wrapper from the header flex layout so the header shows only the existing title/subtitle block, with no leftover spacing/gap reserved for a logo."
         }
       ]
     },
     {
-      "id": "REQ-21",
-      "summary": "Make the dashboard header/title bar incorporate accent color #65714B more prominently without breaking layout/readability.",
+      "id": "REQ-51",
+      "summary": "Parse CO₂ values so all three CO₂ series are percentages: keep CO2 CSV(%) as-is and scale CO2 Rechts/Links by 0.001.",
       "acceptanceCriteria": [
-        "The header/title bar area at the top of TemperatureDashboardPage clearly incorporates #65714B (via border, background accent strip, or key header elements).",
-        "Header text remains readable (sufficient contrast) and the logo/title alignment does not break."
+        "In frontend/src/lib/temperatureParsing.ts, \"CO2 CSV(%)\" is parsed as a numeric percent value and is NOT multiplied by 10000.",
+        "In frontend/src/lib/temperatureParsing.ts, parsed values for \"CO2 Rechts\" and \"CO2 Links\" are each multiplied by 0.001 before being stored in TemperatureDataPoint.",
+        "After parsing, TemperatureDataPoint.co2Right, TemperatureDataPoint.co2Left, and TemperatureDataPoint.co2CSV all represent percentages (%).",
+        "Existing timestamp parsing, numeric normalization (comma decimals), and chronological sorting behavior remains intact."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
+          "path": "frontend/src/lib/temperatureParsing.ts",
           "operation": "modify",
-          "description": "Adjust header/title bar styling to prominently incorporate the accent color #65714B (e.g., accent border/strip/background treatment) while keeping existing spacing, alignment, and readable text contrast."
+          "description": "Update CO₂ conversions: remove the prior CO2 CSV x10000 conversion so co2CSV is stored as the parsed 'CO2 CSV(%)' numeric percent; multiply parsed 'CO2 Rechts' and 'CO2 Links' by 0.001 before storing; keep existing timestamp parsing, comma-decimal normalization, invalid filtering, and chronological sorting unchanged."
         }
       ]
     },
     {
-      "id": "REQ-22",
-      "summary": "Update the header subtitle copy under the main dashboard title.",
+      "id": "REQ-52",
+      "summary": "Update the CO₂ chart labels, legend, tooltip, and Y-axis label to use percent (%) and rename the CSV series label accordingly.",
       "acceptanceCriteria": [
-        "The subtitle in TemperatureDashboardPage displays exactly “Updated every 10 min”.",
-        "No other header titles (including the browser tab title) are changed."
+        "In frontend/src/components/CO2Chart.tsx, legend and tooltip labels use percent wording (no \"ppm\" anywhere).",
+        "The CO₂ CSV series is labeled exactly \"CO2 CSV (%) - dashed\" in both legend and tooltip.",
+        "The Y-axis label indicates percent (e.g., includes \"(%)\") so the unit is visible on the chart."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
+          "path": "frontend/src/components/CO2Chart.tsx",
           "operation": "modify",
-          "description": "Replace the header subtitle text under “Conceptmachine Live Data” with exactly “Updated every 10 min”, without changing any other titles."
-        }
-      ]
-    },
-    {
-      "id": "REQ-23",
-      "summary": "Clarify in the chart legend that the “Temperature CSV (°F)” series is dashed.",
-      "acceptanceCriteria": [],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/TemperatureChart.tsx",
-          "operation": "modify",
-          "description": "Update the Recharts Legend label/formatter so the CSV series legend text explicitly indicates a dashed style (e.g., “Temperature CSV (°F) (dashed)”) while keeping the filtered series label meaning intact and preserving the dashed stroke rendering for the CSV line."
+          "description": "Adjust CO₂ chart UI text to percent units: remove any 'ppm' wording from tooltip/legend, label the CSV series exactly 'CO2 CSV (%) - dashed' in both tooltip and legend, and update the Y-axis label to include '(%)' so the unit is visible."
         }
       ]
     }

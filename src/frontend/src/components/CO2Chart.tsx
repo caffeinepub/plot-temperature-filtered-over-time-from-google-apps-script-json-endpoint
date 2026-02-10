@@ -3,19 +3,20 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format } from 'date-fns';
 import type { TemperatureDataPoint } from '@/lib/temperatureParsing';
 
-interface TemperatureChartProps {
+interface CO2ChartProps {
   data: TemperatureDataPoint[];
   startIndex: number;
   endIndex: number;
   onRangeChange: (startIndex: number, endIndex: number) => void;
 }
 
-export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: TemperatureChartProps) {
+export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2ChartProps) {
   const chartData = useMemo(() => {
     return data.map((point) => ({
       timestamp: point.timestamp.getTime(),
-      temperatureFiltered: point.temperatureFiltered,
-      temperatureCSV: point.temperatureCSV,
+      co2Right: point.co2Right,
+      co2Left: point.co2Left,
+      co2CSV: point.co2CSV,
       timeLabel: format(point.timestamp, 'HH:mm:ss'),
     }));
   }, [data]);
@@ -38,12 +39,11 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             tickLine={{ stroke: 'oklch(var(--border))' }}
           />
           <YAxis
-            domain={[70, 102]}
             stroke="oklch(var(--muted-foreground))"
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
             tickLine={{ stroke: 'oklch(var(--border))' }}
             label={{
-              value: 'Temperature (°F)',
+              value: 'CO₂ Level (%)',
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
@@ -58,10 +58,15 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             }}
             labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
             formatter={(value: number, name: string) => {
-              const label = name === 'temperatureFiltered' 
-                ? 'Temperature Filtered (°F)' 
-                : 'Temperature CSV (°F) - dashed';
-              return [`${value.toFixed(2)}°F`, label];
+              let label = '';
+              if (name === 'co2Right') label = 'CO2 Right (%)';
+              else if (name === 'co2Left') label = 'CO2 Left (%)';
+              else if (name === 'co2CSV') label = 'CO2 CSV (%) - dashed';
+              
+              const formattedValue = typeof value === 'number' && !isNaN(value) 
+                ? value.toFixed(2) 
+                : '0.00';
+              return [formattedValue, label];
             }}
             labelFormatter={(label) => `Time: ${label}`}
           />
@@ -72,29 +77,39 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             }}
             iconType="line"
             formatter={(value) => {
-              if (value === 'temperatureFiltered') return 'Temperature Filtered (°F)';
-              if (value === 'temperatureCSV') return 'Temperature CSV (°F) - dashed';
+              if (value === 'co2Right') return 'CO2 Right (%)';
+              if (value === 'co2Left') return 'CO2 Left (%)';
+              if (value === 'co2CSV') return 'CO2 CSV (%) - dashed';
               return value;
             }}
           />
           <Line
             type="monotone"
-            dataKey="temperatureFiltered"
-            name="temperatureFiltered"
-            stroke="oklch(var(--chart-1))"
+            dataKey="co2Right"
+            name="co2Right"
+            stroke="oklch(var(--chart-co2-1))"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-1))' }}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-1))' }}
           />
           <Line
             type="monotone"
-            dataKey="temperatureCSV"
-            name="temperatureCSV"
-            stroke="oklch(var(--chart-2))"
+            dataKey="co2Left"
+            name="co2Left"
+            stroke="oklch(var(--chart-co2-2))"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-2))' }}
+          />
+          <Line
+            type="monotone"
+            dataKey="co2CSV"
+            name="co2CSV"
+            stroke="oklch(var(--chart-co2-3))"
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-2))' }}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-3))' }}
           />
           <Brush
             dataKey="timeLabel"

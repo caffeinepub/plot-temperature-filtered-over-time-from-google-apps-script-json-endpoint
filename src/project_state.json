@@ -1,23 +1,24 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 15,
-  "summary": "App to fetch JSON data from a Google Apps Script web endpoint and plot \"Temperature Filtered(F)\" versus \"Timestamp\" (10-second intervals).",
+  "projectStateVersion": 33,
+  "summary": "Dashboard app that fetches time-series JSON data from a Google Apps Script endpoint and visualizes Temperature (Filtered & CSV) and CO₂ (Right/Left/CSV) over a shared timestamp axis (synced zoom/pan), with a professional card-based layout (light mode default, optional dark mode) using accent color #65714B. Header should show title only (no logo). CO₂ scaling: keep CO2 CSV as (%) and scale CO2 Rechts/Links by x0.001 so all three CO₂ series are in (%).",
   "architectural_notes": [
     "Data source is a Google Apps Script web app returning a JSON array of objects.",
     "Chart x-axis uses ISO timestamp field \"Timestamp\"; y-axis uses \"Temperature Filtered(F)\".",
     "Numeric values may be strings using comma as decimal separator (e.g., \"71,86\") and must be parsed accordingly.",
     "Chart should use a fixed Y-axis domain of 70°F to 102°F for temperature visualization.",
-    "UI theme/colors should be aligned with the palette used on https://eagletrax.mypetersime.com/.",
     "Incoming JSON now uses a different structure; \"Timestamp\" is provided in a non-ISO string format (e.g., \"10/02/26 10:42:57\") and must be parsed accordingly.",
-    "Dashboard visual design should be primarily white with accent color #65714B.",
-    "Logo asset handling should support using a provided .avif file (or be converted to a supported web format) and replace the currently displayed logo in the dashboard header.",
-    "Prefer using the provided original JPG (or a safe conversion like PNG/WebP) for the header logo asset, since AVIF caused build/deploy failures.",
-    "User requests using accent color #65714B more prominently across the website/dashboard UI."
+    "JSON endpoint includes CO₂ fields \"CO2 Rechts\", \"CO2 Links\", and \"CO2 CSV(%)\" in the same array objects as temperature data.",
+    "Dashboard will include two full-width chart cards (Temperature and CO₂) stacked vertically, sharing the same time axis domain.",
+    "Chart interactions should support click-drag/scroll zoom with a synchronized time-range state applied to all charts; light mode default with optional dark mode.",
+    "Remove all logo functionality/assets from the UI; header displays title only (no logo image, no logo fallback text).",
+    "CO₂ units/scaling: keep \"CO2 CSV(%)\" as-is (no x10000 ppm conversion); multiply \"CO2 Rechts\" and \"CO2 Links\" by 0.001 so all three CO₂ series are in (%) on the chart."
   ],
   "known_issues": [
-    "Build/deployment repeatedly fails with an internal/configuration error when attempting to use the provided AVIF logo asset."
+    "UI bug: card/plot title bar tint is only applied to part of the header area; should span the full title bar.",
+    "Build/deployment can fail with an \"internal configuration error\" from the Caffeine platform even when retrying builds."
   ],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
       "id": "feature-create-a-dashboard-page-that-fetches-json-time-series-data-from-the-provided-google-apps-script-web-app-endpoint-https-script-google-com-macros-s-akfycbxnsb-bztlwqmbhbo-zbwxzn9444jusqzhjlokpzklra86hxme-rt3nh8x1d-8xo8zjoq-exec-and-visualizes-temperature-filtered-f-as-a-function-of-timestamp",
@@ -202,6 +203,214 @@
         "REQ-23"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-redesign-the-dashboard-page-layout-to-look-classy-and-enterprise-professional-while-keeping-a-card-based-layout-and-keeping-the-primary-accent-color-set-to-65714b-across-the-ui",
+      "title": "Redesign the dashboard page layout to look classy and enterprise/professional while keeping a card-based layout and keeping the primary accent color set to #65714B across the UI.",
+      "reqIds": [
+        "REQ-24"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-second-full-width-co-chart-card-below-the-temperature-chart-card-on-the-dashboard-page-with-both-chart-cards-stacked-vertically-and-each-filling-the-available-container-width",
+      "title": "Add a second full-width CO₂ chart card below the temperature chart card on the dashboard page, with both chart cards stacked vertically and each filling the available container width.",
+      "reqIds": [
+        "REQ-25"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-extend-the-frontend-data-model-and-parsing-to-extract-co-fields-from-the-same-json-endpoint-records-co2-rechts-co2-links-and-co2-csv-and-keep-the-resulting-series-chronologically-sorted-by-timestamp",
+      "title": "Extend the frontend data model and parsing to extract CO₂ fields from the same JSON endpoint records: \"CO2 Rechts\", \"CO2 Links\", and \"CO2 CSV(%)\", and keep the resulting series chronologically sorted by \"Timestamp\".",
+      "reqIds": [
+        "REQ-26"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-implement-the-co-chart-visualization-using-the-parsed-co-fields-plot-co2-rechts-and-co2-links-as-solid-dark-green-lines-and-plot-co2-csv-as-a-dark-green-dashed-line-include-a-legend-that-clearly-labels-all-three-series-in-english-and-indicates-the-dashed-series",
+      "title": "Implement the CO₂ chart visualization using the parsed CO₂ fields: plot \"CO2 Rechts\" and \"CO2 Links\" as solid dark-green lines and plot \"CO2 CSV(%)\" as a dark-green dashed line; include a legend that clearly labels all three series in English and indicates the dashed series.",
+      "reqIds": [
+        "REQ-27"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-change-the-temperature-chart-series-styling-from-the-current-red-to-a-darker-red-shade-for-both-the-solid-temperature-filtered-and-dashed-temperature-csv-series-including-matching-active-dot-color-behavior",
+      "title": "Change the temperature chart series styling from the current red to a darker red shade for both the solid (Temperature Filtered) and dashed (Temperature CSV) series, including matching active-dot color behavior.",
+      "reqIds": [
+        "REQ-28"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-optional-dark-mode-support-with-light-mode-as-the-default-including-a-theme-toggle-control-in-the-dashboard-ui-that-switches-the-app-between-light-and-dark-themes-without-a-page-reload",
+      "title": "Add optional dark mode support with light mode as the default, including a theme toggle control in the dashboard UI that switches the app between light and dark themes without a page reload.",
+      "reqIds": [
+        "REQ-29"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-interactive-time-range-zooming-panning-for-the-charts-using-click-drag-and-scroll-interactions-and-ensure-the-visible-time-range-stays-synchronized-across-both-the-temperature-chart-and-the-co-chart-zoom-pan-on-one-updates-the-other",
+      "title": "Add interactive time-range zooming/panning for the charts using click-drag and scroll interactions, and ensure the visible time range stays synchronized across both the temperature chart and the CO₂ chart (zoom/pan on one updates the other).",
+      "reqIds": [
+        "REQ-30"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-load-the-full-available-dataset-by-default-and-allow-users-to-zoom-into-a-specific-time-window-without-re-fetching-a-subset-provide-a-clear-way-to-return-to-the-full-range-view",
+      "title": "Load the full available dataset by default and allow users to zoom into a specific time window without re-fetching a subset; provide a clear way to return to the full-range view.",
+      "reqIds": [
+        "REQ-31"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-newly-uploaded-jpg-file-2026-02-10-10-54-59-2-jpg-as-a-static-frontend-asset-under-frontend-public-assets-generated-and-update-the-dashboard-header-logo-image-in-frontend-src-pages-temperaturedashboardpage-tsx-to-use-this-jpg-instead-of-the-current-assets-generated-conceptmachine-logo-icon-dim-256x256-png-keeping-the-existing-clean-sizing-alignment-and-preventing-overlap-with-the-title-subtitle",
+      "title": "Add the newly uploaded JPG file (2026-02-10_10-54-59-2.jpg) as a static frontend asset under frontend/public/assets/generated and update the dashboard header logo image in frontend/src/pages/TemperatureDashboardPage.tsx to use this JPG (instead of the current /assets/generated/conceptmachine-logo-icon.dim_256x256.png), keeping the existing clean sizing/alignment and preventing overlap with the title/subtitle.",
+      "reqIds": [
+        "REQ-32"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-chart-card-title-bars-cardheader-for-both-the-temperature-and-co-cards-in-frontend-src-pages-temperaturedashboardpage-tsx-so-the-darker-tint-background-color-is-applied-uniformly-across-the-entire-title-header-area-full-width-and-full-header-height-not-only-to-a-portion-of-the-header",
+      "title": "Fix the chart-card title bars (CardHeader) for both the Temperature and CO₂ cards in frontend/src/pages/TemperatureDashboardPage.tsx so the darker tint/background color is applied uniformly across the entire title/header area (full width and full header height), not only to a portion of the header.",
+      "reqIds": [
+        "REQ-33"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-newly-uploaded-jpg-file-2026-02-10-10-54-59-3-jpg-as-a-static-frontend-asset-under-frontend-public-assets-generated-and-update-the-dashboard-header-logo-image-in-frontend-src-pages-temperaturedashboardpage-tsx-to-use-assets-generated-2026-02-10-10-54-59-3-jpg-replacing-the-current-assets-generated-2026-02-10-10-54-59-2-jpg-reference-keeping-the-existing-clean-sizing-alignment-and-preventing-overlap-with-the-title-subtitle",
+      "title": "Add the newly uploaded JPG file (2026-02-10_10-54-59-3.jpg) as a static frontend asset under frontend/public/assets/generated and update the dashboard header logo image in frontend/src/pages/TemperatureDashboardPage.tsx to use /assets/generated/2026-02-10_10-54-59-3.jpg (replacing the current /assets/generated/2026-02-10_10-54-59-2.jpg reference), keeping the existing clean sizing/alignment and preventing overlap with the title/subtitle.",
+      "reqIds": [
+        "REQ-34"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-header-subtitle-text-in-frontend-src-pages-temperaturedashboardpage-tsx-from-enterprise-data-logging-system-updated-every-10-min-to-exactly-data-logging-updated-every-10-20-min",
+      "title": "Update the header subtitle text in frontend/src/pages/TemperatureDashboardPage.tsx from \"Enterprise Data Logging System • Updated every 10 min\" to exactly \"data logging • Updated every 10-20 min\".",
+      "reqIds": [
+        "REQ-35"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-convert-the-co-csv-series-to-ppm-by-multiplying-the-parsed-co2-csv-values-by-10000-and-update-co-chart-labeling-to-match-change-legend-and-tooltip-text-from-co2-csv-dashed-to-co2-csv-ppm-dashed",
+      "title": "Convert the CO₂ CSV series to ppm by multiplying the parsed \"CO2 CSV(%)\" values by 10000 and update CO₂ chart labeling to match: change legend and tooltip text from \"CO2 CSV (%) - dashed\" to \"CO2 CSV (ppm) - dashed\".",
+      "reqIds": [
+        "REQ-36"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-header-logo-img-in-frontend-src-pages-temperaturedashboardpage-tsx-to-use-src-assets-generated-petersimelogo-jpg-and-keep-the-exact-same-sizing-and-position-alignment-as-the-current-logo-do-not-change-the-existing-size-position-classes",
+      "title": "Update the header logo <img> in \"frontend/src/pages/TemperatureDashboardPage.tsx\" to use src \"/assets/generated/PetersimeLogo.jpg\" and keep the exact same sizing and position/alignment as the current logo (do not change the existing size/position classes).",
+      "reqIds": [
+        "REQ-38"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-user-provided-static-image-file-petersimelogo-jpg-to-the-frontend-static-assets-under-frontend-public-assets-generated-and-ensure-it-is-included-in-the-deployed-build-output-so-the-existing-header-logo-reference-src-assets-generated-petersimelogo-jpg-loads-successfully",
+      "title": "Add the user-provided static image file \"PetersimeLogo.jpg\" to the frontend static assets under \"frontend/public/assets/generated/\" and ensure it is included in the deployed build output so the existing header logo reference (src \"/assets/generated/PetersimeLogo.jpg\") loads successfully.",
+      "reqIds": [
+        "REQ-39"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-uploaded-image-file-petersimelogov2-jpg-to-the-frontend-static-assets-under-frontend-public-assets-generated-and-ensure-it-is-included-in-the-deployed-build-output-so-it-can-be-loaded-from-the-public-path-assets-generated-petersimelogov2-jpg",
+      "title": "Add the uploaded image file \"PetersimeLogov2.jpg\" to the frontend static assets under \"frontend/public/assets/generated/\" and ensure it is included in the deployed build output so it can be loaded from the public path \"/assets/generated/PetersimeLogov2.jpg\".",
+      "reqIds": [
+        "REQ-40"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-dashboard-header-logo-img-in-frontend-src-pages-temperaturedashboardpage-tsx-to-use-src-assets-generated-petersimelogov2-jpg-replacing-the-current-assets-generated-petersimelogo-jpg-while-keeping-the-exact-same-sizing-and-position-alignment-classes-so-the-layout-does-not-change",
+      "title": "Update the dashboard header logo <img> in \"frontend/src/pages/TemperatureDashboardPage.tsx\" to use src \"/assets/generated/PetersimeLogov2.jpg\" (replacing the current \"/assets/generated/PetersimeLogo.jpg\") while keeping the exact same sizing and position/alignment classes so the layout does not change.",
+      "reqIds": [
+        "REQ-41"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-eliminate-broken-stale-logo-asset-references-so-the-app-uses-exactly-one-header-logo-path-update-the-dashboard-header-img-in-frontend-src-pages-temperaturedashboardpage-tsx-to-reference-the-single-correct-deployed-asset-path-assets-generated-petersimelogov2-jpg-and-remove-replace-any-other-logo-paths-used-by-the-dashboard-header",
+      "title": "Eliminate broken/stale logo asset references so the app uses exactly one header logo path: update the dashboard header <img> in \"frontend/src/pages/TemperatureDashboardPage.tsx\" to reference the single, correct deployed asset path \"/assets/generated/PetersimeLogov2.jpg\" and remove/replace any other logo paths used by the dashboard header.",
+      "reqIds": [
+        "REQ-43"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-visible-english-only-fallback-when-the-header-logo-fails-to-load-if-the-image-at-assets-generated-petersimelogov2-jpg-errors-show-a-small-inline-text-indicator-in-the-header-next-to-where-the-logo-would-be-stating-that-the-logo-failed-to-load-without-breaking-the-header-layout",
+      "title": "Add a visible, English-only fallback when the header logo fails to load: if the image at \"/assets/generated/PetersimeLogov2.jpg\" errors, show a small inline text indicator in the header (next to where the logo would be) stating that the logo failed to load, without breaking the header layout.",
+      "reqIds": [
+        "REQ-44"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-unused-generated-logo-image-files-from-frontend-public-assets-generated-that-are-not-referenced-anywhere-in-the-current-app-keeping-only-what-is-required-for-the-deployed-header-logo-to-prevent-future-confusion-about-which-asset-is-active",
+      "title": "Remove unused/generated logo image files from \"frontend/public/assets/generated\" that are not referenced anywhere in the current app, keeping only what is required for the deployed header logo, to prevent future confusion about which asset is active.",
+      "reqIds": [
+        "REQ-45"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-completely-redo-the-dashboard-header-logo-implementation-in-frontend-src-pages-temperaturedashboardpage-tsx-so-the-header-uses-only-assets-generated-petersimelogov3-jpg-as-the-logo-image-source-with-no-references-to-older-logo-filenames-e-g-petersimelogov2-jpg-petersimelogo-jpg-or-date-stamped-logo-files",
+      "title": "Completely redo the dashboard header logo implementation in \"frontend/src/pages/TemperatureDashboardPage.tsx\" so the header uses ONLY \"/assets/generated/PetersimeLogov3.jpg\" as the logo image source, with no references to older logo filenames (e.g., PetersimeLogov2.jpg, PetersimeLogo.jpg, or date-stamped logo files).",
+      "reqIds": [
+        "REQ-47"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-current-in-header-error-fallback-ui-that-displays-the-user-facing-text-logo-failed-to-load-and-replace-it-with-a-clean-reworked-logo-rendering-that-does-not-show-any-logo-error-text-in-the-header-ui",
+      "title": "Remove the current in-header error fallback UI that displays the user-facing text \"Logo failed to load\" and replace it with a clean reworked logo rendering that does not show any logo-error text in the header UI.",
+      "reqIds": [
+        "REQ-48"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-clean-up-logo-assets-so-the-app-does-not-contain-multiple-confusing-header-logo-files-remove-unused-logo-images-in-frontend-public-assets-generated-that-are-not-referenced-anywhere-after-switching-to-petersimelogov3-jpg-keeping-only-what-is-required-for-the-deployed-header-logo",
+      "title": "Clean up logo assets so the app does not contain multiple confusing header-logo files: remove unused logo images in \"frontend/public/assets/generated\" that are not referenced anywhere after switching to PetersimeLogov3.jpg, keeping only what is required for the deployed header logo.",
+      "reqIds": [
+        "REQ-49"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-dashboard-header-logo-entirely-so-the-header-displays-only-the-existing-title-subtitle-text-block-no-logo-image-no-logo-wrapper-spacing-and-remove-any-logo-related-ui-in-the-header",
+      "title": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
+      "reqIds": [
+        "REQ-50"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-co-data-parsing-so-that-all-three-co-series-are-in-percent-keep-co2-csv-in-its-original-unit-no-x10000-conversion-and-manually-scale-co2-rechts-and-co2-links-by-multiplying-each-by-0-001",
+      "title": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
+      "reqIds": [
+        "REQ-51"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-co-chart-labels-legend-tooltip-and-axis-labeling-to-reflect-percentages-including-changing-the-co-csv-series-label-to-co2-csv-dashed-and-removing-any-ppm-wording",
+      "title": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
+      "reqIds": [
+        "REQ-52"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -248,12 +457,6 @@
       "status": "pending"
     },
     {
-      "id": "AR-8",
-      "summary": "Add the website logo (provided as an image) to the dashboard UI.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
       "id": "AR-9",
       "summary": "Plot an additional series \"Temperature CSV(F)\" as a red dashed line and include it in the chart legend.",
       "reqIds": [],
@@ -262,18 +465,6 @@
     {
       "id": "AR-10",
       "summary": "Switch to a clean, white design with accent color #65714B applied consistently across the dashboard UI and chart styling.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-11",
-      "summary": "Replace/remove the current dashboard logo and use the provided .avif file as the new logo asset in the header.",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-12",
-      "summary": "Use the user-provided original JPG photo as the dashboard header logo asset (instead of the problematic AVIF), adjusting size/placement as needed.",
       "reqIds": [],
       "status": "pending"
     },
@@ -304,6 +495,60 @@
     {
       "id": "AR-17",
       "summary": "Update the chart legend so it clearly indicates that \"Temperature CSV (°F)\" is a dashed (stippled) line.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-18",
+      "summary": "Design a new classy, professional enterprise-grade dashboard layout (card layout) while keeping accent color #65714B and a white/light default appearance.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-19",
+      "summary": "Add a second full-width CO₂ chart card below the temperature chart, plotting \"CO2 Rechts\" and \"CO2 Links\" plus \"CO2 CSV(%)\" as a dashed line, using dark-green colors.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-20",
+      "summary": "Change temperature series styling from red to a darker red shade (including the existing solid and dashed temperature series).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-21",
+      "summary": "Add an optional dark mode (theme toggle), with light mode as the default.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-22",
+      "summary": "Implement interactive click-drag/scroll zoom on time axis and synchronize the visible time range across all charts when zooming/panning on any one chart.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-23",
+      "summary": "Load the full available dataset by default, while allowing users to zoom into a specific time window on the charts.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-24",
+      "summary": "Fix the card/plot title bars so the darker tint fills the entire title/header area uniformly (not partially).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-26",
+      "summary": "Update header subtitle text from \"Enterprise Data Logging System • Updated every 10 min\" to \"data logging • Updated every 10-20 min\".",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-34",
+      "summary": "Update CO₂ parsing/visualization so CO2 Rechts and CO2 Links are multiplied by 0.001 (manual scaling) and CO2 CSV remains in its original unit \"CO2 CSV(%)\" so all three CO₂ series are shown in (%).",
       "reqIds": [],
       "status": "pending"
     }

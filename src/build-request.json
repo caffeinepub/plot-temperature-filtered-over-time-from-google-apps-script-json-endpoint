@@ -1,81 +1,78 @@
 {
   "kind": "build_request",
-  "title": "Update footer credit text, header accent color, subtitle copy, and legend dashed labeling",
+  "title": "Remove header logo entirely and revert CO₂ units/scaling to percentages",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-20",
-      "text": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+      "id": "REQ-50",
+      "text": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "recent-messages"
         ],
         "quotes": [
-          "change Built with love using\ncaffeine.ai to \"built by Hannes @Petersime\""
+          "ok, doe eens ALLES van het logo weg, enkel titel. Ook alles die te maken heeft met het logo"
         ]
       },
       "acceptanceCriteria": [
-        "In TemperatureDashboardPage, the footer no longer displays the words “Built with love using” or “caffeine.ai”.",
-        "The footer displays exactly: “Built by Hannes @Petersime”.",
-        "The footer remains visually consistent with the existing footer layout (centered, small text), and does not introduce new user-facing text beyond the requested string."
+        "In frontend/src/pages/TemperatureDashboardPage.tsx, the <img> logo element and its surrounding logo-only wrapper are removed from the header layout.",
+        "The header still shows the title \"Conceptmachine Live Data\" and the subtitle \"data logging • Updated every 10-20 min\" with clean alignment and spacing.",
+        "There is no user-facing logo-related text (e.g., no logo error/fallback messages) anywhere in the header."
       ]
     },
     {
-      "id": "REQ-21",
-      "text": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+      "id": "REQ-51",
+      "text": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "recent-messages"
         ],
         "quotes": [
-          "kun je in titelbalk ook wat kleur #65714B gebruiken?"
+          "ik had je verteld dat CO2 CSV x10000 moest gedaan worden maar dat mag weer naar het originele \"CO2 CSV(%)\"",
+          "CO2 Rechts mag x0.001 gedaan worden manueel",
+          "CO2 Links ook x0.001",
+          "alle 3 de co2 elementen staan dan in (%)"
         ]
       },
       "acceptanceCriteria": [
-        "The header/title bar area at the top of TemperatureDashboardPage clearly incorporates #65714B (via border, background accent strip, or key header elements).",
-        "Header text remains readable (sufficient contrast) and the logo/title alignment does not break."
+        "In frontend/src/lib/temperatureParsing.ts, \"CO2 CSV(%)\" is parsed as a numeric percent value and is NOT multiplied by 10000.",
+        "In frontend/src/lib/temperatureParsing.ts, parsed values for \"CO2 Rechts\" and \"CO2 Links\" are each multiplied by 0.001 before being stored in TemperatureDataPoint.",
+        "After parsing, TemperatureDataPoint.co2Right, TemperatureDataPoint.co2Left, and TemperatureDataPoint.co2CSV all represent percentages (%).",
+        "Existing timestamp parsing, numeric normalization (comma decimals), and chronological sorting behavior remains intact."
       ]
     },
     {
-      "id": "REQ-22",
-      "text": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+      "id": "REQ-52",
+      "text": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "recent-messages"
         ],
         "quotes": [
-          "Kun je er ook ipv dit \"Real-time temperature monitoring system\" schrijven: \"updated every 10 min\""
+          "alle 3 de co2 elementen staan dan in (%)",
+          "dat mag weer naar het originele \"CO2 CSV(%)\""
         ]
       },
       "acceptanceCriteria": [
-        "The subtitle in TemperatureDashboardPage displays exactly “Updated every 10 min”.",
-        "No other header titles (including the browser tab title) are changed."
+        "In frontend/src/components/CO2Chart.tsx, legend and tooltip labels use percent wording (no \"ppm\" anywhere).",
+        "The CO₂ CSV series is labeled exactly \"CO2 CSV (%) - dashed\" in both legend and tooltip.",
+        "The Y-axis label indicates percent (e.g., includes \"(%)\") so the unit is visible on the chart."
       ]
-    },
-    {
-      "id": "REQ-23",
-      "text": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-1"
-        ],
-        "quotes": [
-          "Ook in de legende moet het duidelijk zijn dat Temperature CSV (°F) stippellijntjes zijn\"]},",
-          "acceptanceCriteria:[",
-          "The legend entry for the CSV series explicitly communicates a dashed style (e.g., “Temperature CSV (°F) (dashed)”).",
-          "The “Temperature Filtered (°F)” legend entry remains clearly labeled and unchanged in meaning.",
-          "The CSV series remains rendered with a dashed stroke in the chart."
-        ]
-      },
-      "acceptanceCriteria": []
     }
   ],
-  "constraints": [],
-  "nonGoals": [],
+  "constraints": [
+    "Do not edit any files under frontend/src/components/ui or any other immutablePaths listed in SYSTEM_CONTEXT.",
+    "Keep all user-facing text in English.",
+    "Do not change the Google Apps Script endpoint URL used for fetching data."
+  ],
+  "nonGoals": [
+    "Do not add new logo assets or replace the logo with another image.",
+    "Do not change temperature chart behavior, styling, or the synced zoom/pan behavior across charts beyond what is required for the CO₂ unit changes.",
+    "Do not introduce new backend canister methods or change backend behavior for this request."
+  ],
   "imageRequirements": {
     "required": [],
     "edits": []

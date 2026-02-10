@@ -1,12 +1,16 @@
 {
   "frontend/src/App.tsx": "Main application component that renders the temperature dashboard page as the root view.",
-  "frontend/src/pages/TemperatureDashboardPage.tsx": "Complete dashboard page with header featuring #65714B accent border, updated subtitle \"Updated every 10 min\", chart display for both temperature series, loading/error states, manual refresh button, last updated timestamp, and simplified footer with \"Built by Hannes @Petersime\" text.",
-  "frontend/src/components/TemperatureChart.tsx": "Recharts-based line chart displaying two temperature series with fixed Y-axis (70-102°F): Temperature Filtered as a solid red line and Temperature CSV as a red dashed line, with legend and tooltip explicitly indicating the dashed style for the CSV series.",
-  "frontend/src/hooks/useTemperatureSeries.ts": "React Query hook that fetches temperature data with 10-second auto-refresh interval and tracks last updated timestamp.",
-  "frontend/src/lib/temperatureDataSource.ts": "Data fetching module that retrieves JSON from the Google Apps Script endpoint and handles the new schema where temperature fields may be numbers or strings.",
-  "frontend/src/lib/temperatureParsing.ts": "Parsing utilities that handle both numeric and string temperature fields (including comma-decimal strings), parse DD/MM/YY HH:mm:ss timestamps, and extract both Temperature Filtered and Temperature CSV values into a unified data model sorted chronologically.",
+  "frontend/src/pages/TemperatureDashboardPage.tsx": "Enterprise dashboard page with professional layout featuring #65714B accent, dark/light mode toggle, synchronized temperature and CO₂ charts stacked vertically in full-width cards with uniform header backgrounds, zoom reset control, and clean header with title/subtitle only (logo removed).",
+  "frontend/src/components/TemperatureChart.tsx": "Recharts-based line chart displaying two temperature series with darker red colors (solid and dashed), fixed Y-axis (70-102°F), interactive brush for zoom/pan, and synchronized time window control.",
+  "frontend/src/hooks/useTemperatureSeries.ts": "React Query hook that fetches temperature and CO₂ data with 10-second auto-refresh interval and tracks last updated timestamp.",
+  "frontend/src/lib/temperatureDataSource.ts": "Data fetching module that retrieves JSON from the Google Apps Script endpoint and handles the extended schema including temperature and CO₂ fields.",
+  "frontend/src/lib/temperatureParsing.ts": "Extended parsing utilities that handle both temperature and CO₂ fields from JSON records, parse DD/MM/YY HH:mm:ss timestamps, keep CO2 CSV(%) as-is, scale CO2 Rechts and CO2 Links by 0.001 to convert to percentages, and extract all numeric values into a unified data model sorted chronologically.",
   "frontend/src/hooks/useQueries.ts": "Placeholder file reserved for future backend canister queries if proxying is needed.",
-  "frontend/src/index.css": "Global styles with clean white-forward OKLCH color system featuring olive green (#65714B) as primary accent, red chart colors for temperature series, and full light/dark mode support.",
+  "frontend/src/index.css": "Global styles with OKLCH color system featuring olive green (#65714B) as primary accent, darker red chart colors for temperature series, dark green chart colors for CO₂ series, and full light/dark mode support.",
   "frontend/tailwind.config.js": "Tailwind configuration with extended font families, clean white theme color tokens mapped to OKLCH variables with olive accent, custom shadows, and animation utilities.",
-  "frontend/index.html": "HTML entry point with document title set to \"Conceptmachine Live Data\" for browser tab branding."
+  "frontend/index.html": "HTML entry point with document title set to \"Conceptmachine Live Data\" for browser tab branding.",
+  "frontend/src/hooks/useSyncedTimeWindow.ts": "Custom hook that manages a shared time window state for synchronized zoom/pan across multiple charts, providing range setters and reset functionality.",
+  "frontend/src/components/CO2Chart.tsx": "Recharts-based line chart displaying three CO₂ series in dark green (CO2 Right (%), CO2 Left (%) solid, CO2 CSV (%) dashed), all in percentage units, with interactive brush for zoom/pan and synchronized time window control.",
+  "frontend/public/assets/generated/PetersimeLogo.jpg": "Binary image file containing the Petersime company logo, served as a static asset at /assets/generated/PetersimeLogo.jpg for display in the dashboard header.",
+  "frontend/public/assets/generated/.gitkeep": "Placeholder file to ensure the generated assets directory structure is preserved in version control and build processes."
 }

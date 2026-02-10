@@ -2,8 +2,8 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-dashboard-footer-credit-to-replace-the-current-built-with-love-using-caffeine-ai-pill-link-with-the-plain-text-built-by-hannes-petersime-no-caffeine-ai-wording-shown",
-      "featureTitle": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+      "featureId": "feature-remove-the-dashboard-header-logo-entirely-so-the-header-displays-only-the-existing-title-subtitle-text-block-no-logo-image-no-logo-wrapper-spacing-and-remove-any-logo-related-ui-in-the-header",
+      "featureTitle": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
       "files": [
         "frontend/src/pages/TemperatureDashboardPage.tsx"
       ],
@@ -16,15 +16,15 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-20"
+        "REQ-50"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-apply-the-accent-color-65714b-to-the-dashboard-title-bar-header-bar-so-the-header-visually-uses-the-accent-color-more-prominently-while-keeping-readability-and-the-existing-layout-intact",
-      "featureTitle": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+      "featureId": "feature-update-co-data-parsing-so-that-all-three-co-series-are-in-percent-keep-co2-csv-in-its-original-unit-no-x10000-conversion-and-manually-scale-co2-rechts-and-co2-links-by-multiplying-each-by-0-001",
+      "featureTitle": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
       "files": [
-        "frontend/src/pages/TemperatureDashboardPage.tsx"
+        "frontend/src/lib/temperatureParsing.ts"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -35,15 +35,15 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-21"
+        "REQ-51"
       ],
       "confidence": "high"
     },
     {
-      "featureId": "feature-replace-the-header-subtitle-text-under-conceptmachine-live-data-from-real-time-temperature-monitoring-system-to-updated-every-10-min",
-      "featureTitle": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+      "featureId": "feature-update-the-co-chart-labels-legend-tooltip-and-axis-labeling-to-reflect-percentages-including-changing-the-co-csv-series-label-to-co2-csv-dashed-and-removing-any-ppm-wording",
+      "featureTitle": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
       "files": [
-        "frontend/src/pages/TemperatureDashboardPage.tsx"
+        "frontend/src/components/CO2Chart.tsx"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -54,26 +54,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-22"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-the-chart-legend-labeling-so-it-clearly-indicates-that-temperature-csv-f-is-represented-by-a-dashed-line",
-      "featureTitle": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
-      "files": [
-        "frontend/src/components/TemperatureChart.tsx"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-23"
+        "REQ-52"
       ],
       "confidence": "high"
     }

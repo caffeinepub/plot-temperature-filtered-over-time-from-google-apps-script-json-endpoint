@@ -1,18 +1,18 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-10T11:12:51.366Z",
+  "generatedAt": "2026-02-10T12:52:14.625Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 4,
+    "total": 3,
+    "implemented": 3,
     "items": [
       {
-        "id": "REQ-20",
-        "summary": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+        "id": "REQ-50",
+        "summary": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
         "status": "implemented",
         "plannedFiles": [
           "frontend/src/pages/TemperatureDashboardPage.tsx"
@@ -22,36 +22,25 @@
         ]
       },
       {
-        "id": "REQ-21",
-        "summary": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+        "id": "REQ-51",
+        "summary": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
+          "frontend/src/lib/temperatureParsing.ts"
         ],
         "matchedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
+          "frontend/src/lib/temperatureParsing.ts"
         ]
       },
       {
-        "id": "REQ-22",
-        "summary": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+        "id": "REQ-52",
+        "summary": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
+          "frontend/src/components/CO2Chart.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
-        ]
-      },
-      {
-        "id": "REQ-23",
-        "summary": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/TemperatureChart.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/TemperatureChart.tsx"
+          "frontend/src/components/CO2Chart.tsx"
         ]
       }
     ]
@@ -61,7 +50,8 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/TemperatureChart.tsx",
+    "frontend/src/components/CO2Chart.tsx",
+    "frontend/src/lib/temperatureParsing.ts",
     "frontend/src/pages/TemperatureDashboardPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",

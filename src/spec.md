@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Refresh the dashboard header and footer copy/styling and clarify the chart legend labeling for the dashed CSV temperature series.
+**Goal:** Remove the header logo entirely and ensure all CO₂ data is displayed consistently in percent (%) across parsing and chart UI.
 
 **Planned changes:**
-- Replace the footer credit pill/link text with plain centered text: “Built by Hannes @Petersime”, removing any “Built with love using” and “caffeine.ai” wording.
-- Apply accent color #65714B more prominently within the TemperatureDashboardPage header/title bar while keeping layout and readability intact.
-- Update the header subtitle under “Conceptmachine Live Data” to: “Updated every 10 min”.
-- Update the chart legend text so the “Temperature CSV (°F)” entry explicitly indicates it is a dashed line, while keeping the filtered series labeling unchanged in meaning.
+- Remove the logo `<img>` and any logo-specific wrapper/spacing or logo-related UI from the dashboard header, leaving only the existing title/subtitle text block.
+- Update CO₂ parsing so `CO2 CSV(%)` stays in its original percent unit (no x10000), while `CO2 Rechts` and `CO2 Links` are each scaled by multiplying by `0.001`.
+- Update CO₂ chart legend/tooltip/axis labeling to use percent wording only (no “ppm”), and label the CO₂ CSV series exactly as `CO2 CSV (%) - dashed`.
 
-**User-visible outcome:** The dashboard shows the updated footer credit, a header that incorporates the #65714B accent color, a new subtitle (“Updated every 10 min”), and a legend that clearly marks the CSV temperature line as dashed.
+**User-visible outcome:** The dashboard header shows only the title and subtitle (no logo), and the CO₂ chart displays three series all in % with correct labels and axis unit.

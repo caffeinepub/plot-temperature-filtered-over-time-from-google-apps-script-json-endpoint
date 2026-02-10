@@ -1,41 +1,60 @@
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, Moon, Sun, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TemperatureChart } from '@/components/TemperatureChart';
+import { CO2Chart } from '@/components/CO2Chart';
 import { useTemperatureSeries } from '@/hooks/useTemperatureSeries';
+import { useSyncedTimeWindow } from '@/hooks/useSyncedTimeWindow';
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
 
 export function TemperatureDashboardPage() {
   const { data, isLoading, isError, error, isRefetching, refetch, lastUpdated } = useTemperatureSeries();
+  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(data?.length || 0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b-4 border-[#65714B] bg-card shadow-sm">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <img 
-                src="/assets/2026-02-10_10-54-59-1.jpg" 
-                alt="Conceptmachine Logo" 
-                className="h-12 w-12 object-contain"
-              />
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                  Conceptmachine Live Data
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Updated every 10 min
-                </p>
-              </div>
+      <header className="border-b-4 border-primary bg-card shadow-lg">
+        <div className="container mx-auto px-6 py-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                Conceptmachine Live Data
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                data logging • Updated every 10-20 min
+              </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {lastUpdated && (
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-muted-foreground hidden sm:block">
                   Last updated: {format(lastUpdated, 'HH:mm:ss')}
                 </div>
               )}
+              <Button
+                onClick={toggleTheme}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                <span className="hidden sm:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
+              </Button>
               <Button
                 onClick={() => refetch()}
                 disabled={isLoading || isRefetching}
@@ -44,7 +63,7 @@ export function TemperatureDashboardPage() {
                 className="gap-2"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
-                {isRefetching ? 'Refreshing...' : 'Refresh'}
+                <span className="hidden sm:inline">{isRefetching ? 'Refreshing...' : 'Refresh'}</span>
               </Button>
             </div>
           </div>
@@ -52,24 +71,24 @@ export function TemperatureDashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-6 py-8 space-y-6">
         {isLoading && !data && (
-          <Card>
+          <Card className="shadow-lg">
             <CardContent className="flex items-center justify-center py-16">
               <div className="text-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-muted-foreground">Loading temperature data...</p>
+                <p className="text-muted-foreground">Loading data...</p>
               </div>
             </CardContent>
           </Card>
         )}
 
         {isError && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="shadow-lg">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Loading Data</AlertTitle>
             <AlertDescription className="mt-2">
-              {error instanceof Error ? error.message : 'Failed to fetch temperature data'}
+              {error instanceof Error ? error.message : 'Failed to fetch data'}
               <Button
                 onClick={() => refetch()}
                 variant="outline"
@@ -83,7 +102,7 @@ export function TemperatureDashboardPage() {
         )}
 
         {data && data.length === 0 && !isLoading && (
-          <Alert>
+          <Alert className="shadow-lg">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>No Data Available</AlertTitle>
             <AlertDescription>
@@ -93,28 +112,74 @@ export function TemperatureDashboardPage() {
         )}
 
         {data && data.length > 0 && (
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Temperature Over Time</span>
-                {isRefetching && (
-                  <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-                    <RefreshCw className="h-3 w-3 animate-spin" />
-                    Refreshing...
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TemperatureChart data={data} />
-            </CardContent>
-          </Card>
+          <>
+            {/* Zoom Controls */}
+            {isZoomed && (
+              <div className="flex justify-end">
+                <Button
+                  onClick={resetZoom}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset Zoom
+                </Button>
+              </div>
+            )}
+
+            {/* Temperature Chart */}
+            <Card className="shadow-lg border-2">
+              <CardHeader className="border-b bg-muted/30 -m-px p-6">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="text-xl">Temperature Over Time</span>
+                  {isRefetching && (
+                    <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Refreshing...
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <TemperatureChart 
+                  data={data} 
+                  startIndex={visibleRange.startIndex}
+                  endIndex={visibleRange.endIndex}
+                  onRangeChange={setRange}
+                />
+              </CardContent>
+            </Card>
+
+            {/* CO2 Chart */}
+            <Card className="shadow-lg border-2">
+              <CardHeader className="border-b bg-muted/30 -m-px p-6">
+                <CardTitle className="flex items-center justify-between">
+                  <span className="text-xl">CO₂ Levels Over Time</span>
+                  {isRefetching && (
+                    <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Refreshing...
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <CO2Chart 
+                  data={data}
+                  startIndex={visibleRange.startIndex}
+                  endIndex={visibleRange.endIndex}
+                  onRangeChange={setRange}
+                />
+              </CardContent>
+            </Card>
+          </>
         )}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-16">
-        <div className="container mx-auto px-4 py-6">
+        <div className="container mx-auto px-6 py-6">
           <div className="text-center text-sm text-muted-foreground">
             Built by Hannes @Petersime
           </div>

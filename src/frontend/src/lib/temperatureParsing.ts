@@ -2,20 +2,26 @@ export interface TemperatureDataPoint {
   timestamp: Date;
   temperatureFiltered: number;
   temperatureCSV: number;
+  co2Right: number;
+  co2Left: number;
+  co2CSV: number;
 }
 
 interface RawDataPoint {
   Timestamp: string;
   'Temperature Filtered(F)': string | number;
   'Temperature CSV(F)': string | number;
+  'CO2 Rechts': string | number;
+  'CO2 Links': string | number;
+  'CO2 CSV(%)': string | number;
   [key: string]: unknown;
 }
 
 /**
- * Parses a temperature value that may be a number or string with comma as decimal separator
+ * Parses a numeric value that may be a number or string with comma as decimal separator
  * Examples: "71,86" -> 71.86, "71.86" -> 71.86, 71.86 -> 71.86
  */
-function parseTemperature(value: string | number): number | null {
+function parseNumericValue(value: string | number): number | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -69,21 +75,38 @@ function parseTimestamp(value: string): Date | null {
 }
 
 /**
- * Parses raw temperature data from the API and filters out invalid points
+ * Parses raw temperature and CO2 data from the API and filters out invalid points
  */
 export function parseTemperatureData(rawData: RawDataPoint[]): TemperatureDataPoint[] {
   const validPoints: TemperatureDataPoint[] = [];
 
   for (const point of rawData) {
     const timestamp = parseTimestamp(point.Timestamp);
-    const temperatureFiltered = parseTemperature(point['Temperature Filtered(F)']);
-    const temperatureCSV = parseTemperature(point['Temperature CSV(F)']);
+    const temperatureFiltered = parseNumericValue(point['Temperature Filtered(F)']);
+    const temperatureCSV = parseNumericValue(point['Temperature CSV(F)']);
+    const co2RightRaw = parseNumericValue(point['CO2 Rechts']);
+    const co2LeftRaw = parseNumericValue(point['CO2 Links']);
+    const co2CSV = parseNumericValue(point['CO2 CSV(%)']);
 
-    if (timestamp && temperatureFiltered !== null && temperatureCSV !== null) {
+    // Convert CO2 Rechts and Links to percentage by multiplying by 0.001
+    const co2Right = co2RightRaw !== null ? co2RightRaw * 0.001 : null;
+    const co2Left = co2LeftRaw !== null ? co2LeftRaw * 0.001 : null;
+
+    if (
+      timestamp && 
+      temperatureFiltered !== null && 
+      temperatureCSV !== null &&
+      co2Right !== null &&
+      co2Left !== null &&
+      co2CSV !== null
+    ) {
       validPoints.push({
         timestamp,
         temperatureFiltered,
         temperatureCSV,
+        co2Right,
+        co2Left,
+        co2CSV,
       });
     }
   }
