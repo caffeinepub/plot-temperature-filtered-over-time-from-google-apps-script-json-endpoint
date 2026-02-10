@@ -1,0 +1,71 @@
+{
+  "kind": "coverage_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-10T11:12:51.366Z",
+  "sources": {
+    "buildRequest": true,
+    "implementationPlan": true
+  },
+  "requirements": {
+    "total": 4,
+    "implemented": 4,
+    "items": [
+      {
+        "id": "REQ-20",
+        "summary": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-21",
+        "summary": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-22",
+        "summary": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/TemperatureDashboardPage.tsx"
+        ]
+      },
+      {
+        "id": "REQ-23",
+        "summary": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/TemperatureChart.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/TemperatureChart.tsx"
+        ]
+      }
+    ]
+  },
+  "changedFiles": [
+    "build-request.json",
+    "feature_evidence.json",
+    "frontend-file-summaries.txt",
+    "frontend-implementation-plan.json",
+    "frontend/src/components/TemperatureChart.tsx",
+    "frontend/src/pages/TemperatureDashboardPage.tsx",
+    "project_state.json",
+    "scratch/component-selection.json",
+    "spec.md",
+    "spec_vs_diff_report.json"
+  ]
+}

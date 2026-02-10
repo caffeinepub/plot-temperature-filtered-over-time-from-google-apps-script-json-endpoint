@@ -1,2 +1,3 @@
-# plot-temperature-filtered-over-time-from-google-apps-script-json-endpoint
-Exported from Caffeine project: Plot Temperature Filtered over time from Google Apps Script JSON endpoint
+## 
+
+To run app build and run docker image: `docker build -t app . docker run -it --network host app`

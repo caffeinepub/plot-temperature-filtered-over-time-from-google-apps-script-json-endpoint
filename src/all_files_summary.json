@@ -1,0 +1,20 @@
+{
+  "backend/main.mo": "Defines a canister exposing a transform query and a helper that performs HTTP GET requests via http-outcalls.",
+  "feature_evidence.json": "Contains feature evidence metadata mapping feature IDs to affected files and components.",
+  "frontend-file-summaries.txt": "Lists short descriptions of each frontend file for reference during build planning.",
+  "frontend/index.css": "Sets global Tailwind base styles and OKLCH color variables for light/dark themes.",
+  "frontend/index.html": "HTML entry point defining the root container and loading the main React module.",
+  "frontend/src/App.tsx": "Root React component that renders the TemperatureDashboardPage.",
+  "frontend/src/components/TemperatureChart.tsx": "Recharts-based temperature chart rendering filtered and CSV series with solid and dashed red lines and customized legend/tooltip.",
+  "frontend/src/hooks/useActor.ts": "React Query hook that manages authenticated or anonymous canister actor creation and invalidates dependent queries on identity change.",
+  "frontend/src/hooks/useInternetIdentity.ts": "Implements Internet Identity context, login handling, identity persistence, and related auth state logic.",
+  "frontend/src/hooks/useQueries.ts": "Placeholder module reserved for future backend query hooks.",
+  "frontend/src/hooks/useTemperatureSeries.ts": "React Query hook fetching temperature data with 10‑second refresh and tracking last-updated time.",
+  "frontend/src/index.css": "Defines updated Tailwind base variables using a clean white theme with olive accents and shared chart colors.",
+  "frontend/src/lib/temperatureDataSource.ts": "Fetches raw temperature JSON from the Google Apps Script endpoint and parses it into typed data points.",
+  "frontend/src/lib/temperatureParsing.ts": "Parses raw temperature data and timestamps, normalizing numeric formats and filtering invalid points before sorting chronologically.",
+  "frontend/src/main.tsx": "Bootstraps the React app, setting up React Query and Internet Identity providers before rendering the root component.",
+  "frontend/src/pages/TemperatureDashboardPage.tsx": "Renders the temperature dashboard with loading, error, refresh controls, and a time‑series temperature chart using fetched data.",
+  "frontend/tailwind.config.js": "Configures Tailwind theme settings, colors, fonts, animations, and plugins for the frontend UI.",
+  "project_state.json": "Stores project metadata, requirements, architectural notes, and known issues related to temperature‑data visualization features."
+}

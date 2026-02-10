@@ -1,0 +1,315 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 15,
+  "summary": "App to fetch JSON data from a Google Apps Script web endpoint and plot \"Temperature Filtered(F)\" versus \"Timestamp\" (10-second intervals).",
+  "architectural_notes": [
+    "Data source is a Google Apps Script web app returning a JSON array of objects.",
+    "Chart x-axis uses ISO timestamp field \"Timestamp\"; y-axis uses \"Temperature Filtered(F)\".",
+    "Numeric values may be strings using comma as decimal separator (e.g., \"71,86\") and must be parsed accordingly.",
+    "Chart should use a fixed Y-axis domain of 70°F to 102°F for temperature visualization.",
+    "UI theme/colors should be aligned with the palette used on https://eagletrax.mypetersime.com/.",
+    "Incoming JSON now uses a different structure; \"Timestamp\" is provided in a non-ISO string format (e.g., \"10/02/26 10:42:57\") and must be parsed accordingly.",
+    "Dashboard visual design should be primarily white with accent color #65714B.",
+    "Logo asset handling should support using a provided .avif file (or be converted to a supported web format) and replace the currently displayed logo in the dashboard header.",
+    "Prefer using the provided original JPG (or a safe conversion like PNG/WebP) for the header logo asset, since AVIF caused build/deploy failures.",
+    "User requests using accent color #65714B more prominently across the website/dashboard UI."
+  ],
+  "known_issues": [
+    "Build/deployment repeatedly fails with an internal/configuration error when attempting to use the provided AVIF logo asset."
+  ],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-create-a-dashboard-page-that-fetches-json-time-series-data-from-the-provided-google-apps-script-web-app-endpoint-https-script-google-com-macros-s-akfycbxnsb-bztlwqmbhbo-zbwxzn9444jusqzhjlokpzklra86hxme-rt3nh8x1d-8xo8zjoq-exec-and-visualizes-temperature-filtered-f-as-a-function-of-timestamp",
+      "title": "Create a dashboard page that fetches JSON time-series data from the provided Google Apps Script web app endpoint (https://script.google.com/macros/s/AKfycbxnSb-bzTLWQmbHbo-ZBwxZn9444juSqzHjLokPZklrA86hXME_rt3NH8x1d-8xo8ZJoQ/exec) and visualizes \"Temperature Filtered(F)\" as a function of \"Timestamp\".",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-normalize-and-parse-the-incoming-data-fields-so-that-temperature-filtered-f-values-represented-as-strings-with-comma-decimals-e-g-71-86-are-converted-into-numeric-values-suitable-for-plotting",
+      "title": "Normalize and parse the incoming data fields so that \"Temperature Filtered(F)\" values represented as strings with comma decimals (e.g., \"71,86\") are converted into numeric values suitable for plotting.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-refresh-the-plotted-series-automatically-on-an-interval-aligned-with-the-dataset-cadence-every-10-seconds-without-requiring-a-page-reload",
+      "title": "Refresh the plotted series automatically on an interval aligned with the dataset cadence (every 10 seconds), without requiring a page reload.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-basic-ui-states-and-controls-show-last-updated-time-loading-state-error-state-with-retry-and-a-manual-refresh-action",
+      "title": "Add basic UI states and controls: show last updated time, loading state, error state with retry, and a manual refresh action.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-if-browser-side-fetching-of-the-google-apps-script-endpoint-is-blocked-e-g-by-cors-provide-a-backend-canister-query-update-method-that-fetches-the-json-from-the-same-url-and-returns-it-to-the-frontend-and-wire-the-frontend-to-use-this-backend-method-as-its-data-source",
+      "title": "If browser-side fetching of the Google Apps Script endpoint is blocked (e.g., by CORS), provide a backend canister query/update method that fetches the JSON from the same URL and returns it to the frontend, and wire the frontend to use this backend method as its data source.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-apply-a-cohesive-visual-theme-suitable-for-a-sensor-controls-dashboard-e-g-clean-industrial-look-with-neutral-backgrounds-and-high-contrast-accents-and-use-it-consistently-across-layout-typography-and-chart-styling-do-not-use-a-blue-purple-primary-palette",
+      "title": "Apply a cohesive visual theme suitable for a sensor/controls dashboard (e.g., clean industrial look with neutral backgrounds and high-contrast accents), and use it consistently across layout, typography, and chart styling. Do not use a blue/purple primary palette.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-fix-the-temperature-chart-y-axis-scale-so-it-is-always-locked-to-a-70-f-102-f-range-i-e-the-y-axis-domain-must-be-exactly-70-102-regardless-of-incoming-data-values",
+      "title": "Fix the temperature chart Y-axis scale so it is always locked to a 70°F–102°F range (i.e., the Y-axis domain must be exactly [70, 102] regardless of incoming data values).",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-render-the-temperature-series-line-in-red-and-ensure-the-active-dot-uses-the-same-red-color",
+      "title": "Render the temperature series line in red and ensure the active dot uses the same red color.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-chart-legend-that-clearly-labels-the-plotted-series-as-temperature-in-f",
+      "title": "Add a chart legend that clearly labels the plotted series as temperature in °F.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-site-branding-to-look-more-professional-and-set-the-website-title-to-conceptmachine-live-data-including-the-browser-tab-title-and-the-main-header-title-shown-in-the-dashboard-ui",
+      "title": "Update the site branding to look more professional and set the website title to \"Conceptmachine Live Data\" (including the browser tab title and the main header title shown in the dashboard UI).",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-dashboard-color-theme-to-match-the-palette-used-on-https-eagletrax-mypetersime-com-and-apply-it-consistently-across-layout-surfaces-background-card-typography-buttons-and-chart-styling-grid-axes-tooltip-series",
+      "title": "Update the dashboard color theme to match the palette used on https://eagletrax.mypetersime.com/ and apply it consistently across layout surfaces (background/card), typography, buttons, and chart styling (grid/axes/tooltip/series).",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-frontend-data-parsing-to-support-the-new-google-apps-script-json-array-schema-where-numeric-fields-including-temperature-filtered-f-and-temperature-csv-f-can-be-numbers-not-only-strings-and-where-timestamp-uses-the-non-iso-format-dd-mm-yy-hh-mm-ss-example-10-02-26-10-42-57-the-parsed-series-must-remain-chronologically-sorted-and-must-continue-to-refresh-on-the-existing-10-second-interval",
+      "title": "Update the frontend data parsing to support the new Google Apps Script JSON array schema where numeric fields (including \"Temperature Filtered(F)\" and \"Temperature CSV(F)\") can be numbers (not only strings), and where \"Timestamp\" uses the non-ISO format \"DD/MM/YY HH:mm:ss\" (example: \"10/02/26 10:42:57\"). The parsed series must remain chronologically sorted and must continue to refresh on the existing 10-second interval.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-extend-the-temperature-time-series-model-and-chart-to-plot-an-additional-series-for-temperature-csv-f-alongside-the-existing-temperature-filtered-f-series-render-temperature-csv-f-as-a-red-dashed-line-and-include-it-as-a-separate-entry-in-the-chart-legend-with-an-english-label",
+      "title": "Extend the temperature time-series model and chart to plot an additional series for \"Temperature CSV(F)\" alongside the existing \"Temperature Filtered(F)\" series. Render \"Temperature CSV(F)\" as a red dashed line, and include it as a separate entry in the chart legend with an English label.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-switch-the-dashboard-styling-to-a-clean-white-forward-design-and-use-65714b-as-the-primary-accent-color-apply-the-accent-consistently-across-key-ui-elements-buttons-links-highlights-and-chart-styling-where-a-primary-accent-is-used-while-keeping-the-temperature-series-styling-requirements-intact",
+      "title": "Switch the dashboard styling to a clean, white-forward design and use #65714B as the primary accent color. Apply the accent consistently across key UI elements (buttons/links/highlights) and chart styling where a primary accent is used, while keeping the temperature-series styling requirements intact.",
+      "reqIds": [
+        "REQ-14"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-provided-website-logo-image-as-a-static-asset-and-display-it-in-the-dashboard-header-next-to-the-conceptmachine-live-data-title-aligned-cleanly-within-the-existing-header-layout",
+      "title": "Add the provided website logo image as a static asset and display it in the dashboard header next to the \"Conceptmachine Live Data\" title, aligned cleanly within the existing header layout.",
+      "reqIds": [
+        "REQ-15"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-the-current-header-logo-asset-reference-and-use-the-newly-provided-uploaded-image-as-the-dashboard-header-logo-instead-update-the-header-img-in-temperaturedashboardpage-so-it-points-to-the-new-static-asset-in-frontend-public-assets-generated-and-keeps-a-clean-alignment-with-the-existing-title-block",
+      "title": "Remove the current header logo asset reference and use the newly provided uploaded image as the dashboard header logo instead. Update the header <img> in TemperatureDashboardPage so it points to the new static asset in frontend/public/assets/generated and keeps a clean alignment with the existing title block.",
+      "reqIds": [
+        "REQ-16"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-the-newly-uploaded-original-jpg-file-2026-02-10-10-54-59-1-jpg-as-a-static-frontend-asset-under-frontend-public-assets-generated-and-update-the-dashboard-header-logo-to-use-this-jpg-instead-of-the-current-assets-generated-conceptmachine-logo-icon-dim-256x256-png-reference",
+      "title": "Add the newly uploaded original JPG file (2026-02-10_10-54-59-1.jpg) as a static frontend asset under frontend/public/assets/generated, and update the dashboard header logo to use this JPG instead of the current /assets/generated/conceptmachine-logo-icon.dim_256x256.png reference.",
+      "reqIds": [
+        "REQ-17"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-keep-the-header-logo-sizing-and-alignment-clean-and-consistent-within-the-existing-header-layout-when-switching-to-the-jpg-no-overlap-with-the-title-subtitle-and-the-logo-remains-visually-balanced-with-the-conceptmachine-live-data-text-block",
+      "title": "Keep the header logo sizing and alignment clean and consistent within the existing header layout when switching to the JPG (no overlap with the title/subtitle, and the logo remains visually balanced with the \"Conceptmachine Live Data\" text block).",
+      "reqIds": [
+        "REQ-18"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-only-the-footer-content-container-div-at-xpath-html-1-body-1-div-1-div-1-footer-1-div-1-div-1-the-div-classname-text-center-text-sm-inside-temperaturedashboardpage-to-make-the-65714b-accent-color-more-prominent-while-keeping-all-user-facing-text-in-english-and-keeping-the-existing-footer-message-and-caffeine-ai-link-destination-intact",
+      "title": "Update ONLY the footer content container div at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1] (the <div className=\"text-center text-sm ...\"> inside TemperatureDashboardPage) to make the #65714B accent color more prominent, while keeping all user-facing text in English and keeping the existing footer message and caffeine.ai link destination intact.",
+      "reqIds": [
+        "REQ-19"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-dashboard-footer-credit-to-replace-the-current-built-with-love-using-caffeine-ai-pill-link-with-the-plain-text-built-by-hannes-petersime-no-caffeine-ai-wording-shown",
+      "title": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+      "reqIds": [
+        "REQ-20"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-apply-the-accent-color-65714b-to-the-dashboard-title-bar-header-bar-so-the-header-visually-uses-the-accent-color-more-prominently-while-keeping-readability-and-the-existing-layout-intact",
+      "title": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+      "reqIds": [
+        "REQ-21"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-replace-the-header-subtitle-text-under-conceptmachine-live-data-from-real-time-temperature-monitoring-system-to-updated-every-10-min",
+      "title": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+      "reqIds": [
+        "REQ-22"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-the-chart-legend-labeling-so-it-clearly-indicates-that-temperature-csv-f-is-represented-by-a-dashed-line",
+      "title": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
+      "reqIds": [
+        "REQ-23"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Build an app that reads JSON from the provided Google Apps Script URL and plots \"Temperature Filtered(F)\" over time using \"Timestamp\" (data points every ~10 seconds).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Fix the chart Y-axis range to 70°F–102°F for the temperature plot.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Style the temperature series line in red.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Add a chart legend.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Update the site title to \"Conceptmachine Live Data\" and give the dashboard a more professional look.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Match the dashboard color theme to the palette used on https://eagletrax.mypetersime.com/.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Update data parsing to support the new Google Apps Script JSON structure, including parsing the non-ISO \"Timestamp\" format (e.g., \"10/02/26 10:42:57\").",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Add the website logo (provided as an image) to the dashboard UI.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Plot an additional series \"Temperature CSV(F)\" as a red dashed line and include it in the chart legend.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Switch to a clean, white design with accent color #65714B applied consistently across the dashboard UI and chart styling.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Replace/remove the current dashboard logo and use the provided .avif file as the new logo asset in the header.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "Use the user-provided original JPG photo as the dashboard header logo asset (instead of the problematic AVIF), adjusting size/placement as needed.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-13",
+      "summary": "Increase usage of accent color #65714B across the website/dashboard styling (more prominent application in UI elements).",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-14",
+      "summary": "Change the footer text from \"Built with love using caffeine.ai\" to \"built by Hannes @Petersime\".",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-15",
+      "summary": "Apply accent color #65714B in the title bar (titelbalk) styling.",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-16",
+      "summary": "Replace the header/subtitle text \"Real-time temperature monitoring system\" with \"updated every 10 min\".",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-17",
+      "summary": "Update the chart legend so it clearly indicates that \"Temperature CSV (°F)\" is a dashed (stippled) line.",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Plot Temperature Filtered over time from Google Apps Script JSON endpoint",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

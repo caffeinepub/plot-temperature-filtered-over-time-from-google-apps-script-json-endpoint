@@ -1,0 +1,83 @@
+{
+  "kind": "build_request",
+  "title": "Update footer credit text, header accent color, subtitle copy, and legend dashed labeling",
+  "priority": "normal",
+  "requirements": [
+    {
+      "id": "REQ-20",
+      "text": "Update the dashboard footer credit to replace the current “Built with love using caffeine.ai” pill/link with the plain text “Built by Hannes @Petersime” (no caffeine.ai wording shown).",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "change Built with love using\ncaffeine.ai to \"built by Hannes @Petersime\""
+        ]
+      },
+      "acceptanceCriteria": [
+        "In TemperatureDashboardPage, the footer no longer displays the words “Built with love using” or “caffeine.ai”.",
+        "The footer displays exactly: “Built by Hannes @Petersime”.",
+        "The footer remains visually consistent with the existing footer layout (centered, small text), and does not introduce new user-facing text beyond the requested string."
+      ]
+    },
+    {
+      "id": "REQ-21",
+      "text": "Apply the accent color #65714B to the dashboard title bar (header bar) so the header visually uses the accent color more prominently while keeping readability and the existing layout intact.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "kun je in titelbalk ook wat kleur #65714B gebruiken?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The header/title bar area at the top of TemperatureDashboardPage clearly incorporates #65714B (via border, background accent strip, or key header elements).",
+        "Header text remains readable (sufficient contrast) and the logo/title alignment does not break."
+      ]
+    },
+    {
+      "id": "REQ-22",
+      "text": "Replace the header subtitle text under “Conceptmachine Live Data” from “Real-time temperature monitoring system” to “Updated every 10 min”.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Kun je er ook ipv dit \"Real-time temperature monitoring system\" schrijven: \"updated every 10 min\""
+        ]
+      },
+      "acceptanceCriteria": [
+        "The subtitle in TemperatureDashboardPage displays exactly “Updated every 10 min”.",
+        "No other header titles (including the browser tab title) are changed."
+      ]
+    },
+    {
+      "id": "REQ-23",
+      "text": "Update the chart legend labeling so it clearly indicates that “Temperature CSV (°F)” is represented by a dashed line.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Ook in de legende moet het duidelijk zijn dat Temperature CSV (°F) stippellijntjes zijn\"]},",
+          "acceptanceCriteria:[",
+          "The legend entry for the CSV series explicitly communicates a dashed style (e.g., “Temperature CSV (°F) (dashed)”).",
+          "The “Temperature Filtered (°F)” legend entry remains clearly labeled and unchanged in meaning.",
+          "The CSV series remains rendered with a dashed stroke in the chart."
+        ]
+      },
+      "acceptanceCriteria": []
+    }
+  ],
+  "constraints": [],
+  "nonGoals": [],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

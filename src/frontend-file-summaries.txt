@@ -1,0 +1,12 @@
+{
+  "frontend/src/App.tsx": "Main application component that renders the temperature dashboard page as the root view.",
+  "frontend/src/pages/TemperatureDashboardPage.tsx": "Complete dashboard page with header featuring #65714B accent border, updated subtitle \"Updated every 10 min\", chart display for both temperature series, loading/error states, manual refresh button, last updated timestamp, and simplified footer with \"Built by Hannes @Petersime\" text.",
+  "frontend/src/components/TemperatureChart.tsx": "Recharts-based line chart displaying two temperature series with fixed Y-axis (70-102°F): Temperature Filtered as a solid red line and Temperature CSV as a red dashed line, with legend and tooltip explicitly indicating the dashed style for the CSV series.",
+  "frontend/src/hooks/useTemperatureSeries.ts": "React Query hook that fetches temperature data with 10-second auto-refresh interval and tracks last updated timestamp.",
+  "frontend/src/lib/temperatureDataSource.ts": "Data fetching module that retrieves JSON from the Google Apps Script endpoint and handles the new schema where temperature fields may be numbers or strings.",
+  "frontend/src/lib/temperatureParsing.ts": "Parsing utilities that handle both numeric and string temperature fields (including comma-decimal strings), parse DD/MM/YY HH:mm:ss timestamps, and extract both Temperature Filtered and Temperature CSV values into a unified data model sorted chronologically.",
+  "frontend/src/hooks/useQueries.ts": "Placeholder file reserved for future backend canister queries if proxying is needed.",
+  "frontend/src/index.css": "Global styles with clean white-forward OKLCH color system featuring olive green (#65714B) as primary accent, red chart colors for temperature series, and full light/dark mode support.",
+  "frontend/tailwind.config.js": "Tailwind configuration with extended font families, clean white theme color tokens mapped to OKLCH variables with olive accent, custom shadows, and animation utilities.",
+  "frontend/index.html": "HTML entry point with document title set to \"Conceptmachine Live Data\" for browser tab branding."
+}

@@ -1,0 +1,65 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Dashboard UI text, header accent color, and chart legend labeling updates",
+  "requirements": [
+    {
+      "id": "REQ-20",
+      "summary": "Replace the dashboard footer credit pill/link with plain text credit.",
+      "acceptanceCriteria": [
+        "In TemperatureDashboardPage, the footer no longer displays the words “Built with love using” or “caffeine.ai”.",
+        "The footer displays exactly: “Built by Hannes @Petersime”.",
+        "The footer remains visually consistent with the existing footer layout (centered, small text), and does not introduce new user-facing text beyond the requested string."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
+          "operation": "modify",
+          "description": "Update the footer credit area to remove the styled pill and external link, and render the plain text “Built by Hannes @Petersime” while preserving the existing centered small-text footer layout."
+        }
+      ]
+    },
+    {
+      "id": "REQ-21",
+      "summary": "Make the dashboard header/title bar incorporate accent color #65714B more prominently without breaking layout/readability.",
+      "acceptanceCriteria": [
+        "The header/title bar area at the top of TemperatureDashboardPage clearly incorporates #65714B (via border, background accent strip, or key header elements).",
+        "Header text remains readable (sufficient contrast) and the logo/title alignment does not break."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
+          "operation": "modify",
+          "description": "Adjust header/title bar styling to prominently incorporate the accent color #65714B (e.g., accent border/strip/background treatment) while keeping existing spacing, alignment, and readable text contrast."
+        }
+      ]
+    },
+    {
+      "id": "REQ-22",
+      "summary": "Update the header subtitle copy under the main dashboard title.",
+      "acceptanceCriteria": [
+        "The subtitle in TemperatureDashboardPage displays exactly “Updated every 10 min”.",
+        "No other header titles (including the browser tab title) are changed."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
+          "operation": "modify",
+          "description": "Replace the header subtitle text under “Conceptmachine Live Data” with exactly “Updated every 10 min”, without changing any other titles."
+        }
+      ]
+    },
+    {
+      "id": "REQ-23",
+      "summary": "Clarify in the chart legend that the “Temperature CSV (°F)” series is dashed.",
+      "acceptanceCriteria": [],
+      "file_operations": [
+        {
+          "path": "frontend/src/components/TemperatureChart.tsx",
+          "operation": "modify",
+          "description": "Update the Recharts Legend label/formatter so the CSV series legend text explicitly indicates a dashed style (e.g., “Temperature CSV (°F) (dashed)”) while keeping the filtered series label meaning intact and preserving the dashed stroke rendering for the CSV line."
+        }
+      ]
+    }
+  ]
+}
