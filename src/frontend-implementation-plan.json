@@ -1,54 +1,27 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Remove header logo entirely and revert CO₂ units/scaling to percentages",
+  "title": "Adjust CO2 chart series colors (Right lighter than Left) in chart and legend",
   "requirements": [
     {
-      "id": "REQ-50",
-      "summary": "Remove the dashboard header logo and all logo-related header UI so only the title/subtitle text block remains.",
+      "id": "REQ-1",
+      "summary": "Ensure 'CO2 Right (%)' uses a lighter green than 'CO2 Left (%)' in the CO2 chart lines and matching legend swatches, consistently across light/dark modes.",
       "acceptanceCriteria": [
-        "In frontend/src/pages/TemperatureDashboardPage.tsx, the <img> logo element and its surrounding logo-only wrapper are removed from the header layout.",
-        "The header still shows the title \"Conceptmachine Live Data\" and the subtitle \"data logging • Updated every 10-20 min\" with clean alignment and spacing.",
-        "There is no user-facing logo-related text (e.g., no logo error/fallback messages) anywhere in the header."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/pages/TemperatureDashboardPage.tsx",
-          "operation": "modify",
-          "description": "Remove the logo <img> and its wrapper from the header flex layout so the header shows only the existing title/subtitle block, with no leftover spacing/gap reserved for a logo."
-        }
-      ]
-    },
-    {
-      "id": "REQ-51",
-      "summary": "Parse CO₂ values so all three CO₂ series are percentages: keep CO2 CSV(%) as-is and scale CO2 Rechts/Links by 0.001.",
-      "acceptanceCriteria": [
-        "In frontend/src/lib/temperatureParsing.ts, \"CO2 CSV(%)\" is parsed as a numeric percent value and is NOT multiplied by 10000.",
-        "In frontend/src/lib/temperatureParsing.ts, parsed values for \"CO2 Rechts\" and \"CO2 Links\" are each multiplied by 0.001 before being stored in TemperatureDataPoint.",
-        "After parsing, TemperatureDataPoint.co2Right, TemperatureDataPoint.co2Left, and TemperatureDataPoint.co2CSV all represent percentages (%).",
-        "Existing timestamp parsing, numeric normalization (comma decimals), and chronological sorting behavior remains intact."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/lib/temperatureParsing.ts",
-          "operation": "modify",
-          "description": "Update CO₂ conversions: remove the prior CO2 CSV x10000 conversion so co2CSV is stored as the parsed 'CO2 CSV(%)' numeric percent; multiply parsed 'CO2 Rechts' and 'CO2 Links' by 0.001 before storing; keep existing timestamp parsing, comma-decimal normalization, invalid filtering, and chronological sorting unchanged."
-        }
-      ]
-    },
-    {
-      "id": "REQ-52",
-      "summary": "Update the CO₂ chart labels, legend, tooltip, and Y-axis label to use percent (%) and rename the CSV series label accordingly.",
-      "acceptanceCriteria": [
-        "In frontend/src/components/CO2Chart.tsx, legend and tooltip labels use percent wording (no \"ppm\" anywhere).",
-        "The CO₂ CSV series is labeled exactly \"CO2 CSV (%) - dashed\" in both legend and tooltip.",
-        "The Y-axis label indicates percent (e.g., includes \"(%)\") so the unit is visible on the chart."
+        "In the CO2 chart, the 'CO2 Left (%)' line is a darker green than the 'CO2 Right (%)' line.",
+        "The legend line icon for 'CO2 Left (%)' uses the same darker green as the chart line.",
+        "The legend line icon for 'CO2 Right (%)' uses the same lighter green as the chart line.",
+        "The color relationship (Right lighter than Left) is consistent in both light mode and dark mode."
       ],
       "file_operations": [
         {
           "path": "frontend/src/components/CO2Chart.tsx",
           "operation": "modify",
-          "description": "Adjust CO₂ chart UI text to percent units: remove any 'ppm' wording from tooltip/legend, label the CSV series exactly 'CO2 CSV (%) - dashed' in both tooltip and legend, and update the Y-axis label to include '(%)' so the unit is visible."
+          "description": "Update the CO2 line series stroke/activeDot colors so 'co2Left' is explicitly mapped to the darker green token and 'co2Right' to the lighter green token, ensuring Recharts' legend swatches inherit the same colors from the series."
+        },
+        {
+          "path": "frontend/src/index.css",
+          "operation": "modify",
+          "description": "Adjust the CO2 chart color CSS variables for both :root and .dark so the 'Left' token is perceptibly darker than the 'Right' token in both themes (and keep the dashed CSV color unchanged)."
         }
       ]
     }

@@ -36,10 +36,24 @@
         --chart-1: 0.50 0.20 25;
         --chart-2: 0.48 0.18 25;
         
-        /* Chart colors - dark green for CO2 series */
-        --chart-co2-1: 0.42 0.08 145;
-        --chart-co2-2: 0.38 0.10 145;
+        /* Chart colors - green for CO2 series */
+        /* CO2 Right (%) - lighter green */
+        --chart-co2-1: 0.55 0.10 145;
+        /* CO2 Left (%) - darker green */
+        --chart-co2-2: 0.35 0.12 145;
+        /* CO2 CSV (%) - dashed, medium green */
         --chart-co2-3: 0.35 0.12 145;
+        
+        /* Chart colors - Cooling/Heating/Ventilation */
+        --chart-cooling: 0.55 0.15 240;
+        --chart-heating: 0.55 0.22 25;
+        --chart-ventilation: 0.50 0.12 145;
+        
+        /* Flow Control color - dark in light mode */
+        --chart-flow-control: 0.20 0.01 90;
+        
+        /* Very light olive-green tint for chart headers */
+        --chart-header: 0.97 0.01 110;
     }
 
     .dark {
@@ -73,10 +87,24 @@
         --chart-1: 0.58 0.22 25;
         --chart-2: 0.56 0.20 25;
         
-        /* Chart colors for dark mode - dark green CO2 lines */
-        --chart-co2-1: 0.52 0.10 145;
-        --chart-co2-2: 0.48 0.12 145;
+        /* Chart colors for dark mode - green CO2 lines */
+        /* CO2 Right (%) - lighter green */
+        --chart-co2-1: 0.65 0.12 145;
+        /* CO2 Left (%) - darker green */
+        --chart-co2-2: 0.45 0.14 145;
+        /* CO2 CSV (%) - dashed, medium green */
         --chart-co2-3: 0.45 0.14 145;
+        
+        /* Chart colors for dark mode - Cooling/Heating/Ventilation */
+        --chart-cooling: 0.60 0.18 240;
+        --chart-heating: 0.60 0.24 25;
+        --chart-ventilation: 0.55 0.14 145;
+        
+        /* Flow Control color - light/white in dark mode for visibility */
+        --chart-flow-control: 0.92 0.005 90;
+        
+        /* Subtle olive-green tint for chart headers in dark mode */
+        --chart-header: 0.22 0.02 110;
     }
 
     * {

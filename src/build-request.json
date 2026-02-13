@@ -1,80 +1,50 @@
 {
   "kind": "build_request",
-  "title": "Remove header logo entirely and revert CO₂ units/scaling to percentages",
+  "title": "Make 'CO2 Right (%)' a lighter green than 'CO2 Left (%)' in the CO2 chart (line + legend)",
   "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-50",
-      "text": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
+      "id": "REQ-1",
+      "text": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "recent-messages"
+          "msg-1"
         ],
         "quotes": [
-          "ok, doe eens ALLES van het logo weg, enkel titel. Ook alles die te maken heeft met het logo"
+          "kun je ook CO2 Right (%) een lichter groene kleur geven dan CO2 Left (%) (donkergroen)? in legende en grafiek zelf"
         ]
       },
       "acceptanceCriteria": [
-        "In frontend/src/pages/TemperatureDashboardPage.tsx, the <img> logo element and its surrounding logo-only wrapper are removed from the header layout.",
-        "The header still shows the title \"Conceptmachine Live Data\" and the subtitle \"data logging • Updated every 10-20 min\" with clean alignment and spacing.",
-        "There is no user-facing logo-related text (e.g., no logo error/fallback messages) anywhere in the header."
-      ]
-    },
-    {
-      "id": "REQ-51",
-      "text": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "recent-messages"
-        ],
-        "quotes": [
-          "ik had je verteld dat CO2 CSV x10000 moest gedaan worden maar dat mag weer naar het originele \"CO2 CSV(%)\"",
-          "CO2 Rechts mag x0.001 gedaan worden manueel",
-          "CO2 Links ook x0.001",
-          "alle 3 de co2 elementen staan dan in (%)"
-        ]
-      },
-      "acceptanceCriteria": [
-        "In frontend/src/lib/temperatureParsing.ts, \"CO2 CSV(%)\" is parsed as a numeric percent value and is NOT multiplied by 10000.",
-        "In frontend/src/lib/temperatureParsing.ts, parsed values for \"CO2 Rechts\" and \"CO2 Links\" are each multiplied by 0.001 before being stored in TemperatureDataPoint.",
-        "After parsing, TemperatureDataPoint.co2Right, TemperatureDataPoint.co2Left, and TemperatureDataPoint.co2CSV all represent percentages (%).",
-        "Existing timestamp parsing, numeric normalization (comma decimals), and chronological sorting behavior remains intact."
-      ]
-    },
-    {
-      "id": "REQ-52",
-      "text": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "recent-messages"
-        ],
-        "quotes": [
-          "alle 3 de co2 elementen staan dan in (%)",
-          "dat mag weer naar het originele \"CO2 CSV(%)\""
-        ]
-      },
-      "acceptanceCriteria": [
-        "In frontend/src/components/CO2Chart.tsx, legend and tooltip labels use percent wording (no \"ppm\" anywhere).",
-        "The CO₂ CSV series is labeled exactly \"CO2 CSV (%) - dashed\" in both legend and tooltip.",
-        "The Y-axis label indicates percent (e.g., includes \"(%)\") so the unit is visible on the chart."
+        "In the CO2 chart, the 'CO2 Left (%)' line is a darker green than the 'CO2 Right (%)' line.",
+        "The legend line icon for 'CO2 Left (%)' uses the same darker green as the chart line.",
+        "The legend line icon for 'CO2 Right (%)' uses the same lighter green as the chart line.",
+        "The color relationship (Right lighter than Left) is consistent in both light mode and dark mode."
       ]
     }
   ],
   "constraints": [
-    "Do not edit any files under frontend/src/components/ui or any other immutablePaths listed in SYSTEM_CONTEXT.",
-    "Keep all user-facing text in English.",
-    "Do not change the Google Apps Script endpoint URL used for fetching data."
+    "Do not edit any files under frontend/src/components/ui (read-only).",
+    "Do not edit files listed in frontend immutablePaths (e.g., frontend/src/hooks/useInternetIdentity.ts(x), frontend/src/hooks/useActor.ts, frontend/src/main.tsx).",
+    "Keep the backend single-actor architecture; no backend changes are required for this UI-only update."
   ],
   "nonGoals": [
-    "Do not add new logo assets or replace the logo with another image.",
-    "Do not change temperature chart behavior, styling, or the synced zoom/pan behavior across charts beyond what is required for the CO₂ unit changes.",
-    "Do not introduce new backend canister methods or change backend behavior for this request."
+    "Do not change any CO2 data fetching/parsing logic.",
+    "Do not change chart series names/labels or add/remove series.",
+    "Do not address the build/deploy pipeline 'Configuration error encountered. Please reach out to the Caffeine team.' as part of this change."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
+  },
+  "userProfileUpdate": {
+    "goalsToAdd": [],
+    "goalsToRemove": [],
+    "preferencesToAdd": [],
+    "preferencesToRemove": [],
+    "miscToAdd": [],
+    "miscToRemove": [],
+    "fieldsToSet": {},
+    "fieldsToDelete": []
   }
 }

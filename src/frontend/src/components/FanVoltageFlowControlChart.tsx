@@ -3,20 +3,21 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format } from 'date-fns';
 import type { TemperatureDataPoint } from '@/lib/temperatureParsing';
 
-interface CO2ChartProps {
+interface FanVoltageFlowControlChartProps {
   data: TemperatureDataPoint[];
   startIndex: number;
   endIndex: number;
   onRangeChange: (startIndex: number, endIndex: number) => void;
 }
 
-export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2ChartProps) {
+export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRangeChange }: FanVoltageFlowControlChartProps) {
   const chartData = useMemo(() => {
     return data.map((point) => ({
       timestamp: point.timestamp.getTime(),
-      co2Right: point.co2Right,
-      co2Left: point.co2Left,
-      co2CSV: point.co2CSV,
+      fan1V: point.fan1V,
+      fan2V: point.fan2V,
+      fan3V: point.fan3V,
+      flowControlPa: point.flowControlPa,
       timeLabel: format(point.timestamp, 'HH:mm:ss'),
       fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
     }));
@@ -31,7 +32,7 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
   return (
     <div className="w-full h-[450px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 60, left: 20, bottom: 60 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" opacity={0.3} />
           <XAxis
             dataKey="timeLabel"
@@ -39,14 +40,32 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
             tickLine={{ stroke: 'oklch(var(--border))' }}
           />
+          {/* Left Y-axis for Voltage (0-10V) */}
           <YAxis
+            yAxisId="left"
+            domain={[0, 10]}
             stroke="oklch(var(--muted-foreground))"
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
             tickLine={{ stroke: 'oklch(var(--border))' }}
             label={{
-              value: 'CO₂ Level (%)',
+              value: 'Voltage (V)',
               angle: -90,
               position: 'insideLeft',
+              style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
+            }}
+          />
+          {/* Right Y-axis for Pressure (0-1000Pa) */}
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            domain={[0, 1000]}
+            stroke="oklch(var(--muted-foreground))"
+            tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
+            tickLine={{ stroke: 'oklch(var(--border))' }}
+            label={{
+              value: 'Pressure (Pa)',
+              angle: 90,
+              position: 'insideRight',
               style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
             }}
           />
@@ -58,16 +77,27 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
               color: 'oklch(var(--popover-foreground))',
             }}
             labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
-            formatter={(value: number, name: string) => {
+            formatter={(value: any, name: string) => {
               let label = '';
-              if (name === 'co2Right') label = 'CO2 Right (%)';
-              else if (name === 'co2Left') label = 'CO2 Left (%)';
-              else if (name === 'co2CSV') label = 'CO2 CSV (%) - dashed';
+              let unit = '';
+              if (name === 'fan1V') {
+                label = 'Fan 1';
+                unit = 'V';
+              } else if (name === 'fan2V') {
+                label = 'Fan 2';
+                unit = 'V';
+              } else if (name === 'fan3V') {
+                label = 'Fan 3';
+                unit = 'V';
+              } else if (name === 'flowControlPa') {
+                label = 'Flow Control';
+                unit = 'Pa';
+              }
               
-              const formattedValue = typeof value === 'number' && !isNaN(value) 
+              const formattedValue = value !== null && typeof value === 'number' && !isNaN(value) 
                 ? value.toFixed(2) 
-                : '0.00';
-              return [formattedValue, label];
+                : 'N/A';
+              return [`${formattedValue} ${unit}`, label];
             }}
             labelFormatter={((label: any, payload: any) => {
               if (payload && payload.length > 0) {
@@ -86,49 +116,63 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             }}
             iconType="line"
             formatter={(value) => {
-              if (value === 'co2Right') return 'CO2 Right (%)';
-              if (value === 'co2Left') return 'CO2 Left (%)';
-              if (value === 'co2CSV') return 'CO2 CSV (%) - dashed';
+              if (value === 'fan1V') return 'Fan 1 (V)';
+              if (value === 'fan2V') return 'Fan 2 (V)';
+              if (value === 'fan3V') return 'Fan 3 (V)';
+              if (value === 'flowControlPa') return 'Flow Control (Pa)';
               return value;
             }}
           />
+          {/* Fan voltage lines on left axis */}
           <Line
+            yAxisId="left"
             type="monotone"
-            dataKey="co2Right"
-            name="co2Right"
-            stroke="oklch(var(--chart-co2-1))"
+            dataKey="fan1V"
+            stroke="oklch(0.70 0.12 220)"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-1))' }}
+            connectNulls
+            name="fan1V"
           />
           <Line
+            yAxisId="left"
             type="monotone"
-            dataKey="co2Left"
-            name="co2Left"
-            stroke="oklch(var(--chart-co2-2))"
+            dataKey="fan2V"
+            stroke="oklch(0.55 0.15 240)"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-2))' }}
+            connectNulls
+            name="fan2V"
           />
           <Line
+            yAxisId="left"
             type="monotone"
-            dataKey="co2CSV"
-            name="co2CSV"
-            stroke="oklch(var(--chart-co2-3))"
+            dataKey="fan3V"
+            stroke="oklch(0.40 0.18 250)"
             strokeWidth={2}
-            strokeDasharray="5 5"
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-3))' }}
+            connectNulls
+            name="fan3V"
+          />
+          {/* Flow control signal on right axis - uses CSS variable for dark mode visibility */}
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="flowControlPa"
+            stroke="oklch(var(--chart-flow-control))"
+            strokeWidth={2}
+            dot={false}
+            connectNulls
+            name="flowControlPa"
           />
           <Brush
             dataKey="timeLabel"
-            height={40}
+            height={30}
             stroke="oklch(var(--primary))"
             fill="oklch(var(--muted))"
             startIndex={startIndex}
             endIndex={endIndex}
             onChange={handleBrushChange}
-            travellerWidth={10}
           />
         </LineChart>
       </ResponsiveContainer>

@@ -3,23 +3,41 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { format } from 'date-fns';
 import type { TemperatureDataPoint } from '@/lib/temperatureParsing';
 
-interface CO2ChartProps {
+interface CoolingHeatingVentilationChartProps {
   data: TemperatureDataPoint[];
   startIndex: number;
   endIndex: number;
   onRangeChange: (startIndex: number, endIndex: number) => void;
 }
 
-export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2ChartProps) {
+export function CoolingHeatingVentilationChart({ data, startIndex, endIndex, onRangeChange }: CoolingHeatingVentilationChartProps) {
   const chartData = useMemo(() => {
-    return data.map((point) => ({
-      timestamp: point.timestamp.getTime(),
-      co2Right: point.co2Right,
-      co2Left: point.co2Left,
-      co2CSV: point.co2CSV,
-      timeLabel: format(point.timestamp, 'HH:mm:ss'),
-      fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
-    }));
+    return data.map((point) => {
+      // Apply scaling formulas
+      // Cooling: (V - 3.0) / 7.0 * 100.0
+      const coolingPercent = point.coolingV !== null 
+        ? ((point.coolingV - 3.0) / 7.0) * 100.0 
+        : null;
+      
+      // Heating: V * 10.0
+      const heatingPercent = point.heatingPwm !== null 
+        ? point.heatingPwm * 10.0 
+        : null;
+      
+      // Ventilation: (V - 2.0) / 8.0 * 100.0
+      const ventilationPercent = point.ventilationV !== null 
+        ? ((point.ventilationV - 2.0) / 8.0) * 100.0 
+        : null;
+
+      return {
+        timestamp: point.timestamp.getTime(),
+        coolingPercent,
+        heatingPercent,
+        ventilationPercent,
+        timeLabel: format(point.timestamp, 'HH:mm:ss'),
+        fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
+      };
+    });
   }, [data]);
 
   const handleBrushChange = useCallback((range: { startIndex?: number; endIndex?: number }) => {
@@ -40,11 +58,12 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             tickLine={{ stroke: 'oklch(var(--border))' }}
           />
           <YAxis
+            domain={[0, 100]}
             stroke="oklch(var(--muted-foreground))"
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
             tickLine={{ stroke: 'oklch(var(--border))' }}
             label={{
-              value: 'CO₂ Level (%)',
+              value: 'Percentage (%)',
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
@@ -58,16 +77,16 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
               color: 'oklch(var(--popover-foreground))',
             }}
             labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
-            formatter={(value: number, name: string) => {
+            formatter={(value: any, name: string) => {
               let label = '';
-              if (name === 'co2Right') label = 'CO2 Right (%)';
-              else if (name === 'co2Left') label = 'CO2 Left (%)';
-              else if (name === 'co2CSV') label = 'CO2 CSV (%) - dashed';
+              if (name === 'coolingPercent') label = 'Cooling (%)';
+              else if (name === 'heatingPercent') label = 'Heating (%)';
+              else if (name === 'ventilationPercent') label = 'Ventilation (%)';
               
-              const formattedValue = typeof value === 'number' && !isNaN(value) 
+              const formattedValue = value !== null && typeof value === 'number' && !isNaN(value) 
                 ? value.toFixed(2) 
-                : '0.00';
-              return [formattedValue, label];
+                : 'N/A';
+              return [`${formattedValue}%`, label];
             }}
             labelFormatter={((label: any, payload: any) => {
               if (payload && payload.length > 0) {
@@ -86,39 +105,41 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             }}
             iconType="line"
             formatter={(value) => {
-              if (value === 'co2Right') return 'CO2 Right (%)';
-              if (value === 'co2Left') return 'CO2 Left (%)';
-              if (value === 'co2CSV') return 'CO2 CSV (%) - dashed';
+              if (value === 'coolingPercent') return 'Cooling (%)';
+              if (value === 'heatingPercent') return 'Heating (%)';
+              if (value === 'ventilationPercent') return 'Ventilation (%)';
               return value;
             }}
           />
           <Line
             type="monotone"
-            dataKey="co2Right"
-            name="co2Right"
-            stroke="oklch(var(--chart-co2-1))"
+            dataKey="coolingPercent"
+            name="coolingPercent"
+            stroke="oklch(var(--chart-cooling))"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-1))' }}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-cooling))' }}
+            connectNulls
           />
           <Line
             type="monotone"
-            dataKey="co2Left"
-            name="co2Left"
-            stroke="oklch(var(--chart-co2-2))"
+            dataKey="heatingPercent"
+            name="heatingPercent"
+            stroke="oklch(var(--chart-heating))"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-2))' }}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-heating))' }}
+            connectNulls
           />
           <Line
             type="monotone"
-            dataKey="co2CSV"
-            name="co2CSV"
-            stroke="oklch(var(--chart-co2-3))"
+            dataKey="ventilationPercent"
+            name="ventilationPercent"
+            stroke="oklch(var(--chart-ventilation))"
             strokeWidth={2}
-            strokeDasharray="5 5"
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-3))' }}
+            activeDot={{ r: 6, fill: 'oklch(var(--chart-ventilation))' }}
+            connectNulls
           />
           <Brush
             dataKey="timeLabel"

@@ -10,6 +10,13 @@ interface RawDataPoint {
   'CO2 Rechts': string | number;
   'CO2 Links': string | number;
   'CO2 CSV(%)': string | number;
+  'Cooling(V)'?: string | number;
+  'Heating(PWM)'?: string | number;
+  'Ventilation(V)'?: string | number;
+  'Fan 1(V)'?: string | number;
+  'Fan 2(V)'?: string | number;
+  'Fan 3(V)'?: string | number;
+  'Stuursignaal debiet(Pa)'?: string | number;
   [key: string]: unknown;
 }
 

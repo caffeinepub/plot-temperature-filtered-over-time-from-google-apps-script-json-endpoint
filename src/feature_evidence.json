@@ -2,10 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-remove-the-dashboard-header-logo-entirely-so-the-header-displays-only-the-existing-title-subtitle-text-block-no-logo-image-no-logo-wrapper-spacing-and-remove-any-logo-related-ui-in-the-header",
-      "featureTitle": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
+      "featureId": "feature-update-the-existing-co-chart-so-the-co2-right-series-is-rendered-in-a-lighter-green-than-the-co2-left-series-and-ensure-the-legend-swatch-matches-those-same-colors",
+      "featureTitle": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
       "files": [
-        "frontend/src/pages/TemperatureDashboardPage.tsx"
+        "frontend/src/index.css"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -16,45 +16,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-50"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-co-data-parsing-so-that-all-three-co-series-are-in-percent-keep-co2-csv-in-its-original-unit-no-x10000-conversion-and-manually-scale-co2-rechts-and-co2-links-by-multiplying-each-by-0-001",
-      "featureTitle": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
-      "files": [
-        "frontend/src/lib/temperatureParsing.ts"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-51"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-the-co-chart-labels-legend-tooltip-and-axis-labeling-to-reflect-percentages-including-changing-the-co-csv-series-label-to-co2-csv-dashed-and-removing-any-ppm-wording",
-      "featureTitle": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
-      "files": [
-        "frontend/src/components/CO2Chart.tsx"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-52"
+        "REQ-1"
       ],
       "confidence": "high"
     }

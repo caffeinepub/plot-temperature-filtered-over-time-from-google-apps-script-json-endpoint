@@ -1,46 +1,25 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-10T12:52:14.625Z",
+  "generatedAt": "2026-02-13T08:00:46.906Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 3,
+    "total": 1,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-50",
-        "summary": "Remove the dashboard header logo entirely so the header displays only the existing title/subtitle text block (no logo image, no logo wrapper spacing), and remove any logo-related UI in the header.",
+        "id": "REQ-1",
+        "summary": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
+          "frontend/src/components/CO2Chart.tsx",
+          "frontend/src/index.css"
         ],
         "matchedFiles": [
-          "frontend/src/pages/TemperatureDashboardPage.tsx"
-        ]
-      },
-      {
-        "id": "REQ-51",
-        "summary": "Update CO₂ data parsing so that all three CO₂ series are in percent (%): keep \"CO2 CSV(%)\" in its original unit (no x10000 conversion) and manually scale \"CO2 Rechts\" and \"CO2 Links\" by multiplying each by 0.001.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/lib/temperatureParsing.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/lib/temperatureParsing.ts"
-        ]
-      },
-      {
-        "id": "REQ-52",
-        "summary": "Update the CO₂ chart labels/legend/tooltip and axis labeling to reflect percentages (%), including changing the CO₂ CSV series label to \"CO2 CSV (%) - dashed\" (and removing any \"ppm\" wording).",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/CO2Chart.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/CO2Chart.tsx"
+          "frontend/src/index.css"
         ]
       }
     ]
@@ -50,9 +29,7 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/CO2Chart.tsx",
-    "frontend/src/lib/temperatureParsing.ts",
-    "frontend/src/pages/TemperatureDashboardPage.tsx",
+    "frontend/src/index.css",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

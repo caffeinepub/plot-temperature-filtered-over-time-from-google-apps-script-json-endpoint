@@ -72,7 +72,11 @@ export default {
                     2: 'oklch(var(--chart-2))',
                     3: 'oklch(var(--chart-3))',
                     4: 'oklch(var(--chart-4))',
-                    5: 'oklch(var(--chart-5))'
+                    5: 'oklch(var(--chart-5))',
+                    cooling: 'oklch(var(--chart-cooling))',
+                    heating: 'oklch(var(--chart-heating))',
+                    ventilation: 'oklch(var(--chart-ventilation))',
+                    header: 'oklch(var(--chart-header))'
                 }
             },
             borderRadius: {

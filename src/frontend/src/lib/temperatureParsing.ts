@@ -5,6 +5,13 @@ export interface TemperatureDataPoint {
   co2Right: number;
   co2Left: number;
   co2CSV: number;
+  coolingV: number | null;
+  heatingPwm: number | null;
+  ventilationV: number | null;
+  fan1V: number | null;
+  fan2V: number | null;
+  fan3V: number | null;
+  flowControlPa: number | null;
 }
 
 interface RawDataPoint {
@@ -14,6 +21,13 @@ interface RawDataPoint {
   'CO2 Rechts': string | number;
   'CO2 Links': string | number;
   'CO2 CSV(%)': string | number;
+  'Cooling(V)'?: string | number;
+  'Heating(PWM)'?: string | number;
+  'Ventilation(V)'?: string | number;
+  'Fan 1(V)'?: string | number;
+  'Fan 2(V)'?: string | number;
+  'Fan 3(V)'?: string | number;
+  'Stuursignaal debiet(Pa)'?: string | number;
   [key: string]: unknown;
 }
 
@@ -21,7 +35,7 @@ interface RawDataPoint {
  * Parses a numeric value that may be a number or string with comma as decimal separator
  * Examples: "71,86" -> 71.86, "71.86" -> 71.86, 71.86 -> 71.86
  */
-function parseNumericValue(value: string | number): number | null {
+function parseNumericValue(value: string | number | undefined): number | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -88,6 +102,15 @@ export function parseTemperatureData(rawData: RawDataPoint[]): TemperatureDataPo
     const co2LeftRaw = parseNumericValue(point['CO2 Links']);
     const co2CSV = parseNumericValue(point['CO2 CSV(%)']);
 
+    // Parse optional fields - don't exclude points if missing
+    const coolingV = parseNumericValue(point['Cooling(V)']);
+    const heatingPwm = parseNumericValue(point['Heating(PWM)']);
+    const ventilationV = parseNumericValue(point['Ventilation(V)']);
+    const fan1V = parseNumericValue(point['Fan 1(V)']);
+    const fan2V = parseNumericValue(point['Fan 2(V)']);
+    const fan3V = parseNumericValue(point['Fan 3(V)']);
+    const flowControlPa = parseNumericValue(point['Stuursignaal debiet(Pa)']);
+
     // Convert CO2 Rechts and Links to percentage by multiplying by 0.001
     const co2Right = co2RightRaw !== null ? co2RightRaw * 0.001 : null;
     const co2Left = co2LeftRaw !== null ? co2LeftRaw * 0.001 : null;
@@ -107,6 +130,13 @@ export function parseTemperatureData(rawData: RawDataPoint[]): TemperatureDataPo
         co2Right,
         co2Left,
         co2CSV,
+        coolingV,
+        heatingPwm,
+        ventilationV,
+        fan1V,
+        fan2V,
+        fan3V,
+        flowControlPa,
       });
     }
   }

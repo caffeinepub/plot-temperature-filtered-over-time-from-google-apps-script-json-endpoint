@@ -17,6 +17,7 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
       temperatureFiltered: point.temperatureFiltered,
       temperatureCSV: point.temperatureCSV,
       timeLabel: format(point.timestamp, 'HH:mm:ss'),
+      fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
     }));
   }, [data]);
 
@@ -60,10 +61,18 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             formatter={(value: number, name: string) => {
               const label = name === 'temperatureFiltered' 
                 ? 'Temperature Filtered (°F)' 
-                : 'Temperature CSV (°F) - dashed';
+                : 'Temperature setpoint (°F) - dashed';
               return [`${value.toFixed(2)}°F`, label];
             }}
-            labelFormatter={(label) => `Time: ${label}`}
+            labelFormatter={((label: any, payload: any) => {
+              if (payload && payload.length > 0) {
+                const dataPoint = payload[0].payload;
+                if (dataPoint?.fullTimestamp) {
+                  return dataPoint.fullTimestamp;
+                }
+              }
+              return label;
+            }) as any}
           />
           <Legend
             wrapperStyle={{
@@ -73,7 +82,7 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             iconType="line"
             formatter={(value) => {
               if (value === 'temperatureFiltered') return 'Temperature Filtered (°F)';
-              if (value === 'temperatureCSV') return 'Temperature CSV (°F) - dashed';
+              if (value === 'temperatureCSV') return 'Temperature setpoint (°F) - dashed';
               return value;
             }}
           />

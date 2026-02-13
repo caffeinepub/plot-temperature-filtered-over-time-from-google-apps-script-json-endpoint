@@ -1,11 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Remove the header logo entirely and ensure all CO₂ data is displayed consistently in percent (%) across parsing and chart UI.
+**Goal:** Make the “CO2 Right (%)” series visually distinct by rendering it in a lighter green than “CO2 Left (%)”, consistently in both the chart and legend.
 
 **Planned changes:**
-- Remove the logo `<img>` and any logo-specific wrapper/spacing or logo-related UI from the dashboard header, leaving only the existing title/subtitle text block.
-- Update CO₂ parsing so `CO2 CSV(%)` stays in its original percent unit (no x10000), while `CO2 Rechts` and `CO2 Links` are each scaled by multiplying by `0.001`.
-- Update CO₂ chart legend/tooltip/axis labeling to use percent wording only (no “ppm”), and label the CO₂ CSV series exactly as `CO2 CSV (%) - dashed`.
+- Update the CO2 chart series styling so “CO2 Left (%)” uses a darker green and “CO2 Right (%)” uses a lighter green.
+- Ensure the legend swatches match the same darker/lighter green colors used for the corresponding chart lines.
+- Apply the same relative color contrast (Right lighter than Left) in both light mode and dark mode.
 
-**User-visible outcome:** The dashboard header shows only the title and subtitle (no logo), and the CO₂ chart displays three series all in % with correct labels and axis unit.
+**User-visible outcome:** In the CO2 chart, users can clearly differentiate “CO2 Left (%)” (dark green) from “CO2 Right (%)” (light green) in both the chart lines and the legend, across light and dark themes.

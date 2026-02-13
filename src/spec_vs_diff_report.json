@@ -1,16 +1,38 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-10T12:52:14.622Z",
-  "summary": "All three requested requirements (REQ-50/51/52) appear to be implemented: the header logo is removed from the dashboard header layout, CO₂ parsing/scaling is updated so all series are percentages, and CO₂ chart labels/tooltip/axis reflect (%) with the CSV series labeled exactly \"CO2 CSV (%) - dashed\". No unrequested features can be conclusively identified from the provided diff summary.",
-  "missing_requirements": [],
-  "hallucinated_features": [],
-  "confidence": 0.74,
+  "generatedAt": "2026-02-13T08:00:46.901Z",
+  "summary": "The diff introduces new CSS/OKLCH variables intended to differentiate CO2 series colors (Right lighter than Left) in both light and dark mode, but it does not show any direct changes to the CO2 chart component to ensure the correct series-to-color mapping and legend swatch behavior.",
+  "missing_requirements": [
+    {
+      "id": "REQ-1",
+      "requirement": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors (consistent in light and dark mode).",
+      "reason": "While new CSS variables for lighter/darker CO2 greens are defined, the diff provides no evidence that the CO2Chart actually uses these variables nor that the specific series ('CO2 Right (%)' vs 'CO2 Left (%)') are mapped to the lighter/darker greens in both the rendered lines and the legend icons.",
+      "evidence": [
+        "frontend/src/index.css"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "Project state tracking updates (adding AR-1/AR-2 requests marked pending).",
+      "reason": "Not requested by the BuildRequest; the request was a UI color tweak in the CO2 chart.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "description": "Addition/update of a generated 'frontend-file-summaries.txt' inventory describing many frontend components and features.",
+      "reason": "Not requested by the BuildRequest; it does not contribute direct implementation evidence for the CO2 chart color change.",
+      "evidence": [
+        "frontend-file-summaries.txt"
+      ]
+    }
+  ],
+  "confidence": 0.72,
   "changed_files": [
     "frontend-file-summaries.txt",
-    "frontend/src/components/CO2Chart.tsx",
-    "frontend/src/lib/temperatureParsing.ts",
-    "frontend/src/pages/TemperatureDashboardPage.tsx",
+    "frontend/src/index.css",
     "project_state.json"
   ]
 }
