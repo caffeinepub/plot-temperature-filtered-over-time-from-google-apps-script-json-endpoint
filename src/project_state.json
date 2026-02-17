@@ -1,22 +1,16 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Project includes an admin system in the existing profile section: admins can grant admin rights to other users via Principal ID, with two initial admins (first-ever Internet Identity login and a fixed Principal).",
-  "architectural_notes": [
-    "Admin management lives in existing profile section UI.",
-    "Admins can grant admin rights to users by Principal ID.",
-    "Initial admin set includes (1) first-ever Internet Identity login and (2) fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
-  ],
-  "known_issues": [
-    "Current build: unable to add admins (admin creation not working)."
-  ],
-  "isFixRequest": true,
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [],
+  "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-rebuild-the-admin-feature-end-to-end-so-that-an-admin-can-reliably-grant-admin-rights-to-another-user-by-entering-their-principal-id-from-the-existing-profile-section-and-the-admin-list-updates-to-reflect-the-change",
-      "title": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
+      "id": "feature-in-the-footer-text-element-at-xpath-html-1-body-1-div-1-div-1-footer-1-div-1-div-1-replace-the-displayed-text-built-by-hannes-with-v1-0-english-user-facing-text-apply-the-change-wherever-this-same-footer-element-is-rendered-including-the-access-denied-layout-and-the-normal-app-layout-so-the-footer-is-consistent-across-pages",
+      "title": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
       "reqIds": [
-        "REQ-3"
+        "REQ-1"
       ],
       "version": 1
     }
@@ -24,36 +18,12 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Rebuild admin module: in profile section, allow admins to make other users admin via Principal ID; initialize admins as first-ever Internet Identity login + fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe.",
+      "summary": "Wijzig de tekst 'built by Hannes' naar 'V1.0' (in het geselecteerde element)",
       "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-2",
-      "summary": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-3",
-      "summary": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-5",
-      "summary": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
-      "reqIds": [
-        "REQ-4"
-      ],
       "status": "pending"
     }
   ],
-  "projectName": "Admin Profile Controls",
+  "projectName": "Admin Manager",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

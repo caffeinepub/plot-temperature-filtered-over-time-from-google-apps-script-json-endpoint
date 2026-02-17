@@ -2,22 +2,14 @@ import { useInternetIdentity } from '@/hooks/useInternetIdentity';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LogIn } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 export function LoginPage() {
-  const { login, loginStatus } = useInternetIdentity();
+  const { login, isLoggingIn, isLoginError, isInitializing, loginError } = useInternetIdentity();
 
-  const isLoggingIn = loginStatus === 'logging-in';
-
-  const handleLogin = async () => {
-    try {
-      await login();
-    } catch (error: any) {
-      console.error('Login error:', error);
-      // Handle "already authenticated" error by clearing and retrying
-      if (error.message === 'User is already authenticated') {
-        window.location.reload();
-      }
-    }
+  const handleLogin = () => {
+    login();
   };
 
   return (
@@ -33,13 +25,23 @@ export function LoginPage() {
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
             <LogIn className="w-10 h-10 text-primary" />
           </div>
+          
+          {isLoginError && (
+            <Alert variant="destructive" className="w-full">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {loginError?.message || 'Login failed. Please try again.'}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <Button
             onClick={handleLogin}
-            disabled={isLoggingIn}
+            disabled={isLoggingIn || isInitializing}
             size="lg"
             className="w-full"
           >
-            {isLoggingIn ? 'Signing in...' : 'Sign in'}
+            {isLoggingIn || isInitializing ? 'Signing in...' : 'Sign in'}
           </Button>
         </CardContent>
       </Card>

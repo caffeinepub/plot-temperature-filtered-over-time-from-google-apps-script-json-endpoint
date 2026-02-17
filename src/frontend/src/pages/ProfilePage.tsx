@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, Shield, Copy, Check, AlertCircle } from 'lucide-react';
+import { User, Shield, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Principal } from '@icp-sdk/core/principal';
 
@@ -18,13 +18,14 @@ export function ProfilePage() {
   const { mutate: grantAdmin, isPending: isGranting } = useGrantAdmin();
   
   const isAdmin = userProfile?.isAdmin ?? false;
-  const { data: adminList, isLoading: adminListLoading, error: adminListError } = useAdminList(isAdmin);
+  const { data: adminList, isLoading: adminListLoading, error: adminListError, refetch: refetchAdminList } = useAdminList(isAdmin);
   
   const [name, setName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [adminPrincipal, setAdminPrincipal] = useState('');
   const [copiedPrincipal, setCopiedPrincipal] = useState(false);
   const [copiedAdminPrincipal, setCopiedAdminPrincipal] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSaveName = () => {
     if (name.trim()) {
@@ -87,6 +88,18 @@ export function ProfilePage() {
     setCopiedAdminPrincipal(principal);
     toast.success('Principal copied to clipboard');
     setTimeout(() => setCopiedAdminPrincipal(null), 2000);
+  };
+
+  const handleRefreshAdminList = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetchAdminList();
+      toast.success('Admin list refreshed');
+    } catch (error: any) {
+      toast.error(`Failed to refresh: ${error.message}`);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (isLoading) {
@@ -249,7 +262,19 @@ export function ProfilePage() {
 
               {/* Admin List */}
               <div className="space-y-3">
-                <Label>Current Administrators</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Current Administrators</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefreshAdminList}
+                    disabled={isRefreshing || adminListLoading}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
                 {adminListLoading ? (
                   <div className="text-sm text-muted-foreground">Loading admin list...</div>
                 ) : adminListError ? (

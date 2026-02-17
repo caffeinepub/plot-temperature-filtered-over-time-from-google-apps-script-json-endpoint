@@ -15,7 +15,7 @@ function App() {
   const lastUpdated = useGlobalLastUpdated();
   const { isDarkMode, toggleTheme } = useThemeSession();
   const queryClient = useQueryClient();
-  const { identity } = useInternetIdentity();
+  const { identity, isInitializing } = useInternetIdentity();
   const { userProfile, isLoading: profileLoading, isFetched } = useCurrentUserProfile();
   
   const PageComponent = currentPage.component;
@@ -41,8 +41,8 @@ function App() {
     goToPageId('profile');
   };
 
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
+  // Show login page while initializing or when not authenticated
+  if (isInitializing || !isAuthenticated) {
     return <LoginPage />;
   }
 
@@ -50,6 +50,7 @@ function App() {
   const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
 
   // Show access denied if trying to access protected page without admin rights
+  // Only check after profile has been fetched to avoid premature blocking
   if (isProtectedPage && !isAdmin && !profileLoading && isFetched) {
     return (
       <div className="min-h-screen bg-background">
@@ -76,7 +77,7 @@ function App() {
         <footer className="border-t border-border bg-card mt-16">
           <div className="container mx-auto px-6 py-6">
             <div className="text-center text-sm text-muted-foreground">
-              Built by Hannes
+              V1.0
             </div>
           </div>
         </footer>
@@ -116,7 +117,7 @@ function App() {
       <footer className="border-t border-border bg-card mt-16">
         <div className="container mx-auto px-6 py-6">
           <div className="text-center text-sm text-muted-foreground">
-            Built by Hannes
+            V1.0
           </div>
         </div>
       </footer>

@@ -1,63 +1,34 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-17T16:07:02.301Z",
+  "generatedAt": "2026-02-17T17:52:17.379Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
+    "total": 1,
     "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-2",
-        "summary": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
-      },
-      {
-        "id": "REQ-3",
-        "summary": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
+        "summary": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/hooks/useActor.ts",
-          "frontend/src/hooks/useAdminList.ts",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/ProfilePage.tsx"
+          "frontend/src/App.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/hooks/useAdminList.ts",
-          "frontend/src/hooks/useQueries.ts",
-          "frontend/src/pages/ProfilePage.tsx"
+          "frontend/src/App.tsx"
         ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
-        "status": "unknown",
-        "plannedFiles": [],
-        "matchedFiles": []
       }
     ]
   },
   "changedFiles": [
-    "backend/main.mo",
     "build-request.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/hooks/useAdminList.ts",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/ProfilePage.tsx",
+    "frontend/src/App.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

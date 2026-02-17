@@ -1,110 +1,36 @@
 {
   "kind": "build_request",
-  "title": "Rebuild admin module and persist admin access control across upgrades",
-  "projectName": "Admin Profile Controls",
-  "priority": "high",
+  "title": "Change footer credit text to V1.0",
+  "projectName": "Admin Manager",
+  "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
-      "target": "backend",
+      "text": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
+      "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-1"
+          "recent-messages"
         ],
         "quotes": [
-          "Ik kan nog steeds geen admin's toevoegen, kun je heel het admin deel herbouwen?"
+          "Hey, kun je de tekst wijzigen van 'built by Hannes'  naar 'V1.0'",
+          "Ja doe maar"
         ]
       },
       "acceptanceCriteria": [
-        "After granting admin to a target Principal via `grantAdminRole`, that Principal is still recognized as admin after a canister upgrade/redeploy.",
-        "Admin-only guarded methods (e.g., `getAllAdmins`, `getGoogleSheetsDownloadLink`, `getUserProfile`, `getGrantedAdmins`, `grantAdminRole`) continue to enforce admin access correctly both before and after upgrade.",
-        "No admin/access-control data is lost on upgrade."
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "text": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-2"
-        ],
-        "quotes": [
-          "in het begin zijn er 2 admins, de eerste admin is de eerste inlogger met internet identity en ook nog standaard de gebruiker: nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
-        ]
-      },
-      "acceptanceCriteria": [
-        "On a fresh deployment with no prior state, the first authenticated Internet Identity caller becomes an admin without manual intervention.",
-        "The Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always treated as admin (even if not present in any stored admin list).",
-        "The “first-ever login becomes admin” behavior is applied exactly once and does not change when later users log in.",
-        "The initial-admin behavior remains correct after canister upgrades (i.e., the already-established first admin remains admin)."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-3"
-        ],
-        "quotes": [
-          "1. een admin moet andere gebruikers via principal id admin kunnen maken.",
-          "2. in een profielsectie die er nu al reeds is"
-        ]
-      },
-      "acceptanceCriteria": [
-        "From the Profile page, when an admin enters a valid Principal ID and clicks Grant, the backend grants admin rights and returns success.",
-        "After a successful grant, the admin list shown on the Profile page includes the newly granted admin without requiring a full page reload.",
-        "Invalid Principal IDs are rejected by the UI with a clear error message and do not call the backend.",
-        "Non-admin users do not see the Admin Controls section."
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
-      "target": "backend",
-      "source": {
-        "messageIds": [
-          "msg-4"
-        ],
-        "quotes": [
-          "ik kan nog steeds geen admin's toevoegen, kun je heel het admin deel herbouwen?"
-        ]
-      },
-      "acceptanceCriteria": [
-        "`getAllAdmins()` returns each admin principal at most once, even if the hardcoded admin is also present in the granted list.",
-        "Admins added via `grantAdminRole` appear in `getAllAdmins()` and `getGrantedAdmins()` consistently.",
-        "Admin list results remain consistent after canister upgrade/redeploy."
+        "When viewing any page that shows the app footer (including the access-denied screen), the footer displays exactly: \"V1.0\".",
+        "The previous footer text \"Built by Hannes\" is no longer visible anywhere in the UI."
       ]
     }
   ],
   "constraints": [
-    "Keep all Motoko logic within the single actor in `backend/main.mo` (single-actor architecture).",
-    "Do not edit any files under `frontend/src/components/ui` or any frontend paths marked immutable in SYSTEM_CONTEXT.",
-    "Use English for any user-facing text (UI labels, toasts, error messages).",
-    "Do not introduce external databases or third-party auth providers; Internet Identity remains the only auth method."
+    "Apply the text change only to the selected footer text element (XPath: /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1]) and its equivalent rendering paths; do not alter other UI copy or layout."
   ],
   "nonGoals": [
-    "Adding role types beyond user/admin (e.g., moderator, editor).",
-    "Adding admin removal/demotion functionality unless required to make admin granting reliable.",
-    "Implementing real-time updates (e.g., WebSockets) for admin list changes."
+    "No changes to backend logic, admin logic, authentication, or other pages/components beyond the footer text replacement."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
-  },
-  "userProfileUpdate": {
-    "goalsToAdd": [],
-    "goalsToRemove": [],
-    "preferencesToAdd": [],
-    "preferencesToRemove": [],
-    "miscToAdd": [
-      "User wants the admin module rebuilt so admins can grant admin via Principal ID in the existing Profile section, with initial admins being (a) first-ever Internet Identity login and (b) fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
-    ],
-    "miscToRemove": [],
-    "fieldsToSet": {},
-    "fieldsToDelete": []
   }
 }

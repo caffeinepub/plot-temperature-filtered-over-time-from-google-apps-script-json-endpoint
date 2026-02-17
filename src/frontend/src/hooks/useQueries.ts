@@ -16,6 +16,7 @@ export function useSaveUserProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+      queryClient.refetchQueries({ queryKey: ['currentUserProfile'] });
     },
   });
 }

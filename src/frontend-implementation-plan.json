@@ -1,37 +1,20 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Admin module rebuild (Profile-based admin granting + live admin list refresh)",
+  "title": "Change footer credit text to V1.0",
   "requirements": [
     {
-      "id": "REQ-3",
-      "summary": "Make Profile page admin controls reliably grant admin by Principal ID and refresh the displayed admin list without reload, while hiding admin controls from non-admins.",
+      "id": "REQ-1",
+      "summary": "Replace the footer credit text \"Built by Hannes\" with \"V1.0\" everywhere the same footer is rendered (normal layout and access-denied layout).",
       "acceptanceCriteria": [
-        "From the Profile page, when an admin enters a valid Principal ID and clicks Grant, the backend grants admin rights and returns success.",
-        "After a successful grant, the admin list shown on the Profile page includes the newly granted admin without requiring a full page reload.",
-        "Invalid Principal IDs are rejected by the UI with a clear error message and do not call the backend.",
-        "Non-admin users do not see the Admin Controls section."
+        "When viewing any page that shows the app footer (including the access-denied screen), the footer displays exactly: \"V1.0\".",
+        "The previous footer text \"Built by Hannes\" is no longer visible anywhere in the UI."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useActor.ts",
+          "path": "frontend/src/App.tsx",
           "operation": "modify",
-          "description": "Harden authenticated actor initialization so admin/role checks work reliably across redeploys: align with the authorization component expectations by making any access-control initialization step resilient (e.g., avoid hard failure if a non-typed/internal init function is unavailable), and ensure the rest of the app can still call admin-related backend functions. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/hooks/useAdminList.ts",
-          "operation": "modify",
-          "description": "Ensure the admin list query behavior supports immediate UI updates after a successful grant (stable query key, correct enabled gating for admins only, and predictable refetch behavior after invalidation). Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Strengthen the grant-admin mutation for reliability: keep Principal parsing, improve error mapping for clear UI feedback, and ensure admin list + current user profile caches are invalidated/refetched so the Profile page updates without reload. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/pages/ProfilePage.tsx",
-          "operation": "modify",
-          "description": "Rebuild/confirm the Profile page Admin Controls flow end-to-end: validate Principal IDs client-side (no backend call on invalid), call the grant mutation, show English success/error messages, and refresh the displayed admin list after success without full reload; keep admin-only conditional rendering so non-admins never see Admin Controls. Verify the component's usage instructions before implementing."
+          "description": "Update the footer text node within the existing footer markup (including the access-denied render branch and the normal app layout footer) to display exactly \"V1.0\" instead of \"Built by Hannes\", without changing any other copy or layout."
         }
       ]
     }

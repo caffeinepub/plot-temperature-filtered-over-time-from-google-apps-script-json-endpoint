@@ -1,73 +1,38 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-17T16:07:02.298Z",
-  "summary": "Diff adds new frontend hooks and Profile page logic for granting admins and fetching admin list, plus backend changes introducing an admin list and hardcoded admin initialization. However, key backend persistence and initial-admin rules are not clearly implemented from the provided truncated diff, and correctness of admin listing APIs cannot be fully verified.",
+  "generatedAt": "2026-02-17T17:52:17.375Z",
+  "summary": "REQ-1 is partially implemented: the access-denied layout footer text is changed to \"V1.0\" in App.tsx, but the diff is truncated before the normal app layout footer, so it cannot be verified that the footer is consistently updated everywhere or that the old text is fully removed.",
   "missing_requirements": [
     {
       "id": "REQ-1",
-      "requirement": "Persist admin/access-control state across canister upgrades so granted admins remain admins after redeploys, and admin-only guards continue to work post-upgrade.",
-      "reason": "In the shown backend snippet, the admin/access-control data structures are plain `var` values with no visible `stable` storage and no `system preupgrade/postupgrade` logic to serialize/restore state. With only the truncated evidence, upgrade persistence is not demonstrated.",
+      "requirement": "Apply the footer text replacement wherever the same footer element is rendered (including the normal app layout) so the footer is consistent across pages, and ensure \"Built by Hannes\" is no longer visible anywhere in the UI.",
+      "reason": "The diff shows the access-denied footer updated to \"V1.0\", but the normal app layout section is truncated, so there is no evidence the footer in the normal layout was also updated or that the old string is removed everywhere.",
       "evidence": [
-        "backend/main.mo (shows `var accessControlState = AccessControl.initState();` and `var grantedAdminsList = List.empty<Principal>();` but no visible stable vars or upgrade hooks in snippet)"
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "requirement": "Initial-admin rules: first-ever authenticated user becomes admin exactly once; hardcoded Principal is always admin; behavior remains correct after upgrades.",
-      "reason": "Backend code shown only ensures the hardcoded admin is added to a `grantedAdminsList` in `ensureInitialized` and does not show logic that assigns the first-ever authenticated caller as admin exactly once, nor any persistence of that 'first admin' across upgrades.",
-      "evidence": [
-        "backend/main.mo (function `ensureInitialized(caller)` only adds HARDCODED_ADMIN; no shown logic for first-ever login promotion)"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "requirement": "`getAllAdmins()` returns a de-duplicated list including hardcoded admin plus all granted admins, and remains accurate after upgrades.",
-      "reason": "`getAllAdmins()` implementation is truncated, so deduplication and inclusion of hardcoded+granted admins cannot be verified from the diff summary. Upgrade accuracy is also not shown (see REQ-1).",
-      "evidence": [
-        "backend/main.mo (`getAllAdmins()` is present but truncated: `public query ({ caller }) func getAllAdmins() : async [AdminInfo] { ... [truncated]`)"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "requirement": "Non-admin users do not see the Admin Controls section on the Profile page.",
-      "reason": "While the frontend fetch of admin list is gated by `useAdminList(isAdmin)`, the Profile page rendering is truncated, so it is not verifiable from the provided diff that the Admin Controls UI section is fully hidden for non-admins.",
-      "evidence": [
-        "frontend/src/pages/ProfilePage.tsx (truncated before the Admin Controls rendering; only shows `const isAdmin = ...` and `useAdminList(isAdmin)`)"
+        "frontend/src/App.tsx (truncated; normal app layout not shown)"
       ]
     }
   ],
   "hallucinated_features": [
     {
-      "description": "UI additions for copy-to-clipboard of principals (including per-admin principal copy state) and related toasts.",
-      "reason": "Not requested by any REQ; REQ-3 only requires granting admin and list updating, plus hiding controls for non-admins and principal validation.",
+      "description": "Updating project tracking metadata (new_feature_requests/status entries) in project_state.json.",
+      "reason": "The BuildRequest only asks for a footer text change; it does not request updates to project state/metadata files.",
       "evidence": [
-        "frontend/src/pages/ProfilePage.tsx (`handleCopyPrincipal`, `handleCopyAdminPrincipal`, `copiedPrincipal`, `copiedAdminPrincipal`, clipboard writes, toasts)"
+        "project_state.json"
       ]
     },
     {
-      "description": "Client-side sorting of the admin list for stable ordering.",
-      "reason": "Not requested; REQ-4 concerns backend de-duplication and correctness, not frontend sorting.",
+      "description": "Large set of unrelated frontend feature descriptions (charts, parsing, assets, styling, etc.) reflected/updated in the frontend file summaries.",
+      "reason": "The BuildRequest is narrowly scoped to changing a single footer text element and explicitly prohibits altering other UI copy/layout or other components.",
       "evidence": [
-        "frontend/src/pages/ProfilePage.tsx (`sortedAdminList = adminList ? [...adminList].sort(...) : [];`)"
-      ]
-    },
-    {
-      "description": "React Query caching/tuning behavior for admin list (staleTime=30s, retry=false) and explicit refetchQueries after grant.",
-      "reason": "Not explicitly requested; REQ-3 only requires the list updates without full reload. These are implementation choices beyond stated requirements.",
-      "evidence": [
-        "frontend/src/hooks/useAdminList.ts (`retry: false`, `staleTime: 30000`)",
-        "frontend/src/hooks/useQueries.ts (`refetchQueries({ queryKey: ['adminList'] })`)"
+        "frontend-file-summaries.txt (truncated)"
       ]
     }
   ],
   "confidence": 0.62,
   "changed_files": [
-    "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/hooks/useAdminList.ts",
-    "frontend/src/hooks/useQueries.ts",
-    "frontend/src/pages/ProfilePage.tsx",
+    "frontend/src/App.tsx",
     "project_state.json"
   ]
 }

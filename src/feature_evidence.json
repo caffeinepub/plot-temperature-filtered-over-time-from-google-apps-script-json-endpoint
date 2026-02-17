@@ -2,12 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-rebuild-the-admin-feature-end-to-end-so-that-an-admin-can-reliably-grant-admin-rights-to-another-user-by-entering-their-principal-id-from-the-existing-profile-section-and-the-admin-list-updates-to-reflect-the-change",
-      "featureTitle": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
+      "featureId": "feature-in-the-footer-text-element-at-xpath-html-1-body-1-div-1-div-1-footer-1-div-1-div-1-replace-the-displayed-text-built-by-hannes-with-v1-0-english-user-facing-text-apply-the-change-wherever-this-same-footer-element-is-rendered-including-the-access-denied-layout-and-the-normal-app-layout-so-the-footer-is-consistent-across-pages",
+      "featureTitle": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
       "files": [
-        "frontend/src/hooks/useAdminList.ts",
-        "frontend/src/hooks/useQueries.ts",
-        "frontend/src/pages/ProfilePage.tsx"
+        "frontend/src/App.tsx"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -19,7 +17,7 @@
         "authorization@4.0.0"
       ],
       "testIds": [
-        "REQ-3"
+        "REQ-1"
       ],
       "confidence": "high"
     }

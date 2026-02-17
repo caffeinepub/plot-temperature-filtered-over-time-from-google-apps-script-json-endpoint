@@ -30,6 +30,7 @@ export function ProfileMenu({ userProfile, onNavigateToProfile }: ProfileMenuPro
 
   const handleSignOut = async () => {
     await clear();
+    // Clear all cached data including user profile and admin list
     queryClient.clear();
   };
 
