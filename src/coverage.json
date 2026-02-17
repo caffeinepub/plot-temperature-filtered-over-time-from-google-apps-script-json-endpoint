@@ -1,61 +1,51 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-17T14:04:05.413Z",
+  "generatedAt": "2026-02-17T16:07:02.301Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 3,
-    "implemented": 3,
+    "total": 4,
+    "implemented": 1,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/logSystems/logSystemPages.ts",
-          "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-          "frontend/src/App.tsx",
-          "frontend/src/components/LogSystemTitleBar.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/logSystems/logSystemPages.ts",
-          "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-          "frontend/src/App.tsx",
-          "frontend/src/components/LogSystemTitleBar.tsx"
-        ]
+        "summary": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       },
       {
         "id": "REQ-2",
-        "summary": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
+        "summary": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
         "status": "implemented",
         "plannedFiles": [
+          "frontend/src/hooks/useActor.ts",
           "frontend/src/hooks/useAdminList.ts",
+          "frontend/src/hooks/useQueries.ts",
           "frontend/src/pages/ProfilePage.tsx"
         ],
         "matchedFiles": [
           "frontend/src/hooks/useAdminList.ts",
+          "frontend/src/hooks/useQueries.ts",
           "frontend/src/pages/ProfilePage.tsx"
         ]
       },
       {
-        "id": "REQ-3",
-        "summary": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-          "frontend/src/hooks/useAdminList.ts",
-          "frontend/src/pages/ProfilePage.tsx",
-          "frontend/src/App.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-          "frontend/src/hooks/useAdminList.ts",
-          "frontend/src/pages/ProfilePage.tsx",
-          "frontend/src/App.tsx"
-        ]
+        "id": "REQ-4",
+        "summary": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
+        "status": "unknown",
+        "plannedFiles": [],
+        "matchedFiles": []
       }
     ]
   },
@@ -65,15 +55,8 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/App.tsx",
-    "frontend/src/backend.d.ts",
-    "frontend/src/backend.ts",
-    "frontend/src/components/LogSystemTitleBar.tsx",
-    "frontend/src/declarations/backend.did.d.ts",
-    "frontend/src/declarations/backend.did.js",
     "frontend/src/hooks/useAdminList.ts",
-    "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-    "frontend/src/logSystems/logSystemPages.ts",
+    "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/ProfilePage.tsx",
     "project_state.json",
     "scratch/component-selection.json",

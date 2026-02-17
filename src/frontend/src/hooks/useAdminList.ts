@@ -9,9 +9,18 @@ export function useAdminList(enabled: boolean) {
     queryKey: ['adminList'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      return actor.getAllAdmins();
+      try {
+        return await actor.getAllAdmins();
+      } catch (error: any) {
+        // Handle authorization errors gracefully
+        if (error.message?.includes('Unauthorized')) {
+          throw new Error('You do not have permission to view the admin list');
+        }
+        throw error;
+      }
     },
     enabled: !!actor && !actorFetching && enabled,
     retry: false,
+    staleTime: 30000, // Cache for 30 seconds
   });
 }

@@ -1,28 +1,72 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-17T14:04:05.410Z",
-  "summary": "REQ-1 is largely implemented: the Google Sheets URL was moved to an admin-only backend method and the frontend only fetches/displays it for admins on the Conceptmachine page. REQ-2/REQ-3 appear mostly implemented (new admin list endpoint + hook + ProfilePage integration), but the backend admin list implementation seems to omit admins who do not have a saved profile, which may violate the requirement to list the current set of admins.",
+  "generatedAt": "2026-02-17T16:07:02.298Z",
+  "summary": "Diff adds new frontend hooks and Profile page logic for granting admins and fetching admin list, plus backend changes introducing an admin list and hardcoded admin initialization. However, key backend persistence and initial-admin rules are not clearly implemented from the provided truncated diff, and correctness of admin listing APIs cannot be fully verified.",
   "missing_requirements": [
     {
-      "id": "REQ-2",
-      "requirement": "Backend admin-only query returns the current set of admin principals (at minimum principals), including admins even if they have no saved profile.",
-      "reason": "The backend implementation of getAllAdmins() derives admins only by filtering userProfiles.entries(), which will exclude any admin principals that exist in access control state but do not have an entry in userProfiles.",
+      "id": "REQ-1",
+      "requirement": "Persist admin/access-control state across canister upgrades so granted admins remain admins after redeploys, and admin-only guards continue to work post-upgrade.",
+      "reason": "In the shown backend snippet, the admin/access-control data structures are plain `var` values with no visible `stable` storage and no `system preupgrade/postupgrade` logic to serialize/restore state. With only the truncated evidence, upgrade persistence is not demonstrated.",
       "evidence": [
-        "backend/main.mo (getAllAdmins filters userProfiles.entries() and maps profiles to AdminInfo)"
+        "backend/main.mo (shows `var accessControlState = AccessControl.initState();` and `var grantedAdminsList = List.empty<Principal>();` but no visible stable vars or upgrade hooks in snippet)"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Initial-admin rules: first-ever authenticated user becomes admin exactly once; hardcoded Principal is always admin; behavior remains correct after upgrades.",
+      "reason": "Backend code shown only ensures the hardcoded admin is added to a `grantedAdminsList` in `ensureInitialized` and does not show logic that assigns the first-ever authenticated caller as admin exactly once, nor any persistence of that 'first admin' across upgrades.",
+      "evidence": [
+        "backend/main.mo (function `ensureInitialized(caller)` only adds HARDCODED_ADMIN; no shown logic for first-ever login promotion)"
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "requirement": "`getAllAdmins()` returns a de-duplicated list including hardcoded admin plus all granted admins, and remains accurate after upgrades.",
+      "reason": "`getAllAdmins()` implementation is truncated, so deduplication and inclusion of hardcoded+granted admins cannot be verified from the diff summary. Upgrade accuracy is also not shown (see REQ-1).",
+      "evidence": [
+        "backend/main.mo (`getAllAdmins()` is present but truncated: `public query ({ caller }) func getAllAdmins() : async [AdminInfo] { ... [truncated]`)"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "requirement": "Non-admin users do not see the Admin Controls section on the Profile page.",
+      "reason": "While the frontend fetch of admin list is gated by `useAdminList(isAdmin)`, the Profile page rendering is truncated, so it is not verifiable from the provided diff that the Admin Controls UI section is fully hidden for non-admins.",
+      "evidence": [
+        "frontend/src/pages/ProfilePage.tsx (truncated before the Admin Controls rendering; only shows `const isAdmin = ...` and `useAdminList(isAdmin)`)"
       ]
     }
   ],
-  "hallucinated_features": [],
-  "confidence": 0.64,
+  "hallucinated_features": [
+    {
+      "description": "UI additions for copy-to-clipboard of principals (including per-admin principal copy state) and related toasts.",
+      "reason": "Not requested by any REQ; REQ-3 only requires granting admin and list updating, plus hiding controls for non-admins and principal validation.",
+      "evidence": [
+        "frontend/src/pages/ProfilePage.tsx (`handleCopyPrincipal`, `handleCopyAdminPrincipal`, `copiedPrincipal`, `copiedAdminPrincipal`, clipboard writes, toasts)"
+      ]
+    },
+    {
+      "description": "Client-side sorting of the admin list for stable ordering.",
+      "reason": "Not requested; REQ-4 concerns backend de-duplication and correctness, not frontend sorting.",
+      "evidence": [
+        "frontend/src/pages/ProfilePage.tsx (`sortedAdminList = adminList ? [...adminList].sort(...) : [];`)"
+      ]
+    },
+    {
+      "description": "React Query caching/tuning behavior for admin list (staleTime=30s, retry=false) and explicit refetchQueries after grant.",
+      "reason": "Not explicitly requested; REQ-3 only requires the list updates without full reload. These are implementation choices beyond stated requirements.",
+      "evidence": [
+        "frontend/src/hooks/useAdminList.ts (`retry: false`, `staleTime: 30000`)",
+        "frontend/src/hooks/useQueries.ts (`refetchQueries({ queryKey: ['adminList'] })`)"
+      ]
+    }
+  ],
+  "confidence": 0.62,
   "changed_files": [
     "backend/main.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/App.tsx",
-    "frontend/src/components/LogSystemTitleBar.tsx",
     "frontend/src/hooks/useAdminList.ts",
-    "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-    "frontend/src/logSystems/logSystemPages.ts",
+    "frontend/src/hooks/useQueries.ts",
     "frontend/src/pages/ProfilePage.tsx",
     "project_state.json"
   ]

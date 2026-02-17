@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { User, Shield, Copy, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { Principal } from '@icp-sdk/core/principal';
 
 export function ProfilePage() {
   const { userProfile, isLoading } = useCurrentUserProfile();
@@ -44,20 +45,32 @@ export function ProfilePage() {
   };
 
   const handleGrantAdmin = () => {
-    if (adminPrincipal.trim()) {
-      grantAdmin(
-        adminPrincipal.trim(),
-        {
-          onSuccess: () => {
-            setAdminPrincipal('');
-            toast.success('Admin rights granted successfully');
-          },
-          onError: (error) => {
-            toast.error(`Failed to grant admin: ${error.message}`);
-          },
-        }
-      );
+    const principalText = adminPrincipal.trim();
+    if (!principalText) {
+      toast.error('Please enter a principal ID');
+      return;
     }
+
+    // Validate principal format client-side before calling backend
+    try {
+      Principal.fromText(principalText);
+    } catch (error) {
+      toast.error('Invalid principal ID format. Please check and try again.');
+      return;
+    }
+
+    grantAdmin(
+      principalText,
+      {
+        onSuccess: () => {
+          setAdminPrincipal('');
+          toast.success('Admin rights granted successfully');
+        },
+        onError: (error) => {
+          toast.error(error.message || 'Failed to grant admin rights');
+        },
+      }
+    );
   };
 
   const handleCopyPrincipal = async () => {
@@ -189,8 +202,8 @@ export function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Admin Controls */}
-        {userProfile?.isAdmin && (
+        {/* Admin Controls - Only visible to admins */}
+        {isAdmin && (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -214,6 +227,11 @@ export function ProfilePage() {
                     placeholder="Enter principal ID"
                     className="font-mono text-sm"
                     disabled={isGranting}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && adminPrincipal.trim()) {
+                        handleGrantAdmin();
+                      }
+                    }}
                   />
                   <Button
                     onClick={handleGrantAdmin}
@@ -231,18 +249,18 @@ export function ProfilePage() {
 
               {/* Admin List */}
               <div className="space-y-3">
-                <Label>Admins</Label>
+                <Label>Current Administrators</Label>
                 {adminListLoading ? (
                   <div className="text-sm text-muted-foreground">Loading admin list...</div>
                 ) : adminListError ? (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Failed to load admin list. Please try refreshing the page.
+                      Failed to load admin list: {adminListError.message}
                     </AlertDescription>
                   </Alert>
                 ) : sortedAdminList.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No admins found.</div>
+                  <div className="text-sm text-muted-foreground">No administrators found.</div>
                 ) : (
                   <div className="space-y-2">
                     {sortedAdminList.map((admin) => (

@@ -1,85 +1,110 @@
 {
   "kind": "build_request",
-  "title": "Restrict Google Sheet download link to admins and show admin list on Profile page",
-  "projectName": "Log System Portal",
-  "priority": "normal",
+  "title": "Rebuild admin module and persist admin access control across upgrades",
+  "projectName": "Admin Profile Controls",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
-      "target": "both",
+      "text": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-2",
-          "msg-4",
-          "msg-5"
+          "msg-1"
         ],
         "quotes": [
-          "de downloadknop, die verwijst naar de google sheet link mag niet beschikbaar zijn voor gebruikers die geen admin zijn, de link mag dus niet openbaar zijn voor niet admin personen",
-          "de knop staat momenteel links van de donkere modus knop",
-          "1. er is reeds een admin systeem in de app"
+          "Ik kan nog steeds geen admin's toevoegen, kun je heel het admin deel herbouwen?"
         ]
       },
       "acceptanceCriteria": [
-        "When the logged-in user is not an admin, the download button in the title bar (currently left of the dark mode toggle) is not rendered and there is no UI path that reveals the Google Sheets URL.",
-        "The Conceptmachine Google Sheets URL is no longer stored in a public frontend constant (e.g., it is not present in frontend/src/logSystems/logSystemPages.ts or equivalent client-side configuration).",
-        "The backend exposes an admin-only method to retrieve the Conceptmachine download URL; calling this method as a non-admin results in an authorization error.",
-        "When the logged-in user is an admin, the download button is shown and clicking it opens the Google Sheets URL in a new tab."
+        "After granting admin to a target Principal via `grantAdminRole`, that Principal is still recognized as admin after a canister upgrade/redeploy.",
+        "Admin-only guarded methods (e.g., `getAllAdmins`, `getGoogleSheetsDownloadLink`, `getUserProfile`, `getGrantedAdmins`, `grantAdminRole`) continue to enforce admin access correctly both before and after upgrade.",
+        "No admin/access-control data is lost on upgrade."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
-      "target": "both",
-      "source": {
-        "messageIds": [
-          "msg-2",
-          "msg-5"
-        ],
-        "quotes": [
-          "+ admin zou de mogelijkheid moeten hebben om te zien wie er allemaal admin is.",
-          "dit mag binnen de profielpagina"
-        ]
-      },
-      "acceptanceCriteria": [
-        "The backend exposes an admin-only query that returns the current set of admin principals (and, if feasible with existing data, associated profile names).",
-        "The Profile page shows a clearly labeled \"Admins\" list section only when userProfile.isAdmin is true.",
-        "Non-admin users cannot access the admin list (UI does not render it; backend query rejects non-admin callers).",
-        "The admin list renders deterministically (e.g., stable ordering) and each entry displays the principal in a readable, copy-friendly format."
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
-      "target": "frontend",
+      "text": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
+      "target": "backend",
       "source": {
         "messageIds": [
           "msg-2"
         ],
         "quotes": [
-          "paar probleempjes."
+          "in het begin zijn er 2 admins, de eerste admin is de eerste inlogger met internet identity en ook nog standaard de gebruiker: nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
         ]
       },
       "acceptanceCriteria": [
-        "A new React Query query (or equivalent) fetches the admin-only download URL only when the current user is an admin and the current page is Conceptmachine (or when the title bar needs it).",
-        "A new React Query query (or equivalent) fetches the admin list only when the current user is an admin and the Profile page is displayed.",
-        "If fetching the admin list fails, the Profile page shows a non-blocking error message (English) and does not break other Profile functionality.",
-        "Existing profile editing and grant-admin flows remain functional."
+        "On a fresh deployment with no prior state, the first authenticated Internet Identity caller becomes an admin without manual intervention.",
+        "The Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always treated as admin (even if not present in any stored admin list).",
+        "The “first-ever login becomes admin” behavior is applied exactly once and does not change when later users log in.",
+        "The initial-admin behavior remains correct after canister upgrades (i.e., the already-established first admin remains admin)."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-3"
+        ],
+        "quotes": [
+          "1. een admin moet andere gebruikers via principal id admin kunnen maken.",
+          "2. in een profielsectie die er nu al reeds is"
+        ]
+      },
+      "acceptanceCriteria": [
+        "From the Profile page, when an admin enters a valid Principal ID and clicks Grant, the backend grants admin rights and returns success.",
+        "After a successful grant, the admin list shown on the Profile page includes the newly granted admin without requiring a full page reload.",
+        "Invalid Principal IDs are rejected by the UI with a clear error message and do not call the backend.",
+        "Non-admin users do not see the Admin Controls section."
+      ]
+    },
+    {
+      "id": "REQ-4",
+      "text": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
+      "target": "backend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "ik kan nog steeds geen admin's toevoegen, kun je heel het admin deel herbouwen?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "`getAllAdmins()` returns each admin principal at most once, even if the hardcoded admin is also present in the granted list.",
+        "Admins added via `grantAdminRole` appear in `getAllAdmins()` and `getGrantedAdmins()` consistently.",
+        "Admin list results remain consistent after canister upgrade/redeploy."
       ]
     }
   ],
   "constraints": [
-    "Backend must remain a single Motoko actor in backend/main.mo (no additional backend services).",
-    "Do not edit files under frontend/src/components/ui (compose existing UI components instead).",
-    "Do not modify immutable frontend hook files: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx."
+    "Keep all Motoko logic within the single actor in `backend/main.mo` (single-actor architecture).",
+    "Do not edit any files under `frontend/src/components/ui` or any frontend paths marked immutable in SYSTEM_CONTEXT.",
+    "Use English for any user-facing text (UI labels, toasts, error messages).",
+    "Do not introduce external databases or third-party auth providers; Internet Identity remains the only auth method."
   ],
   "nonGoals": [
-    "Implementing third-party authentication providers beyond Internet Identity.",
-    "Adding external databases or off-chain storage for admin lists.",
-    "Creating a separate admin management page outside the existing Profile page."
+    "Adding role types beyond user/admin (e.g., moderator, editor).",
+    "Adding admin removal/demotion functionality unless required to make admin granting reliable.",
+    "Implementing real-time updates (e.g., WebSockets) for admin list changes."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
+  },
+  "userProfileUpdate": {
+    "goalsToAdd": [],
+    "goalsToRemove": [],
+    "preferencesToAdd": [],
+    "preferencesToRemove": [],
+    "miscToAdd": [
+      "User wants the admin module rebuilt so admins can grant admin via Principal ID in the existing Profile section, with initial admins being (a) first-ever Internet Identity login and (b) fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
+    ],
+    "miscToRemove": [],
+    "fieldsToSet": {},
+    "fieldsToDelete": []
   }
 }

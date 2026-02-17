@@ -1,34 +1,20 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "New project",
+  "summary": "Project includes an admin system in the existing profile section: admins can grant admin rights to other users via Principal ID, with two initial admins (first-ever Internet Identity login and a fixed Principal).",
   "architectural_notes": [
-    "Existing admin system already present in the app; use it to gate access and display admin list"
+    "Admin management lives in existing profile section UI.",
+    "Admins can grant admin rights to users by Principal ID.",
+    "Initial admin set includes (1) first-ever Internet Identity login and (2) fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe."
   ],
   "known_issues": [
-    "Download button (Google Sheet link) currently accessible to non-admin users"
+    "Current build: unable to add admins (admin creation not working)."
   ],
   "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-restrict-access-to-the-conceptmachine-google-sheets-download-link-so-that-non-admin-users-cannot-see-the-download-button-and-cannot-obtain-the-google-sheets-url-from-the-frontend-bundle-or-runtime-state",
-      "title": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-add-an-admin-only-section-in-the-profile-page-that-lists-all-current-admins-at-minimum-their-principals-optionally-also-show-a-display-name-when-available",
-      "title": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-update-frontend-data-fetching-react-query-hooks-to-support-the-new-backend-endpoints-for-1-fetching-the-admin-only-download-url-and-2-fetching-the-admin-list-with-appropriate-loading-and-error-states-on-the-profile-page",
-      "title": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
+      "id": "feature-rebuild-the-admin-feature-end-to-end-so-that-an-admin-can-reliably-grant-admin-rights-to-another-user-by-entering-their-principal-id-from-the-existing-profile-section-and-the-admin-list-updates-to-reflect-the-change",
+      "title": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
       "reqIds": [
         "REQ-3"
       ],
@@ -38,18 +24,36 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Restrict Google Sheet download button/link to admins only (non-admins must not have access to the link)",
+      "summary": "Rebuild admin module: in profile section, allow admins to make other users admin via Principal ID; initialize admins as first-ever Internet Identity login + fixed principal nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe.",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Add admin visibility in profile page: admins can see who else is an admin",
-      "reqIds": [],
+      "summary": "Fix the backend so that admin/access-control state persists across canister upgrades, so admins added via the UI remain admins after redeploys.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Implement the requested initial-admin rules in the backend: (1) the first-ever user who logs in with Internet Identity becomes an admin, and (2) the hardcoded Principal `nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe` is always an admin.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Ensure the admin listing APIs are correct and stable: `getAllAdmins()` must return a de-duplicated list containing the hardcoded admin plus all granted admins, and it must remain accurate after upgrades.",
+      "reqIds": [
+        "REQ-4"
+      ],
       "status": "pending"
     }
   ],
-  "projectName": "Log System Portal",
+  "projectName": "Admin Profile Controls",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

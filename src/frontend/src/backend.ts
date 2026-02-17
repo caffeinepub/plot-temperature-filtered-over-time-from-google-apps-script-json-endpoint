@@ -113,8 +113,10 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
+    getGrantedAdmins(): Promise<Array<Principal>>;
     getUserProfile(user: Principal): Promise<UserProfileInfo>;
     getUserRole(): Promise<UserRole | null>;
+    grantAdminRole(target: Principal): Promise<boolean>;
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
@@ -206,6 +208,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getGrantedAdmins(): Promise<Array<Principal>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getGrantedAdmins();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getGrantedAdmins();
+            return result;
+        }
+    }
     async getUserProfile(arg0: Principal): Promise<UserProfileInfo> {
         if (this.processError) {
             try {
@@ -232,6 +248,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getUserRole();
             return from_candid_opt_n6(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async grantAdminRole(arg0: Principal): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.grantAdminRole(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.grantAdminRole(arg0);
+            return result;
         }
     }
     async hasProfile(): Promise<boolean> {

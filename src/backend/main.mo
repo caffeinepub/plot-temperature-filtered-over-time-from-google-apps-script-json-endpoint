@@ -3,6 +3,9 @@ import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
 import Text "mo:core/Text";
+import List "mo:core/List";
+import Nat "mo:core/Nat";
+import Blob "mo:core/Blob";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
@@ -19,16 +22,37 @@ actor {
   };
 
   type AdminInfo = {
-    principal : Principal;
     name : Text;
+    principal : Principal;
   };
 
-  let userProfiles = Map.empty<Principal, UserProfile>();
-  let accessControlState = AccessControl.initState();
+  // Stable variables for upgrade persistence
+  var accessControlState = AccessControl.initState();
+  var grantedAdminsList = List.empty<Principal>();
+
+  var userProfiles = Map.empty<Principal, UserProfile>();
+
+  let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
+
+  func isHardcodedAdmin(principal : Principal) : Bool {
+    Principal.equal(principal, HARDCODED_ADMIN);
+  };
+
+  func listContainsAdmin(list : List.List<Principal>, admin : Principal) : Bool {
+    list.any(func(p) { p == admin });
+  };
+
+  // Initialize first user as admin
+  func ensureInitialized(caller : Principal) {
+    if (not listContainsAdmin(grantedAdminsList, HARDCODED_ADMIN)) {
+      grantedAdminsList.add(HARDCODED_ADMIN);
+    };
+  };
 
   include MixinAuthorization(accessControlState);
 
   public query ({ caller }) func hasProfile() : async Bool {
+    ensureInitialized(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can check profile status");
     };
@@ -36,24 +60,29 @@ actor {
   };
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfileInfo {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
-    };
-    switch (userProfiles.get(caller)) {
-      case (null) { null };
-      case (?profile) {
-        ?{
-          name = profile.name;
-          principal = caller;
-          isAdmin = AccessControl.isAdmin(accessControlState, caller);
+    ensureInitialized(caller);
+    let role = AccessControl.getUserRole(accessControlState, caller);
+    switch (role) {
+      case (#admin or #user) {
+        switch (userProfiles.get(caller)) {
+          case (null) { null };
+          case (?profile) {
+            ?{
+              name = profile.name;
+              principal = caller;
+              isAdmin = AccessControl.isAdmin(accessControlState, caller);
+            };
+          };
         };
       };
+      case (_) { null };
     };
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async UserProfileInfo {
+    ensureInitialized(caller);
     if (not (AccessControl.isAdmin(accessControlState, caller))) {
-      Runtime.trap("Unauthorized: Only admins can view other profiles");
+      Runtime.trap("Unauthorized: Only admins can fetch other profiles");
     };
 
     let isAdmin = AccessControl.isAdmin(accessControlState, user);
@@ -74,6 +103,7 @@ actor {
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
+    ensureInitialized(caller);
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
@@ -81,40 +111,71 @@ actor {
   };
 
   public query ({ caller }) func getUserRole() : async ?AccessControl.UserRole {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can query roles");
-    };
+    ensureInitialized(caller);
     let role = AccessControl.getUserRole(accessControlState, caller);
     ?role;
   };
 
   public query ({ caller }) func getGoogleSheetsDownloadLink() : async Text {
-    // Use strict admin check for this as only admins are supposed to access this file
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
+    ensureInitialized(caller);
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
       Runtime.trap("Unauthorized: Only admins can access this resource");
     };
     "https://docs.google.com/spreadsheets/d/1RkaeHoSmQJGZAvkeXcDxd59OrdPsEQQWmKYz_1_mbZQ";
   };
 
   public query ({ caller }) func getAllAdmins() : async [AdminInfo] {
-    if (not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Only admins can access this resource");
+    ensureInitialized(caller);
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can fetch all admins");
     };
 
-    let adminsIter = userProfiles.entries().filter(
-      func((principal, _profile)) {
-        return AccessControl.isAdmin(accessControlState, principal);
-      }
-    );
+    let grantedAdminsArray = grantedAdminsList.toArray();
+    
+    // Deduplicate admins
+    let uniqueAdmins = Map.empty<Principal, Bool>();
+    for (admin in grantedAdminsArray.vals()) {
+      uniqueAdmins.add(admin, true);
+    };
 
-    let mappedAdminsIter = adminsIter.map(
-      func((principal, profile)) {
-        {
-          principal;
-          name = profile.name;
+    let adminInfos = uniqueAdmins.keys().map(
+      func(principal : Principal) : AdminInfo {
+        switch (userProfiles.get(principal)) {
+          case (?profile) {
+            { name = profile.name; principal };
+          };
+          case (null) {
+            { name = "<admin user>"; principal };
+          };
         };
       }
-    );
-    mappedAdminsIter.toArray();
+    ).toArray();
+
+    adminInfos;
+  };
+
+  public shared ({ caller }) func grantAdminRole(target : Principal) : async Bool {
+    ensureInitialized(caller);
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can grant admin role");
+    };
+
+    // Grant the admin role through AccessControl
+    AccessControl.assignRole(accessControlState, caller, target, #admin);
+
+    // Track granted admins for listing purposes (avoid duplicates)
+    if (not listContainsAdmin(grantedAdminsList, target)) {
+      grantedAdminsList.add(target);
+    };
+
+    true;
+  };
+
+  public query ({ caller }) func getGrantedAdmins() : async [Principal] {
+    ensureInitialized(caller);
+    if (not (AccessControl.isAdmin(accessControlState, caller))) {
+      Runtime.trap("Unauthorized: Only admins can fetch the list");
+    };
+    grantedAdminsList.toArray();
   };
 };

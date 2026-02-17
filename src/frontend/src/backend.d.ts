@@ -30,8 +30,10 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
+    getGrantedAdmins(): Promise<Array<Principal>>;
     getUserProfile(user: Principal): Promise<UserProfileInfo>;
     getUserRole(): Promise<UserRole | null>;
+    grantAdminRole(target: Principal): Promise<boolean>;
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;

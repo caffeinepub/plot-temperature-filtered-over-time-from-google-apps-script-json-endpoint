@@ -2,56 +2,11 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-restrict-access-to-the-conceptmachine-google-sheets-download-link-so-that-non-admin-users-cannot-see-the-download-button-and-cannot-obtain-the-google-sheets-url-from-the-frontend-bundle-or-runtime-state",
-      "featureTitle": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
-      "files": [
-        "frontend/src/App.tsx",
-        "frontend/src/components/LogSystemTitleBar.tsx",
-        "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-        "frontend/src/logSystems/logSystemPages.ts"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "authorization@4.0.0"
-      ],
-      "testIds": [
-        "REQ-1"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-add-an-admin-only-section-in-the-profile-page-that-lists-all-current-admins-at-minimum-their-principals-optionally-also-show-a-display-name-when-available",
-      "featureTitle": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
+      "featureId": "feature-rebuild-the-admin-feature-end-to-end-so-that-an-admin-can-reliably-grant-admin-rights-to-another-user-by-entering-their-principal-id-from-the-existing-profile-section-and-the-admin-list-updates-to-reflect-the-change",
+      "featureTitle": "Rebuild the admin feature end-to-end so that an admin can reliably grant admin rights to another user by entering their Principal ID from the existing Profile section, and the Admin list updates to reflect the change.",
       "files": [
         "frontend/src/hooks/useAdminList.ts",
-        "frontend/src/pages/ProfilePage.tsx"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "authorization@4.0.0"
-      ],
-      "testIds": [
-        "REQ-2"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-update-frontend-data-fetching-react-query-hooks-to-support-the-new-backend-endpoints-for-1-fetching-the-admin-only-download-url-and-2-fetching-the-admin-list-with-appropriate-loading-and-error-states-on-the-profile-page",
-      "featureTitle": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
-      "files": [
-        "frontend/src/App.tsx",
-        "frontend/src/hooks/useAdminList.ts",
-        "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+        "frontend/src/hooks/useQueries.ts",
         "frontend/src/pages/ProfilePage.tsx"
       ],
       "components": [

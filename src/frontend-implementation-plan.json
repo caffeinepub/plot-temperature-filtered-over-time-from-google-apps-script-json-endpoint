@@ -1,91 +1,37 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Admin-only Google Sheets download + Admin list on Profile",
+  "title": "Admin module rebuild (Profile-based admin granting + live admin list refresh)",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Hide Conceptmachine download button for non-admins and remove the Google Sheets URL from all frontend constants/bundle state by fetching it only for admins at runtime.",
-      "acceptanceCriteria": [
-        "When the logged-in user is not an admin, the download button in the title bar (currently left of the dark mode toggle) is not rendered and there is no UI path that reveals the Google Sheets URL.",
-        "The Conceptmachine Google Sheets URL is no longer stored in a public frontend constant (e.g., it is not present in frontend/src/logSystems/logSystemPages.ts or equivalent client-side configuration).",
-        "The backend exposes an admin-only method to retrieve the Conceptmachine download URL; calling this method as a non-admin results in an authorization error.",
-        "When the logged-in user is an admin, the download button is shown and clicking it opens the Google Sheets URL in a new tab."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/logSystems/logSystemPages.ts",
-          "operation": "modify",
-          "description": "Remove the hardcoded Conceptmachine downloadUrl value so the Google Sheets URL is not shipped in the frontend bundle."
-        },
-        {
-          "path": "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
-          "operation": "create",
-          "description": "Add a React Query hook that calls the backend capability to retrieve the Conceptmachine Google Sheets download link; ensure the query is enabled only when the actor is available, the user is admin, and the current page is Conceptmachine. Verify the component's usage instructions before implementing (authorization: role-based gating and handling authorization errors gracefully)."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Wire the new admin-only download-link query into the app header: compute whether the current page is Conceptmachine, pass the fetched link to LogSystemTitleBar only for admins, and ensure non-admin flows (including AccessDeniedScreen rendering) do not trigger link fetching or receive the link. Verify the component's usage instructions before implementing (authorization: admin gating + logout cache clearing expectations)."
-        },
-        {
-          "path": "frontend/src/components/LogSystemTitleBar.tsx",
-          "operation": "modify",
-          "description": "Tighten rendering logic so the Conceptmachine download button only renders when userProfile.isAdmin is true and a fetched downloadUrl is available; keep opening in a new tab with noopener/noreferrer. Verify the component's usage instructions before implementing (authorization: UI should not reveal restricted data)."
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Show an admin-only “Admins” section on the Profile page listing current admins with stable ordering and readable principals (optionally names).",
-      "acceptanceCriteria": [
-        "The backend exposes an admin-only query that returns the current set of admin principals (and, if feasible with existing data, associated profile names).",
-        "The Profile page shows a clearly labeled \"Admins\" list section only when userProfile.isAdmin is true.",
-        "Non-admin users cannot access the admin list (UI does not render it; backend query rejects non-admin callers).",
-        "The admin list renders deterministically (e.g., stable ordering) and each entry displays the principal in a readable, copy-friendly format."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/hooks/useAdminList.ts",
-          "operation": "create",
-          "description": "Add a React Query hook that fetches the admin list from the backend capability and returns data/loading/error state; ensure it is enabled only when the actor is available and the caller is admin. Verify the component's usage instructions before implementing (authorization: admin-only query + graceful authorization error handling)."
-        },
-        {
-          "path": "frontend/src/pages/ProfilePage.tsx",
-          "operation": "modify",
-          "description": "Add an admin-only \"Admins\" section below existing Admin Controls that uses the new hook; render stable ordering (e.g., sort by principal string), show names when present, and display principals in a monospace, copy-friendly format. Verify the component's usage instructions before implementing (authorization: do not render restricted data for non-admins)."
-        }
-      ]
-    },
-    {
       "id": "REQ-3",
-      "summary": "Add React Query data-fetching hooks for the admin-only download URL and admin list, with proper enablement, loading, and non-blocking error states in the Profile page.",
+      "summary": "Make Profile page admin controls reliably grant admin by Principal ID and refresh the displayed admin list without reload, while hiding admin controls from non-admins.",
       "acceptanceCriteria": [
-        "A new React Query query (or equivalent) fetches the admin-only download URL only when the current user is an admin and the current page is Conceptmachine (or when the title bar needs it).",
-        "A new React Query query (or equivalent) fetches the admin list only when the current user is an admin and the Profile page is displayed.",
-        "If fetching the admin list fails, the Profile page shows a non-blocking error message (English) and does not break other Profile functionality.",
-        "Existing profile editing and grant-admin flows remain functional."
+        "From the Profile page, when an admin enters a valid Principal ID and clicks Grant, the backend grants admin rights and returns success.",
+        "After a successful grant, the admin list shown on the Profile page includes the newly granted admin without requiring a full page reload.",
+        "Invalid Principal IDs are rejected by the UI with a clear error message and do not call the backend.",
+        "Non-admin users do not see the Admin Controls section."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+          "path": "frontend/src/hooks/useActor.ts",
           "operation": "modify",
-          "description": "Ensure the download-link query uses correct React Query configuration (enabled gating, retry behavior, and error surfacing) so it never runs for non-admins and never stores the URL in client constants. Verify the component's usage instructions before implementing (authorization: ensure restricted queries are gated and authorization errors are handled)."
+          "description": "Harden authenticated actor initialization so admin/role checks work reliably across redeploys: align with the authorization component expectations by making any access-control initialization step resilient (e.g., avoid hard failure if a non-typed/internal init function is unavailable), and ensure the rest of the app can still call admin-related backend functions. Verify the component's usage instructions before implementing."
         },
         {
           "path": "frontend/src/hooks/useAdminList.ts",
           "operation": "modify",
-          "description": "Ensure the admin-list query is enabled only on Profile page for admins and provides a clear error state that the Profile page can render without breaking other functionality. Verify the component's usage instructions before implementing (authorization: restricted data access + graceful errors)."
+          "description": "Ensure the admin list query behavior supports immediate UI updates after a successful grant (stable query key, correct enabled gating for admins only, and predictable refetch behavior after invalidation). Verify the component's usage instructions before implementing."
+        },
+        {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Strengthen the grant-admin mutation for reliability: keep Principal parsing, improve error mapping for clear UI feedback, and ensure admin list + current user profile caches are invalidated/refetched so the Profile page updates without reload. Verify the component's usage instructions before implementing."
         },
         {
           "path": "frontend/src/pages/ProfilePage.tsx",
           "operation": "modify",
-          "description": "Add loading and non-blocking error UI for the Admins list section (English), while preserving existing profile editing and grant-admin flows unchanged. Verify the component's usage instructions before implementing (authorization: UI must not leak admin data to non-admins)."
-        },
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "Confirm title-bar download-link loading behavior does not degrade navigation (e.g., button appears when available for admins, otherwise absent) and that the query is only active when needed. Verify the component's usage instructions before implementing (authorization: role-based gating patterns)."
+          "description": "Rebuild/confirm the Profile page Admin Controls flow end-to-end: validate Principal IDs client-side (no backend call on invalid), call the grant mutation, show English success/error messages, and refresh the displayed admin list after success without full reload; keep admin-only conditional rendering so non-admins never see Admin Controls. Verify the component's usage instructions before implementing."
         }
       ]
     }
