@@ -3,17 +3,17 @@ import { useState, useEffect } from 'react';
 import { fetchTemperatureData } from '@/lib/temperatureDataSource';
 import type { TemperatureDataPoint } from '@/lib/temperatureParsing';
 
-const REFETCH_INTERVAL = 10000; // 10 seconds
-
 export function useTemperatureSeries() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const query = useQuery<TemperatureDataPoint[], Error>({
     queryKey: ['temperature-series'],
     queryFn: fetchTemperatureData,
-    refetchInterval: REFETCH_INTERVAL,
-    refetchIntervalInBackground: true,
-    staleTime: 5000,
+    // Auto-refresh disabled - data only updates on manual refresh
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    staleTime: Infinity,
   });
 
   useEffect(() => {

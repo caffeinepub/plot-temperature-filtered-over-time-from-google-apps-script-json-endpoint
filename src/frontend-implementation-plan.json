@@ -1,27 +1,91 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Adjust CO2 chart series colors (Right lighter than Left) in chart and legend",
+  "title": "Admin-only Google Sheets download + Admin list on Profile",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Ensure 'CO2 Right (%)' uses a lighter green than 'CO2 Left (%)' in the CO2 chart lines and matching legend swatches, consistently across light/dark modes.",
+      "summary": "Hide Conceptmachine download button for non-admins and remove the Google Sheets URL from all frontend constants/bundle state by fetching it only for admins at runtime.",
       "acceptanceCriteria": [
-        "In the CO2 chart, the 'CO2 Left (%)' line is a darker green than the 'CO2 Right (%)' line.",
-        "The legend line icon for 'CO2 Left (%)' uses the same darker green as the chart line.",
-        "The legend line icon for 'CO2 Right (%)' uses the same lighter green as the chart line.",
-        "The color relationship (Right lighter than Left) is consistent in both light mode and dark mode."
+        "When the logged-in user is not an admin, the download button in the title bar (currently left of the dark mode toggle) is not rendered and there is no UI path that reveals the Google Sheets URL.",
+        "The Conceptmachine Google Sheets URL is no longer stored in a public frontend constant (e.g., it is not present in frontend/src/logSystems/logSystemPages.ts or equivalent client-side configuration).",
+        "The backend exposes an admin-only method to retrieve the Conceptmachine download URL; calling this method as a non-admin results in an authorization error.",
+        "When the logged-in user is an admin, the download button is shown and clicking it opens the Google Sheets URL in a new tab."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/CO2Chart.tsx",
+          "path": "frontend/src/logSystems/logSystemPages.ts",
           "operation": "modify",
-          "description": "Update the CO2 line series stroke/activeDot colors so 'co2Left' is explicitly mapped to the darker green token and 'co2Right' to the lighter green token, ensuring Recharts' legend swatches inherit the same colors from the series."
+          "description": "Remove the hardcoded Conceptmachine downloadUrl value so the Google Sheets URL is not shipped in the frontend bundle."
         },
         {
-          "path": "frontend/src/index.css",
+          "path": "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+          "operation": "create",
+          "description": "Add a React Query hook that calls the backend capability to retrieve the Conceptmachine Google Sheets download link; ensure the query is enabled only when the actor is available, the user is admin, and the current page is Conceptmachine. Verify the component's usage instructions before implementing (authorization: role-based gating and handling authorization errors gracefully)."
+        },
+        {
+          "path": "frontend/src/App.tsx",
           "operation": "modify",
-          "description": "Adjust the CO2 chart color CSS variables for both :root and .dark so the 'Left' token is perceptibly darker than the 'Right' token in both themes (and keep the dashed CSV color unchanged)."
+          "description": "Wire the new admin-only download-link query into the app header: compute whether the current page is Conceptmachine, pass the fetched link to LogSystemTitleBar only for admins, and ensure non-admin flows (including AccessDeniedScreen rendering) do not trigger link fetching or receive the link. Verify the component's usage instructions before implementing (authorization: admin gating + logout cache clearing expectations)."
+        },
+        {
+          "path": "frontend/src/components/LogSystemTitleBar.tsx",
+          "operation": "modify",
+          "description": "Tighten rendering logic so the Conceptmachine download button only renders when userProfile.isAdmin is true and a fetched downloadUrl is available; keep opening in a new tab with noopener/noreferrer. Verify the component's usage instructions before implementing (authorization: UI should not reveal restricted data)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Show an admin-only “Admins” section on the Profile page listing current admins with stable ordering and readable principals (optionally names).",
+      "acceptanceCriteria": [
+        "The backend exposes an admin-only query that returns the current set of admin principals (and, if feasible with existing data, associated profile names).",
+        "The Profile page shows a clearly labeled \"Admins\" list section only when userProfile.isAdmin is true.",
+        "Non-admin users cannot access the admin list (UI does not render it; backend query rejects non-admin callers).",
+        "The admin list renders deterministically (e.g., stable ordering) and each entry displays the principal in a readable, copy-friendly format."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useAdminList.ts",
+          "operation": "create",
+          "description": "Add a React Query hook that fetches the admin list from the backend capability and returns data/loading/error state; ensure it is enabled only when the actor is available and the caller is admin. Verify the component's usage instructions before implementing (authorization: admin-only query + graceful authorization error handling)."
+        },
+        {
+          "path": "frontend/src/pages/ProfilePage.tsx",
+          "operation": "modify",
+          "description": "Add an admin-only \"Admins\" section below existing Admin Controls that uses the new hook; render stable ordering (e.g., sort by principal string), show names when present, and display principals in a monospace, copy-friendly format. Verify the component's usage instructions before implementing (authorization: do not render restricted data for non-admins)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Add React Query data-fetching hooks for the admin-only download URL and admin list, with proper enablement, loading, and non-blocking error states in the Profile page.",
+      "acceptanceCriteria": [
+        "A new React Query query (or equivalent) fetches the admin-only download URL only when the current user is an admin and the current page is Conceptmachine (or when the title bar needs it).",
+        "A new React Query query (or equivalent) fetches the admin list only when the current user is an admin and the Profile page is displayed.",
+        "If fetching the admin list fails, the Profile page shows a non-blocking error message (English) and does not break other Profile functionality.",
+        "Existing profile editing and grant-admin flows remain functional."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+          "operation": "modify",
+          "description": "Ensure the download-link query uses correct React Query configuration (enabled gating, retry behavior, and error surfacing) so it never runs for non-admins and never stores the URL in client constants. Verify the component's usage instructions before implementing (authorization: ensure restricted queries are gated and authorization errors are handled)."
+        },
+        {
+          "path": "frontend/src/hooks/useAdminList.ts",
+          "operation": "modify",
+          "description": "Ensure the admin-list query is enabled only on Profile page for admins and provides a clear error state that the Profile page can render without breaking other functionality. Verify the component's usage instructions before implementing (authorization: restricted data access + graceful errors)."
+        },
+        {
+          "path": "frontend/src/pages/ProfilePage.tsx",
+          "operation": "modify",
+          "description": "Add loading and non-blocking error UI for the Admins list section (English), while preserving existing profile editing and grant-admin flows unchanged. Verify the component's usage instructions before implementing (authorization: UI must not leak admin data to non-admins)."
+        },
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "Confirm title-bar download-link loading behavior does not degrade navigation (e.g., button appears when available for admins, otherwise absent) and that the query is only active when needed. Verify the component's usage instructions before implementing (authorization: role-based gating patterns)."
         }
       ]
     }

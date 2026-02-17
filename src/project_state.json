@@ -2,17 +2,35 @@
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
   "summary": "New project",
-  "architectural_notes": [],
-  "known_issues": [
-    "Build/deploy pipeline faalt met ‘Configuration error encountered. Please reach out to the Caffeine team.’"
+  "architectural_notes": [
+    "Existing admin system already present in the app; use it to gate access and display admin list"
   ],
-  "isFixRequest": false,
+  "known_issues": [
+    "Download button (Google Sheet link) currently accessible to non-admin users"
+  ],
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-update-the-existing-co-chart-so-the-co2-right-series-is-rendered-in-a-lighter-green-than-the-co2-left-series-and-ensure-the-legend-swatch-matches-those-same-colors",
-      "title": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
+      "id": "feature-restrict-access-to-the-conceptmachine-google-sheets-download-link-so-that-non-admin-users-cannot-see-the-download-button-and-cannot-obtain-the-google-sheets-url-from-the-frontend-bundle-or-runtime-state",
+      "title": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
       "reqIds": [
         "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-an-admin-only-section-in-the-profile-page-that-lists-all-current-admins-at-minimum-their-principals-optionally-also-show-a-display-name-when-available",
+      "title": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-update-frontend-data-fetching-react-query-hooks-to-support-the-new-backend-endpoints-for-1-fetching-the-admin-only-download-url-and-2-fetching-the-admin-list-with-appropriate-loading-and-error-states-on-the-profile-page",
+      "title": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
+      "reqIds": [
+        "REQ-3"
       ],
       "version": 1
     }
@@ -20,12 +38,18 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Maak ‘CO2 Right (%)’ een lichtere groentint dan ‘CO2 Left (%)’ (donkergroen) in zowel legenda als grafiek",
+      "summary": "Restrict Google Sheet download button/link to admins only (non-admins must not have access to the link)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Add admin visibility in profile page: admins can see who else is an admin",
       "reqIds": [],
       "status": "pending"
     }
   ],
-  "projectName": "Make 'CO2 Right (%)' a lighter green than 'CO2 Left (%)' in the CO2 chart (line + legend)",
+  "projectName": "Log System Portal",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

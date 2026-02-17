@@ -8,58 +8,71 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const http_header = IDL.Record({
-  'value' : IDL.Text,
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
+});
+export const AdminInfo = IDL.Record({
+  'principal' : IDL.Principal,
   'name' : IDL.Text,
 });
-export const http_request_result = IDL.Record({
-  'status' : IDL.Nat,
-  'body' : IDL.Vec(IDL.Nat8),
-  'headers' : IDL.Vec(http_header),
+export const UserProfileInfo = IDL.Record({
+  'principal' : IDL.Principal,
+  'name' : IDL.Text,
+  'isAdmin' : IDL.Bool,
 });
-export const TransformationInput = IDL.Record({
-  'context' : IDL.Vec(IDL.Nat8),
-  'response' : http_request_result,
-});
-export const TransformationOutput = IDL.Record({
-  'status' : IDL.Nat,
-  'body' : IDL.Vec(IDL.Nat8),
-  'headers' : IDL.Vec(http_header),
-});
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 
 export const idlService = IDL.Service({
-  'transform' : IDL.Func(
-      [TransformationInput],
-      [TransformationOutput],
-      ['query'],
-    ),
+  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+  'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfileInfo)], ['query']),
+  'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+  'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
+  'getUserProfile' : IDL.Func([IDL.Principal], [UserProfileInfo], ['query']),
+  'getUserRole' : IDL.Func([], [IDL.Opt(UserRole)], ['query']),
+  'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
+  'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const http_header = IDL.Record({ 'value' : IDL.Text, 'name' : IDL.Text });
-  const http_request_result = IDL.Record({
-    'status' : IDL.Nat,
-    'body' : IDL.Vec(IDL.Nat8),
-    'headers' : IDL.Vec(http_header),
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
   });
-  const TransformationInput = IDL.Record({
-    'context' : IDL.Vec(IDL.Nat8),
-    'response' : http_request_result,
+  const AdminInfo = IDL.Record({
+    'principal' : IDL.Principal,
+    'name' : IDL.Text,
   });
-  const TransformationOutput = IDL.Record({
-    'status' : IDL.Nat,
-    'body' : IDL.Vec(IDL.Nat8),
-    'headers' : IDL.Vec(http_header),
+  const UserProfileInfo = IDL.Record({
+    'principal' : IDL.Principal,
+    'name' : IDL.Text,
+    'isAdmin' : IDL.Bool,
   });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
   
   return IDL.Service({
-    'transform' : IDL.Func(
-        [TransformationInput],
-        [TransformationOutput],
+    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+    'getCallerUserProfile' : IDL.Func(
+        [],
+        [IDL.Opt(UserProfileInfo)],
         ['query'],
       ),
+    'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
+    'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
+    'getUserProfile' : IDL.Func([IDL.Principal], [UserProfileInfo], ['query']),
+    'getUserRole' : IDL.Func([], [IDL.Opt(UserRole)], ['query']),
+    'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
+    'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   });
 };
 

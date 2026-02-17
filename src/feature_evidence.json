@@ -2,10 +2,13 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-update-the-existing-co-chart-so-the-co2-right-series-is-rendered-in-a-lighter-green-than-the-co2-left-series-and-ensure-the-legend-swatch-matches-those-same-colors",
-      "featureTitle": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
+      "featureId": "feature-restrict-access-to-the-conceptmachine-google-sheets-download-link-so-that-non-admin-users-cannot-see-the-download-button-and-cannot-obtain-the-google-sheets-url-from-the-frontend-bundle-or-runtime-state",
+      "featureTitle": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
       "files": [
-        "frontend/src/index.css"
+        "frontend/src/App.tsx",
+        "frontend/src/components/LogSystemTitleBar.tsx",
+        "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+        "frontend/src/logSystems/logSystemPages.ts"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -13,10 +16,55 @@
         "shadcn-ui@1.0.0",
         "build-template-react@1.0.0",
         "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
       ],
       "testIds": [
         "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-add-an-admin-only-section-in-the-profile-page-that-lists-all-current-admins-at-minimum-their-principals-optionally-also-show-a-display-name-when-available",
+      "featureTitle": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
+      "files": [
+        "frontend/src/hooks/useAdminList.ts",
+        "frontend/src/pages/ProfilePage.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-update-frontend-data-fetching-react-query-hooks-to-support-the-new-backend-endpoints-for-1-fetching-the-admin-only-download-url-and-2-fetching-the-admin-list-with-appropriate-loading-and-error-states-on-the-profile-page",
+      "featureTitle": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
+      "files": [
+        "frontend/src/App.tsx",
+        "frontend/src/hooks/useAdminList.ts",
+        "frontend/src/hooks/useGoogleSheetsDownloadLink.ts",
+        "frontend/src/pages/ProfilePage.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
       ],
       "confidence": "high"
     }

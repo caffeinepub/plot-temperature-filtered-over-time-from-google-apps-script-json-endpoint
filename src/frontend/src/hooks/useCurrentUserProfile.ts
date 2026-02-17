@@ -1,0 +1,25 @@
+import { useQuery } from '@tanstack/react-query';
+import { useActor } from './useActor';
+import type { UserProfileInfo } from '@/backend';
+
+export function useCurrentUserProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  const query = useQuery<UserProfileInfo | null>({
+    queryKey: ['currentUserProfile'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getCallerUserProfile();
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
+  });
+
+  // Return custom state that properly reflects actor dependency
+  return {
+    userProfile: query.data,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+    error: query.error,
+  };
+}

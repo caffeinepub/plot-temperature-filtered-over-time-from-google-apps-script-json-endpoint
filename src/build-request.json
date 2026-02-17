@@ -1,50 +1,85 @@
 {
   "kind": "build_request",
-  "title": "Make 'CO2 Right (%)' a lighter green than 'CO2 Left (%)' in the CO2 chart (line + legend)",
+  "title": "Restrict Google Sheet download link to admins and show admin list on Profile page",
+  "projectName": "Log System Portal",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Update the existing CO₂ chart so the 'CO2 Right (%)' series is rendered in a lighter green than the 'CO2 Left (%)' series, and ensure the legend swatch matches those same colors.",
-      "target": "frontend",
+      "text": "Restrict access to the Conceptmachine Google Sheets download link so that non-admin users cannot see the download button and cannot obtain the Google Sheets URL from the frontend bundle or runtime state.",
+      "target": "both",
       "source": {
         "messageIds": [
-          "msg-1"
+          "msg-2",
+          "msg-4",
+          "msg-5"
         ],
         "quotes": [
-          "kun je ook CO2 Right (%) een lichter groene kleur geven dan CO2 Left (%) (donkergroen)? in legende en grafiek zelf"
+          "de downloadknop, die verwijst naar de google sheet link mag niet beschikbaar zijn voor gebruikers die geen admin zijn, de link mag dus niet openbaar zijn voor niet admin personen",
+          "de knop staat momenteel links van de donkere modus knop",
+          "1. er is reeds een admin systeem in de app"
         ]
       },
       "acceptanceCriteria": [
-        "In the CO2 chart, the 'CO2 Left (%)' line is a darker green than the 'CO2 Right (%)' line.",
-        "The legend line icon for 'CO2 Left (%)' uses the same darker green as the chart line.",
-        "The legend line icon for 'CO2 Right (%)' uses the same lighter green as the chart line.",
-        "The color relationship (Right lighter than Left) is consistent in both light mode and dark mode."
+        "When the logged-in user is not an admin, the download button in the title bar (currently left of the dark mode toggle) is not rendered and there is no UI path that reveals the Google Sheets URL.",
+        "The Conceptmachine Google Sheets URL is no longer stored in a public frontend constant (e.g., it is not present in frontend/src/logSystems/logSystemPages.ts or equivalent client-side configuration).",
+        "The backend exposes an admin-only method to retrieve the Conceptmachine download URL; calling this method as a non-admin results in an authorization error.",
+        "When the logged-in user is an admin, the download button is shown and clicking it opens the Google Sheets URL in a new tab."
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Add an admin-only section in the Profile page that lists all current admins (at minimum, their principals; optionally also show a display name when available).",
+      "target": "both",
+      "source": {
+        "messageIds": [
+          "msg-2",
+          "msg-5"
+        ],
+        "quotes": [
+          "+ admin zou de mogelijkheid moeten hebben om te zien wie er allemaal admin is.",
+          "dit mag binnen de profielpagina"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The backend exposes an admin-only query that returns the current set of admin principals (and, if feasible with existing data, associated profile names).",
+        "The Profile page shows a clearly labeled \"Admins\" list section only when userProfile.isAdmin is true.",
+        "Non-admin users cannot access the admin list (UI does not render it; backend query rejects non-admin callers).",
+        "The admin list renders deterministically (e.g., stable ordering) and each entry displays the principal in a readable, copy-friendly format."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Update frontend data-fetching (React Query hooks) to support the new backend endpoints for (1) fetching the admin-only download URL and (2) fetching the admin list, with appropriate loading and error states on the Profile page.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-2"
+        ],
+        "quotes": [
+          "paar probleempjes."
+        ]
+      },
+      "acceptanceCriteria": [
+        "A new React Query query (or equivalent) fetches the admin-only download URL only when the current user is an admin and the current page is Conceptmachine (or when the title bar needs it).",
+        "A new React Query query (or equivalent) fetches the admin list only when the current user is an admin and the Profile page is displayed.",
+        "If fetching the admin list fails, the Profile page shows a non-blocking error message (English) and does not break other Profile functionality.",
+        "Existing profile editing and grant-admin flows remain functional."
       ]
     }
   ],
   "constraints": [
-    "Do not edit any files under frontend/src/components/ui (read-only).",
-    "Do not edit files listed in frontend immutablePaths (e.g., frontend/src/hooks/useInternetIdentity.ts(x), frontend/src/hooks/useActor.ts, frontend/src/main.tsx).",
-    "Keep the backend single-actor architecture; no backend changes are required for this UI-only update."
+    "Backend must remain a single Motoko actor in backend/main.mo (no additional backend services).",
+    "Do not edit files under frontend/src/components/ui (compose existing UI components instead).",
+    "Do not modify immutable frontend hook files: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useInternetIdentity.tsx, frontend/src/hooks/useActor.ts, frontend/src/main.tsx."
   ],
   "nonGoals": [
-    "Do not change any CO2 data fetching/parsing logic.",
-    "Do not change chart series names/labels or add/remove series.",
-    "Do not address the build/deploy pipeline 'Configuration error encountered. Please reach out to the Caffeine team.' as part of this change."
+    "Implementing third-party authentication providers beyond Internet Identity.",
+    "Adding external databases or off-chain storage for admin lists.",
+    "Creating a separate admin management page outside the existing Profile page."
   ],
   "imageRequirements": {
     "required": [],
     "edits": []
-  },
-  "userProfileUpdate": {
-    "goalsToAdd": [],
-    "goalsToRemove": [],
-    "preferencesToAdd": [],
-    "preferencesToRemove": [],
-    "miscToAdd": [],
-    "miscToRemove": [],
-    "fieldsToSet": {},
-    "fieldsToDelete": []
   }
 }
