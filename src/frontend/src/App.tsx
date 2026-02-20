@@ -5,10 +5,14 @@ import { useGlobalLastUpdated } from './hooks/useGlobalLastUpdated';
 import { useThemeSession } from './hooks/useThemeSession';
 import { useInternetIdentity } from './hooks/useInternetIdentity';
 import { useCurrentUserProfile } from './hooks/useCurrentUserProfile';
-import { useGoogleSheetsDownloadLink } from './hooks/useGoogleSheetsDownloadLink';
+import { useIsCallerAdmin } from './hooks/useIsCallerAdmin';
 import { LoginPage } from './pages/LoginPage';
 import { AccessDeniedScreen } from './components/AccessDeniedScreen';
 import { ProfileSetupModal } from './components/ProfileSetupModal';
+
+// Hardcoded Google Sheets URLs
+const CONCEPTMACHINE_GOOGLE_SHEETS_URL = 'https://docs.google.com/spreadsheets/d/1qMoehnVFWOydYBkOVcIkRfVH0RWZZKXTAVjk9gvnfx0/edit?usp=sharing';
+const TSIC_LOGGERS_GOOGLE_SHEETS_URL = 'https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing';
 
 function App() {
   const { currentPage, goToPrevious, goToNext, goToPageId } = useLogSystemNavigation();
@@ -16,7 +20,8 @@ function App() {
   const { isDarkMode, toggleTheme } = useThemeSession();
   const queryClient = useQueryClient();
   const { identity, isInitializing } = useInternetIdentity();
-  const { userProfile, isLoading: profileLoading, isFetched } = useCurrentUserProfile();
+  const { userProfile, isLoading: profileLoading, isFetched: profileFetched } = useCurrentUserProfile();
+  const { isAdmin, isLoading: adminLoading, isConfirmed: adminConfirmed } = useIsCallerAdmin();
   
   const PageComponent = currentPage.component;
   const isAuthenticated = !!identity;
@@ -26,12 +31,19 @@ function App() {
 
   // Check if current page requires admin access (all pages except Profile)
   const isProtectedPage = currentPage.id !== 'profile';
-  const isAdmin = userProfile?.isAdmin ?? false;
 
-  // Fetch download link only for admins on Conceptmachine page
-  const isConceptmachinePage = currentPage.id === 'conceptmachine';
-  const shouldFetchDownloadLink = isAdmin && isConceptmachinePage && !profileLoading && isFetched;
-  const { data: downloadUrl } = useGoogleSheetsDownloadLink(shouldFetchDownloadLink);
+  // Determine download URL based on current page
+  const getDownloadUrl = () => {
+    if (!isAdmin) return undefined;
+    
+    if (currentPage.id === 'conceptmachine') {
+      return CONCEPTMACHINE_GOOGLE_SHEETS_URL;
+    } else if (currentPage.id === 'tsic-loggers') {
+      return TSIC_LOGGERS_GOOGLE_SHEETS_URL;
+    }
+    
+    return undefined;
+  };
 
   const handleRefresh = () => {
     queryClient.refetchQueries({ queryKey: ['temperature-series'] });
@@ -47,42 +59,50 @@ function App() {
   }
 
   // Show profile setup modal if authenticated but no profile yet
-  const showProfileSetup = isAuthenticated && !profileLoading && isFetched && userProfile === null;
+  const showProfileSetup = isAuthenticated && !profileLoading && profileFetched && userProfile === null;
 
-  // Show access denied if trying to access protected page without admin rights
-  // Only check after profile has been fetched to avoid premature blocking
-  if (isProtectedPage && !isAdmin && !profileLoading && isFetched) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b-4 border-t-4 border-primary bg-card shadow-lg">
-          <div className="container mx-auto px-6 py-6">
-            <LogSystemTitleBar
-              title={currentPage.displayName}
-              subtitle={currentPage.subtitle}
-              lastUpdated={lastUpdated}
-              onPrevious={goToPrevious}
-              onNext={goToNext}
-              pageId={currentPage.id}
-              downloadUrl={undefined}
-              isDarkMode={isDarkMode}
-              onToggleTheme={toggleTheme}
-              onRefresh={handleRefresh}
-              isRefreshing={isRefreshing}
-              userProfile={userProfile}
-              onNavigateToProfile={handleNavigateToProfile}
-            />
-          </div>
-        </header>
-        <AccessDeniedScreen onGoToProfile={() => goToPageId('profile')} />
-        <footer className="border-t border-border bg-card mt-16">
-          <div className="container mx-auto px-6 py-6">
-            <div className="text-center text-sm text-muted-foreground">
-              V1.0
+  // Default-deny: Show access denied for protected pages until admin status is confirmed
+  // Only allow access if admin status is explicitly confirmed as true
+  if (isProtectedPage) {
+    const isCheckingAccess = adminLoading || !adminConfirmed;
+    const isDenied = adminConfirmed && !isAdmin;
+
+    if (isCheckingAccess || isDenied) {
+      return (
+        <div className="min-h-screen bg-background">
+          <header className="border-b-4 border-t-4 border-primary bg-card shadow-lg">
+            <div className="container mx-auto px-6 py-6">
+              <LogSystemTitleBar
+                title={currentPage.displayName}
+                subtitle={currentPage.subtitle}
+                lastUpdated={lastUpdated}
+                onPrevious={goToPrevious}
+                onNext={goToNext}
+                pageId={currentPage.id}
+                downloadUrl={undefined}
+                isDarkMode={isDarkMode}
+                onToggleTheme={toggleTheme}
+                onRefresh={handleRefresh}
+                isRefreshing={isRefreshing}
+                userProfile={userProfile}
+                onNavigateToProfile={handleNavigateToProfile}
+              />
             </div>
-          </div>
-        </footer>
-      </div>
-    );
+          </header>
+          <AccessDeniedScreen 
+            onGoToProfile={() => goToPageId('profile')} 
+            isCheckingAccess={isCheckingAccess}
+          />
+          <footer className="border-t border-border bg-card mt-16">
+            <div className="container mx-auto px-6 py-6">
+              <div className="text-center text-sm text-muted-foreground">
+                V1.0
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
   }
 
   return (
@@ -99,7 +119,7 @@ function App() {
             onPrevious={goToPrevious}
             onNext={goToNext}
             pageId={currentPage.id}
-            downloadUrl={isAdmin && isConceptmachinePage ? downloadUrl : undefined}
+            downloadUrl={getDownloadUrl()}
             isDarkMode={isDarkMode}
             onToggleTheme={toggleTheme}
             onRefresh={handleRefresh}

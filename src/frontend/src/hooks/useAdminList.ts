@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useActor } from './useActor';
 import type { AdminInfo } from '@/backend';
 
-export function useAdminList(enabled: boolean) {
+export function useAdminList(isAdminConfirmed: boolean) {
   const { actor, isFetching: actorFetching } = useActor();
 
   return useQuery<AdminInfo[]>({
@@ -19,7 +19,7 @@ export function useAdminList(enabled: boolean) {
         throw error;
       }
     },
-    enabled: !!actor && !actorFetching && enabled,
+    enabled: !!actor && !actorFetching && isAdminConfirmed,
     retry: false,
     staleTime: 30000, // Cache for 30 seconds
   });

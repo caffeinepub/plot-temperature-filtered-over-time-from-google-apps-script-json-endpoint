@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCurrentUserProfile, useSaveUserProfile, useGrantAdmin } from '@/hooks/useQueries';
+import { useIsCallerAdmin } from '@/hooks/useIsCallerAdmin';
 import { useAdminList } from '@/hooks/useAdminList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,11 +15,11 @@ import { Principal } from '@icp-sdk/core/principal';
 
 export function ProfilePage() {
   const { userProfile, isLoading } = useCurrentUserProfile();
+  const { isAdmin, isConfirmed: adminConfirmed } = useIsCallerAdmin();
   const { mutate: saveProfile, isPending: isSaving } = useSaveUserProfile();
   const { mutate: grantAdmin, isPending: isGranting } = useGrantAdmin();
   
-  const isAdmin = userProfile?.isAdmin ?? false;
-  const { data: adminList, isLoading: adminListLoading, error: adminListError, refetch: refetchAdminList } = useAdminList(isAdmin);
+  const { data: adminList, isLoading: adminListLoading, error: adminListError, refetch: refetchAdminList } = useAdminList(adminConfirmed && isAdmin);
   
   const [name, setName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -137,7 +138,7 @@ export function ProfilePage() {
                   <CardDescription>Manage your account information</CardDescription>
                 </div>
               </div>
-              {userProfile?.isAdmin && (
+              {isAdmin && (
                 <Badge variant="default" className="gap-1">
                   <Shield className="w-3 h-3" />
                   Admin
@@ -215,8 +216,8 @@ export function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Admin Controls - Only visible to admins */}
-        {isAdmin && (
+        {/* Admin Controls - Only visible to confirmed admins */}
+        {isAdmin && adminConfirmed && (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -275,35 +276,35 @@ export function ProfilePage() {
                     Refresh
                   </Button>
                 </div>
-                {adminListLoading ? (
+                {adminListLoading && (
                   <div className="text-sm text-muted-foreground">Loading admin list...</div>
-                ) : adminListError ? (
+                )}
+                {adminListError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Failed to load admin list: {adminListError.message}
+                      {adminListError.message || 'Failed to load admin list'}
                     </AlertDescription>
                   </Alert>
-                ) : sortedAdminList.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No administrators found.</div>
-                ) : (
+                )}
+                {!adminListLoading && !adminListError && sortedAdminList.length > 0 && (
                   <div className="space-y-2">
                     {sortedAdminList.map((admin) => (
                       <div
                         key={admin.principal.toString()}
                         className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
                       >
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="font-medium text-sm">{admin.name}</div>
-                          <div className="font-mono text-xs text-muted-foreground truncate">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{admin.name}</div>
+                          <div className="text-xs text-muted-foreground font-mono truncate">
                             {admin.principal.toString()}
                           </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="shrink-0 ml-2"
                           onClick={() => handleCopyAdminPrincipal(admin.principal.toString())}
+                          className="ml-2 flex-shrink-0"
                         >
                           {copiedAdminPrincipal === admin.principal.toString() ? (
                             <Check className="h-4 w-4" />
@@ -314,6 +315,9 @@ export function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                )}
+                {!adminListLoading && !adminListError && sortedAdminList.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No administrators found</div>
                 )}
               </div>
             </CardContent>

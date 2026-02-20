@@ -9,7 +9,16 @@ export function useCurrentUserProfile() {
     queryKey: ['currentUserProfile'],
     queryFn: async () => {
       if (!actor) throw new Error('Actor not available');
-      return actor.getCallerUserProfile();
+      try {
+        return await actor.getCallerUserProfile();
+      } catch (error: any) {
+        // Handle authorization errors gracefully
+        if (error.message?.includes('Unauthorized')) {
+          console.error('Profile fetch unauthorized:', error);
+          return null;
+        }
+        throw error;
+      }
     },
     enabled: !!actor && !actorFetching,
     retry: false,

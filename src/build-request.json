@@ -1,33 +1,83 @@
 {
   "kind": "build_request",
-  "title": "Change footer credit text to V1.0",
-  "projectName": "Admin Manager",
+  "title": "Add Y-axis controls, sensor checkboxes, and download button to TSIC Loggers page",
+  "projectName": "TSIC Temperature Monitor",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
+      "text": "Add Y-axis limit input controls (minimum and maximum) to the TSIC Loggers page that allow users to set custom lower and upper bounds for the graph's Y-axis. These controls should reset to automatic scaling on each page refresh.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "recent-messages"
+          "msg-1"
         ],
         "quotes": [
-          "Hey, kun je de tekst wijzigen van 'built by Hannes'  naar 'V1.0'",
-          "Ja doe maar"
+          "ok, kun je ervoor zorgen dat ik ook de y axis kan kiezen bij de tsic sensoren? dus onderste limiet en bovenste limiet?",
+          "ze mogen resetten naar automatische schaling bij elke refresh"
         ]
       },
       "acceptanceCriteria": [
-        "When viewing any page that shows the app footer (including the access-denied screen), the footer displays exactly: \"V1.0\".",
-        "The previous footer text \"Built by Hannes\" is no longer visible anywhere in the UI."
+        "Two input fields are visible on the TSIC Loggers page for setting Y-axis minimum and maximum values",
+        "When values are entered, the graph's Y-axis updates to reflect the custom bounds",
+        "On page refresh, the controls reset and the graph returns to automatic Y-axis scaling",
+        "The controls are positioned near the graph in a user-friendly location"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Add checkboxes in the graph legend on the TSIC Loggers page that allow users to toggle individual sensors (S1-S72) on and off. All sensors should be enabled by default on each page refresh.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1"
+        ],
+        "quotes": [
+          "Kun je ook zorgen dat er een checkbox staat in de legende zodat ik bepaalde sensoren kan uitzetten?",
+          "ze mogen resetten na elke refresh"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Each sensor in the legend displays a checkbox next to its label",
+        "Clicking a checkbox toggles the visibility of that sensor's line on the graph",
+        "All sensors are checked and visible by default when the page loads",
+        "The checkbox state resets to all-checked on page refresh",
+        "The legend remains readable and organized with the added checkboxes"
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Add a download button to the TSIC Loggers page that links to the Google Spreadsheet at https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing. Style the button to match the download button on the Conceptmachine page.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-1",
+          "msg-2"
+        ],
+        "quotes": [
+          "er moet in de pagina tsic loggers ook een download knop zijn, die moet verwijzen naar deze link: https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing",
+          "in de conceptmachine pagina is er ook een downloadknop. Kun je hetzelfde doen, maar dan voor tsic loggers?"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A download button appears on the TSIC Loggers page",
+        "The button links to the specified Google Spreadsheet URL",
+        "The button styling matches the download button on the Conceptmachine page",
+        "Clicking the button opens the Google Spreadsheet in a new tab"
       ]
     }
   ],
   "constraints": [
-    "Apply the text change only to the selected footer text element (XPath: /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1]) and its equivalent rendering paths; do not alter other UI copy or layout."
+    "Do not modify the backend; all changes are frontend-only",
+    "Do not edit immutable files: frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui/*",
+    "Maintain the existing TSICSensorChart component structure and data flow",
+    "Y-axis controls and checkbox states must not persist across page refreshes"
   ],
   "nonGoals": [
-    "No changes to backend logic, admin logic, authentication, or other pages/components beyond the footer text replacement."
+    "Persisting Y-axis bounds or sensor selections in backend or local storage",
+    "Adding Y-axis controls or checkboxes to other pages",
+    "Modifying the data fetching logic or backend endpoints",
+    "Changing the admin access controls for the download button"
   ],
   "imageRequirements": {
     "required": [],

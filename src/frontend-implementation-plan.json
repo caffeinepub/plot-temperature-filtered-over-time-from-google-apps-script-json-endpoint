@@ -1,20 +1,67 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Change footer credit text to V1.0",
+  "title": "Add Y-axis controls, sensor checkboxes, and download button to TSIC Loggers page",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Replace the footer credit text \"Built by Hannes\" with \"V1.0\" everywhere the same footer is rendered (normal layout and access-denied layout).",
+      "summary": "Add Y-axis limit input controls (minimum and maximum) to the TSIC Loggers page for custom Y-axis bounds that reset to automatic scaling on page refresh",
       "acceptanceCriteria": [
-        "When viewing any page that shows the app footer (including the access-denied screen), the footer displays exactly: \"V1.0\".",
-        "The previous footer text \"Built by Hannes\" is no longer visible anywhere in the UI."
+        "Two input fields are visible on the TSIC Loggers page for setting Y-axis minimum and maximum values",
+        "When values are entered, the graph's Y-axis updates to reflect the custom bounds",
+        "On page refresh, the controls reset and the graph returns to automatic Y-axis scaling",
+        "The controls are positioned near the graph in a user-friendly location"
       ],
       "file_operations": [
         {
-          "path": "frontend/src/App.tsx",
+          "path": "frontend/src/pages/TSICLoggersPage.tsx",
           "operation": "modify",
-          "description": "Update the footer text node within the existing footer markup (including the access-denied render branch and the normal app layout footer) to display exactly \"V1.0\" instead of \"Built by Hannes\", without changing any other copy or layout."
+          "description": "Add state management for Y-axis minimum and maximum values (using useState with null defaults for automatic scaling). Add two number input controls near the chart controls section that update the Y-axis state. Ensure these inputs reset to null on component mount (no persistence across refreshes). Pass the Y-axis domain values to the TSICSensorChart component as new optional props."
+        },
+        {
+          "path": "frontend/src/components/TSICSensorChart.tsx",
+          "operation": "modify",
+          "description": "Accept optional yAxisMin and yAxisMax props. Modify the LineChart's YAxis component to use a custom domain when these props are provided (e.g., domain={[yAxisMin ?? 'auto', yAxisMax ?? 'auto']}). When both props are null or undefined, maintain the current automatic scaling behavior. Ensure the chart re-renders properly when Y-axis bounds change."
+        }
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "summary": "Add checkboxes in the graph legend on the TSIC Loggers page that allow users to toggle individual sensors (S1-S72) on and off, with all sensors enabled by default on page refresh",
+      "acceptanceCriteria": [
+        "Each sensor in the legend displays a checkbox next to its label",
+        "Clicking a checkbox toggles the visibility of that sensor's line on the graph",
+        "All sensors are checked and visible by default when the page loads",
+        "The checkbox state resets to all-checked on page refresh",
+        "The legend remains readable and organized with the added checkboxes"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TSICLoggersPage.tsx",
+          "operation": "modify",
+          "description": "Add state management for sensor visibility using useState with an object/map tracking which sensors (S1-S72) are enabled, defaulting all to true on component mount. Pass this visibility state and a toggle handler function as props to TSICSensorChart. Ensure the state resets to all-true on page refresh (no persistence)."
+        },
+        {
+          "path": "frontend/src/components/TSICSensorChart.tsx",
+          "operation": "modify",
+          "description": "Accept sensorVisibility (Record<string, boolean>) and onToggleSensor ((sensorKey: string) => void) props. Modify the legend rendering to use a custom legend component that includes a checkbox for each sensor. Filter the Line components to only render sensors where sensorVisibility[sensorKey] is true. Ensure the legend remains organized and readable with the added checkboxes, using appropriate spacing and layout (e.g., vertical legend with checkbox + label pairs). Maintain the existing color coding and inactive sensor filtering logic."
+        }
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "summary": "Add a download button to the TSIC Loggers page that links to the Google Spreadsheet, styled to match the Conceptmachine page download button",
+      "acceptanceCriteria": [
+        "A download button appears on the TSIC Loggers page",
+        "The button links to the specified Google Spreadsheet URL",
+        "The button styling matches the download button on the Conceptmachine page",
+        "Clicking the button opens the Google Spreadsheet in a new tab"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/pages/TSICLoggersPage.tsx",
+          "operation": "modify",
+          "description": "Add a download button to the LogSystemTitleBar component instance (via the downloadUrl prop) that links to 'https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing'. Pass this URL directly as a hardcoded string (no backend fetch needed for TSIC Loggers). Ensure the button appears in the same position and with the same styling as the Conceptmachine page download button by leveraging the existing LogSystemTitleBar download button implementation."
         }
       ]
     }

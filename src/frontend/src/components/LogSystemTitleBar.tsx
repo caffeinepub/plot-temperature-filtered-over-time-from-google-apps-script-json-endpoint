@@ -51,8 +51,14 @@ export function LogSystemTitleBar({
     }
   }
 
-  // Only show download button if user is admin and downloadUrl is provided
-  const showDownloadButton = userProfile?.isAdmin && isConceptmachine && downloadUrl;
+  // Show download button if user is admin and downloadUrl is provided (for both Conceptmachine and TSIC Loggers)
+  const showDownloadButton = userProfile?.isAdmin && downloadUrl;
+
+  const handleDownload = () => {
+    if (downloadUrl) {
+      window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -86,10 +92,10 @@ export function LogSystemTitleBar({
             onNavigateToProfile={onNavigateToProfile}
           />
           
-          {/* Conceptmachine-only download button (admin-only) */}
+          {/* Admin-only download button (for Conceptmachine and TSIC Loggers) */}
           {showDownloadButton && (
             <Button
-              onClick={() => window.open(downloadUrl, '_blank', 'noopener,noreferrer')}
+              onClick={handleDownload}
               variant="ghost"
               size="icon"
               aria-label="Download data"

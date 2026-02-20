@@ -1,24 +1,50 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-17T17:52:17.379Z",
+  "generatedAt": "2026-02-20T09:14:27.309Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
-    "implemented": 1,
+    "total": 3,
+    "implemented": 3,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
+        "summary": "Add Y-axis limit input controls (minimum and maximum) to the TSIC Loggers page that allow users to set custom lower and upper bounds for the graph's Y-axis. These controls should reset to automatic scaling on each page refresh.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/App.tsx"
+          "frontend/src/pages/TSICLoggersPage.tsx",
+          "frontend/src/components/TSICSensorChart.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/App.tsx"
+          "frontend/src/pages/TSICLoggersPage.tsx",
+          "frontend/src/components/TSICSensorChart.tsx"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Add checkboxes in the graph legend on the TSIC Loggers page that allow users to toggle individual sensors (S1-S72) on and off. All sensors should be enabled by default on each page refresh.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/TSICLoggersPage.tsx",
+          "frontend/src/components/TSICSensorChart.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/TSICLoggersPage.tsx",
+          "frontend/src/components/TSICSensorChart.tsx"
+        ]
+      },
+      {
+        "id": "REQ-3",
+        "summary": "Add a download button to the TSIC Loggers page that links to the Google Spreadsheet at https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing. Style the button to match the download button on the Conceptmachine page.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/pages/TSICLoggersPage.tsx"
+        ],
+        "matchedFiles": [
+          "frontend/src/pages/TSICLoggersPage.tsx"
         ]
       }
     ]
@@ -29,6 +55,9 @@
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
     "frontend/src/App.tsx",
+    "frontend/src/components/LogSystemTitleBar.tsx",
+    "frontend/src/components/TSICSensorChart.tsx",
+    "frontend/src/pages/TSICLoggersPage.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

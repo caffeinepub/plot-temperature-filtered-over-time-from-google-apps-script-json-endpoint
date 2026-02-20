@@ -1,6 +1,6 @@
 import { ComponentType } from 'react';
 import { TemperatureDashboardPage } from '@/pages/TemperatureDashboardPage';
-import { TSICLogger1Page } from '@/pages/TSICLogger1Page';
+import { TSICLoggersPage } from '@/pages/TSICLoggersPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 
 export interface LogSystemPage {
@@ -18,10 +18,10 @@ export const logSystemPages: LogSystemPage[] = [
     component: TemperatureDashboardPage,
   },
   {
-    id: 'tsic-logger-1',
-    displayName: 'TSIC logger 1',
-    subtitle: 'to do',
-    component: TSICLogger1Page,
+    id: 'tsic-loggers',
+    displayName: 'TSIC Loggers',
+    subtitle: 'Select a logger ID to view 72 sensor data streams',
+    component: TSICLoggersPage,
   },
   {
     id: 'profile',

@@ -3,14 +3,32 @@
   "projectStateVersion": 3,
   "summary": "New project",
   "architectural_notes": [],
-  "known_issues": [],
+  "known_issues": [
+    "Draft canister may stop after expiration causing 'Checking access' screen to hang with error: Canister is stopped and therefore does not have a CallContextManager"
+  ],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-the-footer-text-element-at-xpath-html-1-body-1-div-1-div-1-footer-1-div-1-div-1-replace-the-displayed-text-built-by-hannes-with-v1-0-english-user-facing-text-apply-the-change-wherever-this-same-footer-element-is-rendered-including-the-access-denied-layout-and-the-normal-app-layout-so-the-footer-is-consistent-across-pages",
-      "title": "In the footer text element at XPath /html[1]/body[1]/div[1]/div[1]/footer[1]/div[1]/div[1], replace the displayed text \"Built by Hannes\" with \"V1.0\" (English user-facing text). Apply the change wherever this same footer element is rendered (including the access-denied layout and the normal app layout) so the footer is consistent across pages.",
+      "id": "feature-add-y-axis-limit-input-controls-minimum-and-maximum-to-the-tsic-loggers-page-that-allow-users-to-set-custom-lower-and-upper-bounds-for-the-graph-s-y-axis-these-controls-should-reset-to-automatic-scaling-on-each-page-refresh",
+      "title": "Add Y-axis limit input controls (minimum and maximum) to the TSIC Loggers page that allow users to set custom lower and upper bounds for the graph's Y-axis. These controls should reset to automatic scaling on each page refresh.",
       "reqIds": [
         "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-checkboxes-in-the-graph-legend-on-the-tsic-loggers-page-that-allow-users-to-toggle-individual-sensors-s1-s72-on-and-off-all-sensors-should-be-enabled-by-default-on-each-page-refresh",
+      "title": "Add checkboxes in the graph legend on the TSIC Loggers page that allow users to toggle individual sensors (S1-S72) on and off. All sensors should be enabled by default on each page refresh.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-add-a-download-button-to-the-tsic-loggers-page-that-links-to-the-google-spreadsheet-at-https-docs-google-com-spreadsheets-d-11msppprizikppacvwtxk-yiqd7ktig4phhtn-hibke8-edit-usp-sharing-style-the-button-to-match-the-download-button-on-the-conceptmachine-page",
+      "title": "Add a download button to the TSIC Loggers page that links to the Google Spreadsheet at https://docs.google.com/spreadsheets/d/11mSpPpRIZikPpacvWtXk-YIQD7ktIg4PHHtN_hIbKE8/edit?usp=sharing. Style the button to match the download button on the Conceptmachine page.",
+      "reqIds": [
+        "REQ-3"
       ],
       "version": 1
     }
@@ -18,12 +36,24 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Wijzig de tekst 'built by Hannes' naar 'V1.0' (in het geselecteerde element)",
+      "summary": "Add Y-axis limit controls (upper and lower bounds) to TSIC Loggers graph that reset to automatic on refresh",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Add checkboxes in legend to toggle individual sensors on/off in TSIC Loggers graph (all enabled by default on refresh)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Add download button on TSIC Loggers page linking to Google Spreadsheet (styled like Conceptmachine page button)",
       "reqIds": [],
       "status": "pending"
     }
   ],
-  "projectName": "Admin Manager",
+  "projectName": "TSIC Temperature Monitor",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }
