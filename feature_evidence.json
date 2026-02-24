@@ -1,0 +1,105 @@
+{
+  "kind": "feature_evidence_report",
+  "features": [
+    {
+      "featureId": "feature-in-co2chart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "featureTitle": "In CO2Chart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "files": [
+        "frontend/src/components/CO2Chart.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-temperaturechart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "featureTitle": "In TemperatureChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "files": [
+        "frontend/src/components/TemperatureChart.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-coolingheatingventilationchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "featureTitle": "In CoolingHeatingVentilationChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "files": [
+        "frontend/src/components/CoolingHeatingVentilationChart.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-fanvoltageflowcontrolchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "featureTitle": "In FanVoltageFlowControlChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "files": [
+        "frontend/src/components/FanVoltageFlowControlChart.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-4"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-in-tsicsensorchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "featureTitle": "In TSICSensorChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "files": [
+        "frontend/src/components/TSICSensorChart.tsx"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-5"
+      ],
+      "confidence": "high"
+    }
+  ]
+}

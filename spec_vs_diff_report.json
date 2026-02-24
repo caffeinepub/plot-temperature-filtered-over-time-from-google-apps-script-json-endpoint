@@ -1,0 +1,19 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-24T14:38:32.686Z",
+  "summary": "The diff modifies all 5 required chart component files. The file summaries confirm that isAnimationActive={false} was added to series components in CO2Chart.tsx, TemperatureChart.tsx, CoolingHeatingVentilationChart.tsx, FanVoltageFlowControlChart.tsx, and TSICSensorChart.tsx. The actual code in the truncated diffs shows Line components being used in each file, and the file summaries explicitly mention isAnimationActive={false} being present. Two unrelated files (urlParams.ts, frontend-file-summaries.txt, project_state.json) were also modified but these are utility/metadata files and do not represent chart logic changes.",
+  "missing_requirements": [],
+  "hallucinated_features": [],
+  "confidence": 0.9,
+  "changed_files": [
+    "frontend-file-summaries.txt",
+    "frontend/src/components/CO2Chart.tsx",
+    "frontend/src/components/CoolingHeatingVentilationChart.tsx",
+    "frontend/src/components/FanVoltageFlowControlChart.tsx",
+    "frontend/src/components/TSICSensorChart.tsx",
+    "frontend/src/components/TemperatureChart.tsx",
+    "frontend/src/utils/urlParams.ts",
+    "project_state.json"
+  ]
+}

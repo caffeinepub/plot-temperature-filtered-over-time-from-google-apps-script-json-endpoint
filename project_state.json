@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 3,
+  "summary": "Web application with admin functionality deployed on Internet Computer (ICP). User encountered admin check issues and accidental live deployment. Now working on disabling chart animations across all graph components.",
+  "architectural_notes": [
+    "Deployed on Internet Computer (ICP), canister ID: c5wce-mqaaa-aaaai-q577a-cai",
+    "Uses Recharts library for data visualization (Line, Bar, Area, Pie components)"
+  ],
+  "known_issues": [],
+  "isFixRequest": false,
+  "existing_features": [
+    {
+      "id": "feature-in-co2chart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "title": "In CO2Chart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-temperaturechart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "title": "In TemperatureChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-coolingheatingventilationchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "title": "In CoolingHeatingVentilationChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-fanvoltageflowcontrolchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "title": "In FanVoltageFlowControlChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-tsicsensorchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
+      "title": "In TSICSensorChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Disable animations on all chart components by adding isAnimationActive={false} to Line, Bar, Area, Pie, etc.",
+      "reqIds": [],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "Disable chart animations across all graph components",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}
