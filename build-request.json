@@ -1,102 +1,59 @@
 {
   "kind": "build_request",
-  "title": "Disable chart animations across all graph components",
+  "title": "Fix Flow Control line color and auto-zoom to last day on all charts",
+  "projectName": "Conceptmachine Live Data",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "In CO2Chart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "text": "In FanVoltageFlowControlChart.tsx, fix the 'Flow control (Pa)' line color so it renders black in light mode and white in dark mode (currently inverted).",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-recent"
+          "msg-12",
+          "msg-14"
         ],
         "quotes": [
-          "Kun je voor alle grafieken de animaties verwijderen? <Line type=\"monotone\" dataKey=\"value\" isAnimationActive={false} />"
+          "Alleen de grafiek met 'Flow control (Pa)' krijgt de aangepaste lijnkleur — zwart in lichte modus, wit in donkere modus"
         ]
       },
       "acceptanceCriteria": [
-        "All Line (and any other series) components in CO2Chart.tsx have isAnimationActive={false}",
-        "No animation plays when the CO2 chart renders or updates"
+        "In light mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually black.",
+        "In dark mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually white.",
+        "No other chart line colors are affected."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "In TemperatureChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "text": "On initial page load, all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) must automatically zoom into the last day of available data. The user must still be able to zoom out manually to view the full dataset.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-recent"
+          "msg-10",
+          "msg-12",
+          "msg-14"
         ],
         "quotes": [
-          "Kun je voor alle grafieken de animaties verwijderen? <Line type=\"monotone\" dataKey=\"value\" isAnimationActive={false} />"
+          "automatisch inzoomen op de laatste dag bij het laden van de site, met de mogelijkheid om handmatig uit te zoomen naar de volledige dataset",
+          "Automatisch inzoomen op de laatste dag bij het laden van de site, met de mogelijkheid om handmatig uit te zoomen"
         ]
       },
       "acceptanceCriteria": [
-        "All series components in TemperatureChart.tsx have isAnimationActive={false}",
-        "No animation plays when the temperature chart renders or updates"
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "text": "In CoolingHeatingVentilationChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-recent"
-        ],
-        "quotes": [
-          "Kun je voor alle grafieken de animaties verwijderen? <Line type=\"monotone\" dataKey=\"value\" isAnimationActive={false} />"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All series components in CoolingHeatingVentilationChart.tsx have isAnimationActive={false}",
-        "No animation plays when the cooling/heating/ventilation chart renders or updates"
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "text": "In FanVoltageFlowControlChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-recent"
-        ],
-        "quotes": [
-          "Kun je voor alle grafieken de animaties verwijderen? <Line type=\"monotone\" dataKey=\"value\" isAnimationActive={false} />"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All series components in FanVoltageFlowControlChart.tsx have isAnimationActive={false}",
-        "No animation plays when the fan voltage/flow control chart renders or updates"
-      ]
-    },
-    {
-      "id": "REQ-5",
-      "text": "In TSICSensorChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-recent"
-        ],
-        "quotes": [
-          "Kun je voor alle grafieken de animaties verwijderen? <Line type=\"monotone\" dataKey=\"value\" isAnimationActive={false} />"
-        ]
-      },
-      "acceptanceCriteria": [
-        "All series components in TSICSensorChart.tsx have isAnimationActive={false}",
-        "No animation plays when the TSIC sensor chart renders or updates"
+        "When the page loads, every chart's visible time window is automatically set to the last 24 hours (last day) of available data.",
+        "The Brush and/or zoom state is initialized to the last day range on mount.",
+        "Users can manually drag or reset the Brush/zoom to view earlier data or the full dataset.",
+        "This auto-zoom behavior applies to all chart components: TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, and TSICSensorChart."
       ]
     }
   ],
   "constraints": [
-    "Only add isAnimationActive={false} to series-level components (Line, Bar, Area, Pie, Scatter, etc.) — do not modify chart container components or other props",
-    "Do not change any other chart logic, zoom, brush, or data-fetching behavior"
+    "Do not modify any file under frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, or frontend/src/components/ui.",
+    "Only the FanVoltageFlowControlChart line color for 'Flow control (Pa)' should be changed — no other chart colors."
   ],
   "nonGoals": [
-    "Modifying backend logic",
-    "Changing chart data sources or parsing",
-    "Adding new chart features or visual redesigns"
+    "Adding new charts or data sources.",
+    "Changing auto-refresh or data fetching intervals.",
+    "Modifying backend logic."
   ],
   "imageRequirements": {
     "required": [],

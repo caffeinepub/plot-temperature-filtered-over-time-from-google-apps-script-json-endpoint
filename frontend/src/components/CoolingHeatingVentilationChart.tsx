@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Brush, ReferenceArea,
@@ -23,19 +23,40 @@ export function CoolingHeatingVentilationChart({ data, startIndex, endIndex, onR
         ? point.heatingPwm * 10.0
         : null;
       const ventilationPercent = point.ventilationV !== null
-        ? ((point.ventilationV - 3.0) / 7.0) * 100.0
+        ? ((point.ventilationV - 2.0) / 8.0) * 100.0
         : null;
 
       return {
         timestamp: point.timestamp.getTime(),
-        cooling: coolingPercent,
-        heating: heatingPercent,
-        ventilation: ventilationPercent,
+        coolingPercent,
+        heatingPercent,
+        ventilationPercent,
         timeLabel: format(point.timestamp, 'HH:mm:ss'),
         fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
       };
     });
   }, [data]);
+
+  // Auto-zoom to last day on first data load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (data.length > 1 && !initializedRef.current) {
+      initializedRef.current = true;
+      const lastIndex = data.length - 1;
+      const lastTs = data[lastIndex].timestamp.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const startTs = lastTs - oneDayMs;
+      let autoStartIndex = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp.getTime() >= startTs) {
+          autoStartIndex = i;
+          break;
+        }
+      }
+      onRangeChange(autoStartIndex, lastIndex);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
 
   // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
@@ -89,7 +110,9 @@ export function CoolingHeatingVentilationChart({ data, startIndex, endIndex, onR
     const hi = Math.max(leftIdx, rightIdx);
 
     const slice = visibleData.slice(lo, hi + 1);
-    const allYValues = slice.flatMap(d => [d.cooling, d.heating, d.ventilation]).filter(v => v != null && !isNaN(v as number)) as number[];
+    const allYValues = slice
+      .flatMap(d => [d.coolingPercent, d.heatingPercent, d.ventilationPercent])
+      .filter(v => v !== null && !isNaN(v as number)) as number[];
     if (allYValues.length > 0) {
       const minY = Math.min(...allYValues);
       const maxY = Math.max(...allYValues);
@@ -159,16 +182,16 @@ export function CoolingHeatingVentilationChart({ data, startIndex, endIndex, onR
               color: 'oklch(var(--popover-foreground))',
             }}
             labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
-            formatter={(value: number, name: string) => {
+            formatter={(value: any, name: string) => {
               let label = '';
-              if (name === 'cooling') label = 'Cooling (%)';
-              else if (name === 'heating') label = 'Heating (%)';
-              else if (name === 'ventilation') label = 'Ventilation (%)';
+              if (name === 'coolingPercent') label = 'Cooling (%)';
+              else if (name === 'heatingPercent') label = 'Heating (%)';
+              else if (name === 'ventilationPercent') label = 'Ventilation (%)';
 
-              const formattedValue = typeof value === 'number' && !isNaN(value)
-                ? value.toFixed(1)
-                : '0.0';
-              return [formattedValue, label];
+              const formattedValue = value !== null && typeof value === 'number' && !isNaN(value)
+                ? value.toFixed(2)
+                : 'N/A';
+              return [`${formattedValue}%`, label];
             }}
             labelFormatter={((label: any, payload: any) => {
               if (payload && payload.length > 0) {
@@ -187,41 +210,41 @@ export function CoolingHeatingVentilationChart({ data, startIndex, endIndex, onR
             }}
             iconType="line"
             formatter={(value) => {
-              if (value === 'cooling') return 'Cooling (%)';
-              if (value === 'heating') return 'Heating (%)';
-              if (value === 'ventilation') return 'Ventilation (%)';
+              if (value === 'coolingPercent') return 'Cooling (%)';
+              if (value === 'heatingPercent') return 'Heating (%)';
+              if (value === 'ventilationPercent') return 'Ventilation (%)';
               return value;
             }}
           />
           <Line
             type="monotone"
-            dataKey="cooling"
-            name="cooling"
+            dataKey="coolingPercent"
+            name="coolingPercent"
             stroke="oklch(var(--chart-cooling))"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-cooling))' }}
-            isAnimationActive={false}
+            connectNulls
           />
           <Line
             type="monotone"
-            dataKey="heating"
-            name="heating"
+            dataKey="heatingPercent"
+            name="heatingPercent"
             stroke="oklch(var(--chart-heating))"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-heating))' }}
-            isAnimationActive={false}
+            connectNulls
           />
           <Line
             type="monotone"
-            dataKey="ventilation"
-            name="ventilation"
+            dataKey="ventilationPercent"
+            name="ventilationPercent"
             stroke="oklch(var(--chart-ventilation))"
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-ventilation))' }}
-            isAnimationActive={false}
+            connectNulls
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea

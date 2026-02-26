@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Brush, ReferenceArea,
@@ -24,6 +24,27 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
       fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
     }));
   }, [data]);
+
+  // Auto-zoom to last day on first data load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (data.length > 1 && !initializedRef.current) {
+      initializedRef.current = true;
+      const lastIndex = data.length - 1;
+      const lastTs = data[lastIndex].timestamp.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const startTs = lastTs - oneDayMs;
+      let autoStartIndex = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp.getTime() >= startTs) {
+          autoStartIndex = i;
+          break;
+        }
+      }
+      onRangeChange(autoStartIndex, lastIndex);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
 
   // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
@@ -189,7 +210,6 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-1))' }}
-            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -199,7 +219,6 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-2))' }}
-            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -210,7 +229,6 @@ export function CO2Chart({ data, startIndex, endIndex, onRangeChange }: CO2Chart
             strokeDasharray="5 5"
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-co2-3))' }}
-            isAnimationActive={false}
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea

@@ -1,80 +1,58 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Disable chart animations across all graph components",
+  "title": "Fix Flow Control line color and auto-zoom to last day on all charts",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Disable animations in CO2Chart by adding isAnimationActive={false} to all Recharts series components",
+      "summary": "Fix the 'Flow control (Pa)' line color in FanVoltageFlowControlChart to render black in light mode and white in dark mode (currently inverted).",
       "acceptanceCriteria": [
-        "All Line (and any other series) components in CO2Chart.tsx have isAnimationActive={false}",
-        "No animation plays when the CO2 chart renders or updates"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/CO2Chart.tsx",
-          "operation": "modify",
-          "description": "Add isAnimationActive={false} prop to all <Line> components (co2Right, co2Left, co2CSV series) to disable chart animations on render and update"
-        }
-      ]
-    },
-    {
-      "id": "REQ-2",
-      "summary": "Disable animations in TemperatureChart by adding isAnimationActive={false} to all Recharts series components",
-      "acceptanceCriteria": [
-        "All series components in TemperatureChart.tsx have isAnimationActive={false}",
-        "No animation plays when the temperature chart renders or updates"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/TemperatureChart.tsx",
-          "operation": "modify",
-          "description": "Add isAnimationActive={false} prop to all <Line> components rendering temperature data series to disable chart animations on render and update"
-        }
-      ]
-    },
-    {
-      "id": "REQ-3",
-      "summary": "Disable animations in CoolingHeatingVentilationChart by adding isAnimationActive={false} to all Recharts series components",
-      "acceptanceCriteria": [
-        "All series components in CoolingHeatingVentilationChart.tsx have isAnimationActive={false}",
-        "No animation plays when the cooling/heating/ventilation chart renders or updates"
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/components/CoolingHeatingVentilationChart.tsx",
-          "operation": "modify",
-          "description": "Add isAnimationActive={false} prop to all <Line> components (cooling, heating, ventilation series) to disable chart animations on render and update"
-        }
-      ]
-    },
-    {
-      "id": "REQ-4",
-      "summary": "Disable animations in FanVoltageFlowControlChart by adding isAnimationActive={false} to all Recharts series components",
-      "acceptanceCriteria": [
-        "All series components in FanVoltageFlowControlChart.tsx have isAnimationActive={false}",
-        "No animation plays when the fan voltage/flow control chart renders or updates"
+        "In light mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually black.",
+        "In dark mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually white.",
+        "No other chart line colors are affected."
       ],
       "file_operations": [
         {
           "path": "frontend/src/components/FanVoltageFlowControlChart.tsx",
           "operation": "modify",
-          "description": "Add isAnimationActive={false} prop to all <Line> components (fan voltage and flow control series on dual axes) to disable chart animations on render and update"
+          "description": "Correct the stroke color for the 'Flow control (Pa)' Line component by swapping the light/dark mode color values. Change from 'hsl(var(--background))' for light and 'hsl(var(--foreground))' for dark to the opposite: use 'hsl(var(--foreground))' in light mode (renders as black/dark text color) and 'hsl(var(--background))' in dark mode (renders as white/light background color). Ensure no other line colors in this chart are modified."
         }
       ]
     },
     {
-      "id": "REQ-5",
-      "summary": "Disable animations in TSICSensorChart by adding isAnimationActive={false} to all Recharts series components",
+      "id": "REQ-2",
+      "summary": "On initial page load, all charts must automatically zoom into the last day of available data while allowing manual zoom out to the full dataset.",
       "acceptanceCriteria": [
-        "All series components in TSICSensorChart.tsx have isAnimationActive={false}",
-        "No animation plays when the TSIC sensor chart renders or updates"
+        "When the page loads, every chart's visible time window is automatically set to the last 24 hours (last day) of available data.",
+        "The Brush and/or zoom state is initialized to the last day range on mount.",
+        "Users can manually drag or reset the Brush/zoom to view earlier data or the full dataset.",
+        "This auto-zoom behavior applies to all chart components: TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, and TSICSensorChart."
       ],
       "file_operations": [
         {
+          "path": "frontend/src/components/TemperatureChart.tsx",
+          "operation": "modify",
+          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
+        },
+        {
+          "path": "frontend/src/components/CO2Chart.tsx",
+          "operation": "modify",
+          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
+        },
+        {
+          "path": "frontend/src/components/CoolingHeatingVentilationChart.tsx",
+          "operation": "modify",
+          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
+        },
+        {
+          "path": "frontend/src/components/FanVoltageFlowControlChart.tsx",
+          "operation": "modify",
+          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
+        },
+        {
           "path": "frontend/src/components/TSICSensorChart.tsx",
           "operation": "modify",
-          "description": "Add isAnimationActive={false} prop to all <Line> components rendering up to 72 TSIC sensor temperature series to disable chart animations on render and update"
+          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
         }
       ]
     }

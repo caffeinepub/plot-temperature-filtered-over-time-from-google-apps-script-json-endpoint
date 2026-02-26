@@ -1,51 +1,27 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Web application with admin functionality deployed on Internet Computer (ICP). User encountered admin check issues and accidental live deployment. Now working on disabling chart animations across all graph components.",
+  "summary": "Dashboard applicatie met meerdere grafieken die data tonen van Google Apps Script endpoints. Bevat lichte/donkere modus en automatisch inzoomen op de laatste dag bij laden.",
   "architectural_notes": [
-    "Deployed on Internet Computer (ICP), canister ID: c5wce-mqaaa-aaaai-q577a-cai",
-    "Uses Recharts library for data visualization (Line, Bar, Area, Pie components)"
+    "Data wordt opgehaald via Google Apps Script endpoints",
+    "App ondersteunt lichte en donkere modus"
   ],
   "known_issues": [],
-  "isFixRequest": false,
+  "isFixRequest": true,
   "existing_features": [
     {
-      "id": "feature-in-co2chart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
-      "title": "In CO2Chart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "id": "feature-in-fanvoltageflowcontrolchart-tsx-fix-the-flow-control-pa-line-color-so-it-renders-black-in-light-mode-and-white-in-dark-mode-currently-inverted",
+      "title": "In FanVoltageFlowControlChart.tsx, fix the 'Flow control (Pa)' line color so it renders black in light mode and white in dark mode (currently inverted).",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-in-temperaturechart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
-      "title": "In TemperatureChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+      "id": "feature-on-initial-page-load-all-charts-temperaturechart-co2chart-coolingheatingventilationchart-fanvoltageflowcontrolchart-tsicsensorchart-must-automatically-zoom-into-the-last-day-of-available-data-the-user-must-still-be-able-to-zoom-out-manually-to-view-the-full-dataset",
+      "title": "On initial page load, all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) must automatically zoom into the last day of available data. The user must still be able to zoom out manually to view the full dataset.",
       "reqIds": [
         "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-coolingheatingventilationchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
-      "title": "In CoolingHeatingVentilationChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-fanvoltageflowcontrolchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
-      "title": "In FanVoltageFlowControlChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-tsicsensorchart-tsx-add-isanimationactive-false-to-all-recharts-series-components-line-bar-area-etc-to-disable-chart-animations",
-      "title": "In TSICSensorChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-      "reqIds": [
-        "REQ-5"
       ],
       "version": 1
     }
@@ -53,13 +29,19 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Disable animations on all chart components by adding isAnimationActive={false} to Line, Bar, Area, Pie, etc.",
+      "summary": "Fix 'Flow control (Pa)' lijnkleur: zwart in lichte modus, wit in donkere modus (momenteel omgekeerd)",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Alle grafieken automatisch inzoomen op de laatste dag bij laden van de site, met mogelijkheid om handmatig uit te zoomen",
       "reqIds": [],
       "status": "pending"
     }
   ],
   "gameProjectType": "none",
-  "projectName": "Disable chart animations across all graph components",
+  "projectName": "Conceptmachine Live Data",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

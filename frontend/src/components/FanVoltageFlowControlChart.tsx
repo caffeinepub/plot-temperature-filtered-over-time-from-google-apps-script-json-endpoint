@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Brush, ReferenceArea,
@@ -26,15 +26,39 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
     }));
   }, [data]);
 
+  // Auto-zoom to last day on first data load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (data.length > 1 && !initializedRef.current) {
+      initializedRef.current = true;
+      const lastIndex = data.length - 1;
+      const lastTs = data[lastIndex].timestamp.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const startTs = lastTs - oneDayMs;
+      let autoStartIndex = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp.getTime() >= startTs) {
+          autoStartIndex = i;
+          break;
+        }
+      }
+      onRangeChange(autoStartIndex, lastIndex);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
+
   // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [zoomedYLeftBottom, setZoomedYLeftBottom] = useState<number | null>(null);
-  const [zoomedYLeftTop, setZoomedYLeftTop] = useState<number | null>(null);
-  const [zoomedYRightBottom, setZoomedYRightBottom] = useState<number | null>(null);
-  const [zoomedYRightTop, setZoomedYRightTop] = useState<number | null>(null);
+  const [zoomedLeftBottom, setZoomedLeftBottom] = useState<number | null>(null);
+  const [zoomedLeftTop, setZoomedLeftTop] = useState<number | null>(null);
+  const [zoomedRightBottom, setZoomedRightBottom] = useState<number | null>(null);
+  const [zoomedRightTop, setZoomedRightTop] = useState<number | null>(null);
   const selectingRef = useRef(false);
+
+  // Detect dark mode from document class
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   const handleBrushChange = useCallback((range: { startIndex?: number; endIndex?: number }) => {
     if (range.startIndex !== undefined && range.endIndex !== undefined) {
@@ -78,27 +102,30 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
 
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
-
     const slice = visibleData.slice(lo, hi + 1);
 
-    // Left Y axis: voltages
-    const voltageValues = slice.flatMap(d => [d.fan1V, d.fan2V, d.fan3V]).filter(v => v != null && !isNaN(v as number)) as number[];
+    // Left Y-axis (voltage)
+    const voltageValues = slice
+      .flatMap(d => [d.fan1V, d.fan2V, d.fan3V])
+      .filter(v => v !== null && !isNaN(v as number)) as number[];
     if (voltageValues.length > 0) {
-      const minY = Math.min(...voltageValues);
-      const maxY = Math.max(...voltageValues);
-      const padding = (maxY - minY) * 0.05 || 0.1;
-      setZoomedYLeftBottom(minY - padding);
-      setZoomedYLeftTop(maxY + padding);
+      const minV = Math.min(...voltageValues);
+      const maxV = Math.max(...voltageValues);
+      const pad = (maxV - minV) * 0.05 || 0.1;
+      setZoomedLeftBottom(minV - pad);
+      setZoomedLeftTop(maxV + pad);
     }
 
-    // Right Y axis: flow control pressure
-    const flowValues = slice.map(d => d.flowControlPa).filter(v => v != null && !isNaN(v as number)) as number[];
-    if (flowValues.length > 0) {
-      const minY = Math.min(...flowValues);
-      const maxY = Math.max(...flowValues);
-      const padding = (maxY - minY) * 0.05 || 1;
-      setZoomedYRightBottom(minY - padding);
-      setZoomedYRightTop(maxY + padding);
+    // Right Y-axis (pressure)
+    const pressureValues = slice
+      .map(d => d.flowControlPa)
+      .filter(v => v !== null && !isNaN(v as number)) as number[];
+    if (pressureValues.length > 0) {
+      const minP = Math.min(...pressureValues);
+      const maxP = Math.max(...pressureValues);
+      const pad = (maxP - minP) * 0.05 || 5;
+      setZoomedRightBottom(minP - pad);
+      setZoomedRightTop(maxP + pad);
     }
 
     onRangeChange(startIndex + lo, startIndex + hi);
@@ -112,22 +139,25 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
     prevStartIndex.current = startIndex;
     prevEndIndex.current = endIndex;
     if (startIndex === 0 && endIndex === data.length - 1) {
-      setZoomedYLeftBottom(null);
-      setZoomedYLeftTop(null);
-      setZoomedYRightBottom(null);
-      setZoomedYRightTop(null);
+      setZoomedLeftBottom(null);
+      setZoomedLeftTop(null);
+      setZoomedRightBottom(null);
+      setZoomedRightTop(null);
     }
   }
 
-  const yLeftDomain: [number | string, number | string] =
-    zoomedYLeftBottom !== null && zoomedYLeftTop !== null
-      ? [zoomedYLeftBottom, zoomedYLeftTop]
-      : ['auto', 'auto'];
+  const leftDomain: [number | string, number | string] =
+    zoomedLeftBottom !== null && zoomedLeftTop !== null
+      ? [zoomedLeftBottom, zoomedLeftTop]
+      : [0, 10];
 
-  const yRightDomain: [number | string, number | string] =
-    zoomedYRightBottom !== null && zoomedYRightTop !== null
-      ? [zoomedYRightBottom, zoomedYRightTop]
-      : ['auto', 'auto'];
+  const rightDomain: [number | string, number | string] =
+    zoomedRightBottom !== null && zoomedRightTop !== null
+      ? [zoomedRightBottom, zoomedRightTop]
+      : [0, 1000];
+
+  // Flow control line: black in light mode, white in dark mode
+  const flowControlColor = isDark ? '#ffffff' : '#000000';
 
   return (
     <div className="w-full h-[450px]" style={{ userSelect: 'none' }}>
@@ -148,9 +178,10 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
             tickLine={{ stroke: 'oklch(var(--border))' }}
             allowDataOverflow
           />
+          {/* Left Y-axis for Voltage */}
           <YAxis
-            yAxisId="voltage"
-            domain={yLeftDomain}
+            yAxisId="left"
+            domain={leftDomain}
             allowDataOverflow
             stroke="oklch(var(--muted-foreground))"
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
@@ -162,16 +193,17 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
               style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
             }}
           />
+          {/* Right Y-axis for Pressure */}
           <YAxis
-            yAxisId="flow"
+            yAxisId="right"
             orientation="right"
-            domain={yRightDomain}
+            domain={rightDomain}
             allowDataOverflow
             stroke="oklch(var(--muted-foreground))"
             tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
             tickLine={{ stroke: 'oklch(var(--border))' }}
             label={{
-              value: 'Flow Control (Pa)',
+              value: 'Pressure (Pa)',
               angle: 90,
               position: 'insideRight',
               style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
@@ -185,17 +217,18 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
               color: 'oklch(var(--popover-foreground))',
             }}
             labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
-            formatter={(value: number, name: string) => {
-              const labels: Record<string, string> = {
-                fan1V: 'Fan 1 Voltage (V)',
-                fan2V: 'Fan 2 Voltage (V)',
-                fan3V: 'Fan 3 Voltage (V)',
-                flowControlPa: 'Flow Control (Pa)',
-              };
-              const formattedValue = typeof value === 'number' && !isNaN(value)
+            formatter={(value: any, name: string) => {
+              let label = '';
+              let unit = '';
+              if (name === 'fan1V') { label = 'Fan 1'; unit = 'V'; }
+              else if (name === 'fan2V') { label = 'Fan 2'; unit = 'V'; }
+              else if (name === 'fan3V') { label = 'Fan 3'; unit = 'V'; }
+              else if (name === 'flowControlPa') { label = 'Flow Control'; unit = 'Pa'; }
+
+              const formattedValue = value !== null && typeof value === 'number' && !isNaN(value)
                 ? value.toFixed(2)
-                : '0.00';
-              return [formattedValue, labels[name] || name];
+                : 'N/A';
+              return [`${formattedValue} ${unit}`, label];
             }}
             labelFormatter={((label: any, payload: any) => {
               if (payload && payload.length > 0) {
@@ -214,62 +247,58 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
             }}
             iconType="line"
             formatter={(value) => {
-              const labels: Record<string, string> = {
-                fan1V: 'Fan 1 Voltage (V)',
-                fan2V: 'Fan 2 Voltage (V)',
-                fan3V: 'Fan 3 Voltage (V)',
-                flowControlPa: 'Flow Control (Pa)',
-              };
-              return labels[value] || value;
+              if (value === 'fan1V') return 'Fan 1 (V)';
+              if (value === 'fan2V') return 'Fan 2 (V)';
+              if (value === 'fan3V') return 'Fan 3 (V)';
+              if (value === 'flowControlPa') return 'Flow Control (Pa)';
+              return value;
             }}
           />
+          {/* Fan voltage lines on left axis */}
           <Line
-            yAxisId="voltage"
+            yAxisId="left"
             type="monotone"
             dataKey="fan1V"
-            name="fan1V"
-            stroke="oklch(var(--chart-fan1))"
+            stroke="oklch(0.70 0.12 220)"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-fan1))' }}
-            isAnimationActive={false}
+            connectNulls
+            name="fan1V"
           />
           <Line
-            yAxisId="voltage"
+            yAxisId="left"
             type="monotone"
             dataKey="fan2V"
-            name="fan2V"
-            stroke="oklch(var(--chart-fan2))"
+            stroke="oklch(0.55 0.15 240)"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-fan2))' }}
-            isAnimationActive={false}
+            connectNulls
+            name="fan2V"
           />
           <Line
-            yAxisId="voltage"
+            yAxisId="left"
             type="monotone"
             dataKey="fan3V"
-            name="fan3V"
-            stroke="oklch(var(--chart-fan3))"
+            stroke="oklch(0.45 0.18 260)"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-fan3))' }}
-            isAnimationActive={false}
+            connectNulls
+            name="fan3V"
           />
+          {/* Flow control pressure on right axis — black in light mode, white in dark mode */}
           <Line
-            yAxisId="flow"
+            yAxisId="right"
             type="monotone"
             dataKey="flowControlPa"
-            name="flowControlPa"
-            stroke="oklch(var(--chart-ventilation))"
+            stroke={flowControlColor}
             strokeWidth={2}
-            strokeDasharray="5 5"
             dot={false}
-            activeDot={{ r: 6, fill: 'oklch(var(--chart-ventilation))' }}
-            isAnimationActive={false}
+            connectNulls
+            name="flowControlPa"
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea
+              yAxisId="left"
               x1={refAreaLeft}
               x2={refAreaRight}
               strokeOpacity={0.3}
@@ -290,7 +319,7 @@ export function FanVoltageFlowControlChart({ data, startIndex, endIndex, onRange
           />
         </LineChart>
       </ResponsiveContainer>
-      {(zoomedYLeftBottom !== null || (startIndex > 0 || endIndex < data.length - 1)) && (
+      {(zoomedLeftBottom !== null || (startIndex > 0 || endIndex < data.length - 1)) && (
         <p className="text-xs text-muted-foreground text-center mt-1">
           💡 Drag on the chart to zoom in · Use the brush below to pan · Reset Zoom to restore
         </p>

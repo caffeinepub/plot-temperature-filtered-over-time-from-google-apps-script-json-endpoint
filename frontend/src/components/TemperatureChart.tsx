@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Brush, ReferenceArea,
@@ -23,6 +23,27 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
       fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
     }));
   }, [data]);
+
+  // Auto-zoom to last day on first data load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (data.length > 1 && !initializedRef.current) {
+      initializedRef.current = true;
+      const lastIndex = data.length - 1;
+      const lastTs = data[lastIndex].timestamp.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const startTs = lastTs - oneDayMs;
+      let autoStartIndex = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp.getTime() >= startTs) {
+          autoStartIndex = i;
+          break;
+        }
+      }
+      onRangeChange(autoStartIndex, lastIndex);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
 
   // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
@@ -62,7 +83,6 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
       return;
     }
 
-    // Find indices in the full data array for the dragged labels
     const visibleData = chartData.slice(startIndex, endIndex + 1);
     const leftIdx = visibleData.findIndex(d => d.timeLabel === refAreaLeft);
     const rightIdx = visibleData.findIndex(d => d.timeLabel === refAreaRight);
@@ -76,7 +96,6 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
 
-    // Compute Y domain from the selected slice
     const slice = visibleData.slice(lo, hi + 1);
     const allYValues = slice.flatMap(d => [d.temperatureFiltered, d.temperatureCSV]).filter(v => v != null) as number[];
     if (allYValues.length > 0) {
@@ -87,9 +106,7 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
       setZoomedYTop(maxY + padding);
     }
 
-    // Map back to global indices
     onRangeChange(startIndex + lo, startIndex + hi);
-
     setRefAreaLeft(null);
     setRefAreaRight(null);
   }, [refAreaLeft, refAreaRight, chartData, startIndex, endIndex, onRangeChange]);
@@ -100,7 +117,6 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
   if (prevStartIndex.current !== startIndex || prevEndIndex.current !== endIndex) {
     prevStartIndex.current = startIndex;
     prevEndIndex.current = endIndex;
-    // If reset to full range, clear Y zoom
     if (startIndex === 0 && endIndex === data.length - 1) {
       setZoomedYBottom(null);
       setZoomedYTop(null);
@@ -113,10 +129,7 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
       : [70, 102];
 
   return (
-    <div
-      className="w-full h-[450px]"
-      style={{ userSelect: 'none' }}
-    >
+    <div className="w-full h-[450px]" style={{ userSelect: 'none' }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -191,7 +204,6 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-1))' }}
-            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -202,7 +214,6 @@ export function TemperatureChart({ data, startIndex, endIndex, onRangeChange }: 
             strokeDasharray="5 5"
             dot={false}
             activeDot={{ r: 6, fill: 'oklch(var(--chart-2))' }}
-            isAnimationActive={false}
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea

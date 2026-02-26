@@ -1,67 +1,42 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-24T14:38:32.689Z",
+  "generatedAt": "2026-02-26T13:43:24.490Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 5,
-    "implemented": 5,
+    "total": 2,
+    "implemented": 2,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "In CO2Chart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+        "summary": "In FanVoltageFlowControlChart.tsx, fix the 'Flow control (Pa)' line color so it renders black in light mode and white in dark mode (currently inverted).",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/CO2Chart.tsx"
+          "frontend/src/components/FanVoltageFlowControlChart.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/CO2Chart.tsx"
+          "frontend/src/components/FanVoltageFlowControlChart.tsx"
         ]
       },
       {
         "id": "REQ-2",
-        "summary": "In TemperatureChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
+        "summary": "On initial page load, all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) must automatically zoom into the last day of available data. The user must still be able to zoom out manually to view the full dataset.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/TemperatureChart.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/TemperatureChart.tsx"
-        ]
-      },
-      {
-        "id": "REQ-3",
-        "summary": "In CoolingHeatingVentilationChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/CoolingHeatingVentilationChart.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/CoolingHeatingVentilationChart.tsx"
-        ]
-      },
-      {
-        "id": "REQ-4",
-        "summary": "In FanVoltageFlowControlChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/FanVoltageFlowControlChart.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/FanVoltageFlowControlChart.tsx"
-        ]
-      },
-      {
-        "id": "REQ-5",
-        "summary": "In TSICSensorChart.tsx, add isAnimationActive={false} to all Recharts series components (Line, Bar, Area, etc.) to disable chart animations.",
-        "status": "implemented",
-        "plannedFiles": [
+          "frontend/src/components/TemperatureChart.tsx",
+          "frontend/src/components/CO2Chart.tsx",
+          "frontend/src/components/CoolingHeatingVentilationChart.tsx",
+          "frontend/src/components/FanVoltageFlowControlChart.tsx",
           "frontend/src/components/TSICSensorChart.tsx"
         ],
         "matchedFiles": [
+          "frontend/src/components/TemperatureChart.tsx",
+          "frontend/src/components/CO2Chart.tsx",
+          "frontend/src/components/CoolingHeatingVentilationChart.tsx",
+          "frontend/src/components/FanVoltageFlowControlChart.tsx",
           "frontend/src/components/TSICSensorChart.tsx"
         ]
       }
@@ -69,6 +44,8 @@
   },
   "changedFiles": [
     "build-request.json",
+    "build-template/README.md",
+    "caffeine.lock.json",
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",

@@ -1,79 +1,98 @@
-import { useMemo, useCallback, useState, useRef } from 'react';
+import { useMemo, useCallback, useEffect, useState, useRef } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Brush, ReferenceArea,
 } from 'recharts';
 import { format } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { TSICDataPoint } from '@/lib/tsicDataParsing';
-
-const SENSOR_COLORS = [
-  'oklch(0.65 0.18 142)', 'oklch(0.60 0.20 200)', 'oklch(0.65 0.22 30)',
-  'oklch(0.55 0.18 280)', 'oklch(0.70 0.20 60)', 'oklch(0.60 0.22 320)',
-  'oklch(0.65 0.18 170)', 'oklch(0.58 0.20 240)', 'oklch(0.68 0.22 10)',
-  'oklch(0.62 0.18 300)', 'oklch(0.72 0.20 80)', 'oklch(0.56 0.22 200)',
-  'oklch(0.66 0.18 130)', 'oklch(0.61 0.20 260)', 'oklch(0.69 0.22 40)',
-  'oklch(0.57 0.18 310)', 'oklch(0.71 0.20 100)', 'oklch(0.63 0.22 220)',
-  'oklch(0.67 0.18 150)', 'oklch(0.59 0.20 280)', 'oklch(0.64 0.22 20)',
-  'oklch(0.54 0.18 330)', 'oklch(0.73 0.20 70)', 'oklch(0.60 0.22 190)',
-  'oklch(0.65 0.18 160)', 'oklch(0.62 0.20 250)', 'oklch(0.68 0.22 50)',
-  'oklch(0.56 0.18 290)', 'oklch(0.70 0.20 90)', 'oklch(0.64 0.22 210)',
-  'oklch(0.66 0.18 140)', 'oklch(0.61 0.20 270)', 'oklch(0.69 0.22 30)',
-  'oklch(0.57 0.18 300)', 'oklch(0.71 0.20 110)', 'oklch(0.63 0.22 230)',
-  'oklch(0.67 0.18 155)', 'oklch(0.59 0.20 285)', 'oklch(0.64 0.22 25)',
-  'oklch(0.54 0.18 335)', 'oklch(0.73 0.20 75)', 'oklch(0.60 0.22 195)',
-  'oklch(0.65 0.18 165)', 'oklch(0.62 0.20 255)', 'oklch(0.68 0.22 55)',
-  'oklch(0.56 0.18 295)', 'oklch(0.70 0.20 95)', 'oklch(0.64 0.22 215)',
-  'oklch(0.66 0.18 145)', 'oklch(0.61 0.20 275)', 'oklch(0.69 0.22 35)',
-  'oklch(0.57 0.18 305)', 'oklch(0.71 0.20 115)', 'oklch(0.63 0.22 235)',
-  'oklch(0.67 0.18 158)', 'oklch(0.59 0.20 288)', 'oklch(0.64 0.22 28)',
-  'oklch(0.54 0.18 338)', 'oklch(0.73 0.20 78)', 'oklch(0.60 0.22 198)',
-  'oklch(0.65 0.18 168)', 'oklch(0.62 0.20 258)', 'oklch(0.68 0.22 58)',
-  'oklch(0.56 0.18 298)', 'oklch(0.70 0.20 98)', 'oklch(0.64 0.22 218)',
-  'oklch(0.66 0.18 148)', 'oklch(0.61 0.20 278)', 'oklch(0.69 0.22 38)',
-  'oklch(0.57 0.18 308)', 'oklch(0.71 0.20 118)', 'oklch(0.63 0.22 238)',
-];
 
 interface TSICSensorChartProps {
   data: TSICDataPoint[];
   startIndex: number;
   endIndex: number;
   onRangeChange: (startIndex: number, endIndex: number) => void;
-  sensorVisibility: Record<string, boolean>;
-  onToggleSensor: (sensorKey: string) => void;
-  onResetStates: () => void;
   yAxisMin?: number | null;
   yAxisMax?: number | null;
+  sensorVisibility: Record<string, boolean>;
+  onToggleSensor: (sensorKey: string) => void;
+  onResetStates?: () => void;
 }
+
+// Generate colors for 72 sensors using HSL color space for better distribution
+const generateSensorColors = (count: number): string[] => {
+  const colors: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const hue = (i * 360) / count;
+    const saturation = 60 + (i % 3) * 15;
+    const lightness = 45 + (i % 4) * 10;
+    colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+  }
+  return colors;
+};
+
+const sensorColors = generateSensorColors(72);
 
 export function TSICSensorChart({
   data,
   startIndex,
   endIndex,
   onRangeChange,
-  sensorVisibility,
-  onToggleSensor,
-  onResetStates,
   yAxisMin,
   yAxisMax,
+  sensorVisibility,
+  onToggleSensor,
+  onResetStates
 }: TSICSensorChartProps) {
-  const sensorCount = data.length > 0 ? Object.keys(data[0]).filter(k => k.startsWith('S')).length : 0;
-  const sensorKeys = useMemo(() => Array.from({ length: sensorCount }, (_, i) => `S${i + 1}`), [sensorCount]);
-
   const chartData = useMemo(() => {
-    // Trigger reset check when data changes
-    onResetStates();
+    const shouldClip = yAxisMin !== null && yAxisMin !== undefined && yAxisMax !== null && yAxisMax !== undefined;
+
     return data.map((point) => {
-      const entry: Record<string, any> = {
+      const dataPoint: any = {
         timestamp: point.timestamp.getTime(),
         timeLabel: format(point.timestamp, 'HH:mm:ss'),
         fullTimestamp: format(point.timestamp, 'yyyy-MM-dd HH:mm:ss'),
       };
-      sensorKeys.forEach(key => {
-        entry[key] = (point as any)[key];
-      });
-      return entry;
+
+      for (let i = 1; i <= 72; i++) {
+        const sensorKey = `S${i}` as keyof typeof point.sensors;
+        const value = point.sensors[sensorKey];
+
+        if (shouldClip) {
+          if (value < yAxisMin! || value > yAxisMax!) {
+            dataPoint[sensorKey] = null;
+          } else {
+            dataPoint[sensorKey] = value;
+          }
+        } else {
+          dataPoint[sensorKey] = value;
+        }
+      }
+
+      return dataPoint;
     });
-  }, [data, sensorKeys, onResetStates]);
+  }, [data, yAxisMin, yAxisMax]);
+
+  // Auto-zoom to last day on first data load
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (data.length > 1 && !initializedRef.current) {
+      initializedRef.current = true;
+      const lastIndex = data.length - 1;
+      const lastTs = data[lastIndex].timestamp.getTime();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const startTs = lastTs - oneDayMs;
+      let autoStartIndex = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp.getTime() >= startTs) {
+          autoStartIndex = i;
+          break;
+        }
+      }
+      onRangeChange(autoStartIndex, lastIndex);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.length]);
 
   // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
@@ -82,6 +101,13 @@ export function TSICSensorChart({
   const [zoomedYBottom, setZoomedYBottom] = useState<number | null>(null);
   const [zoomedYTop, setZoomedYTop] = useState<number | null>(null);
   const selectingRef = useRef(false);
+
+  // Reset states when data changes (new data loaded)
+  useEffect(() => {
+    if (onResetStates && data.length > 0) {
+      onResetStates();
+    }
+  }, [data.length, onResetStates]);
 
   const handleBrushChange = useCallback((range: { startIndex?: number; endIndex?: number }) => {
     if (range.startIndex !== undefined && range.endIndex !== undefined) {
@@ -125,10 +151,22 @@ export function TSICSensorChart({
 
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
-
     const slice = visibleData.slice(lo, hi + 1);
-    const visibleSensorKeys = sensorKeys.filter(key => sensorVisibility[key] !== false);
-    const allYValues = slice.flatMap(d => visibleSensorKeys.map(k => d[k])).filter(v => v != null && !isNaN(v)) as number[];
+
+    // Compute Y domain from visible (checked) sensors in the slice
+    const allYValues: number[] = [];
+    for (const point of slice) {
+      for (let i = 1; i <= 72; i++) {
+        const sensorKey = `S${i}`;
+        if (sensorVisibility[sensorKey]) {
+          const v = point[sensorKey];
+          if (v !== null && v !== undefined && !isNaN(v)) {
+            allYValues.push(v);
+          }
+        }
+      }
+    }
+
     if (allYValues.length > 0) {
       const minY = Math.min(...allYValues);
       const maxY = Math.max(...allYValues);
@@ -140,8 +178,9 @@ export function TSICSensorChart({
     onRangeChange(startIndex + lo, startIndex + hi);
     setRefAreaLeft(null);
     setRefAreaRight(null);
-  }, [refAreaLeft, refAreaRight, chartData, startIndex, endIndex, onRangeChange, sensorKeys, sensorVisibility]);
+  }, [refAreaLeft, refAreaRight, chartData, startIndex, endIndex, onRangeChange, sensorVisibility]);
 
+  // Reset Y zoom when brush range resets to full data
   const prevStartIndex = useRef(startIndex);
   const prevEndIndex = useRef(endIndex);
   if (prevStartIndex.current !== startIndex || prevEndIndex.current !== endIndex) {
@@ -153,149 +192,184 @@ export function TSICSensorChart({
     }
   }
 
-  // Y domain: drag-zoom overrides user-specified min/max
-  let yBottom: number | string = 'auto';
-  let yTop: number | string = 'auto';
-  if (zoomedYBottom !== null && zoomedYTop !== null) {
-    yBottom = zoomedYBottom;
-    yTop = zoomedYTop;
-  } else {
-    if (yAxisMin != null && !isNaN(yAxisMin)) yBottom = yAxisMin;
-    if (yAxisMax != null && !isNaN(yAxisMax)) yTop = yAxisMax;
-  }
-  const yDomain: [number | string, number | string] = [yBottom, yTop];
-
-  const allVisible = sensorKeys.every(key => sensorVisibility[key] !== false);
-
-  const toggleAll = useCallback((checked: boolean) => {
-    sensorKeys.forEach(key => {
-      if ((sensorVisibility[key] !== false) !== checked) {
-        onToggleSensor(key);
+  // Filter out sensors that are all zeros to reduce clutter
+  const activeSensors = useMemo(() => {
+    const active: string[] = [];
+    for (let i = 1; i <= 72; i++) {
+      const sensorKey = `S${i}` as keyof typeof data[0]['sensors'];
+      const hasNonZeroValue = data.some(point => point.sensors[sensorKey] !== 0);
+      if (hasNonZeroValue) {
+        active.push(`S${i}`);
       }
-    });
-  }, [sensorKeys, sensorVisibility, onToggleSensor]);
+    }
+    return active;
+  }, [data]);
+
+  // Custom legend with checkboxes - always show all active sensors
+  const renderCustomLegend = (_props: any) => {
+    return (
+      <div className="flex flex-wrap gap-3 justify-center px-4 py-2 max-h-[200px] overflow-y-auto">
+        {activeSensors.map((sensorKey) => {
+          const isVisible = sensorVisibility[sensorKey];
+          const sensorNumber = parseInt(sensorKey.substring(1));
+          const color = sensorColors[sensorNumber - 1];
+
+          return (
+            <div
+              key={`legend-${sensorKey}`}
+              className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+              onClick={() => onToggleSensor(sensorKey)}
+            >
+              <Checkbox
+                checked={isVisible}
+                className="h-4 w-4 pointer-events-none"
+              />
+              <div
+                className="w-4 h-0.5"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-xs" style={{ color: 'oklch(var(--foreground))' }}>
+                {sensorKey}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Determine Y-axis domain - drag zoom overrides user limits when active
+  const yAxisDomain = useMemo((): [number | 'auto', number | 'auto'] => {
+    // If drag zoom is active, use zoomed domain
+    if (zoomedYBottom !== null && zoomedYTop !== null) {
+      return [zoomedYBottom, zoomedYTop];
+    }
+    // Otherwise use user-specified limits
+    if (yAxisMin !== null && yAxisMin !== undefined && yAxisMax !== null && yAxisMax !== undefined) {
+      return [yAxisMin, yAxisMax];
+    } else if (yAxisMin !== null && yAxisMin !== undefined) {
+      return [yAxisMin, 'auto'];
+    } else if (yAxisMax !== null && yAxisMax !== undefined) {
+      return ['auto', yAxisMax];
+    }
+    return ['auto', 'auto'];
+  }, [yAxisMin, yAxisMax, zoomedYBottom, zoomedYTop]);
+
+  // Count visible sensors
+  const visibleSensorCount = useMemo(() => {
+    return activeSensors.filter(s => sensorVisibility[s]).length;
+  }, [activeSensors, sensorVisibility]);
 
   return (
-    <div className="w-full" style={{ userSelect: 'none' }}>
-      {/* Legend / checkbox controls */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-2 pt-1">
-        <label className="flex items-center gap-1 text-xs cursor-pointer font-semibold text-foreground">
-          <input
-            type="checkbox"
-            checked={allVisible}
-            onChange={e => toggleAll(e.target.checked)}
-            className="accent-primary"
+    <div className="w-full h-[600px]" style={{ userSelect: 'none' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={chartData}
+          margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" opacity={0.3} />
+          <XAxis
+            dataKey="timeLabel"
+            stroke="oklch(var(--muted-foreground))"
+            tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
+            tickLine={{ stroke: 'oklch(var(--border))' }}
+            allowDataOverflow
           />
-          All
-        </label>
-        {sensorKeys.map((key, i) => (
-          <label key={key} className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: SENSOR_COLORS[i % SENSOR_COLORS.length] }}>
-            <input
-              type="checkbox"
-              checked={sensorVisibility[key] !== false}
-              onChange={() => onToggleSensor(key)}
-              className="accent-primary"
-            />
-            {key}
-          </label>
-        ))}
-      </div>
-
-      <div className="w-full h-[500px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" opacity={0.3} />
-            <XAxis
-              dataKey="timeLabel"
-              stroke="oklch(var(--muted-foreground))"
-              tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 11 }}
-              tickLine={{ stroke: 'oklch(var(--border))' }}
-              allowDataOverflow
-            />
-            <YAxis
-              domain={yDomain}
-              allowDataOverflow
-              stroke="oklch(var(--muted-foreground))"
-              tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 11 }}
-              tickLine={{ stroke: 'oklch(var(--border))' }}
-              label={{
-                value: 'Temperature (°C)',
-                angle: -90,
-                position: 'insideLeft',
-                style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'oklch(var(--popover))',
-                border: '1px solid oklch(var(--border))',
-                borderRadius: '8px',
-                color: 'oklch(var(--popover-foreground))',
-                maxHeight: '300px',
-                overflowY: 'auto',
-              }}
-              labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
-              formatter={(value: number, name: string) => {
-                const formattedValue = typeof value === 'number' && !isNaN(value)
-                  ? value.toFixed(2)
-                  : '—';
-                return [formattedValue + ' °C', name];
-              }}
-              labelFormatter={((label: any, payload: any) => {
-                if (payload && payload.length > 0) {
-                  const dataPoint = payload[0].payload;
-                  if (dataPoint?.fullTimestamp) {
-                    return dataPoint.fullTimestamp;
-                  }
+          <YAxis
+            domain={yAxisDomain}
+            allowDataOverflow={true}
+            stroke="oklch(var(--muted-foreground))"
+            tick={{ fill: 'oklch(var(--muted-foreground))', fontSize: 12 }}
+            tickLine={{ stroke: 'oklch(var(--border))' }}
+            label={{
+              value: 'Sensor Value',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'oklch(var(--muted-foreground))', fontSize: 12 },
+            }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'oklch(var(--popover))',
+              border: '1px solid oklch(var(--border))',
+              borderRadius: '8px',
+              color: 'oklch(var(--popover-foreground))',
+              maxHeight: '400px',
+              overflowY: 'auto',
+            }}
+            labelStyle={{ color: 'oklch(var(--popover-foreground))' }}
+            formatter={(value: number, name: string) => {
+              return [value, name];
+            }}
+            labelFormatter={((label: any, payload: any) => {
+              if (payload && payload.length > 0) {
+                const dataPoint = payload[0].payload;
+                if (dataPoint?.fullTimestamp) {
+                  return dataPoint.fullTimestamp;
                 }
-                return label;
-              }) as any}
-            />
-            {sensorKeys.map((key, i) =>
-              sensorVisibility[key] !== false ? (
-                <Line
-                  key={key}
-                  type="monotone"
-                  dataKey={key}
-                  name={key}
-                  stroke={SENSOR_COLORS[i % SENSOR_COLORS.length]}
-                  strokeWidth={1.5}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                  isAnimationActive={false}
-                />
-              ) : null
-            )}
-            {refAreaLeft && refAreaRight && (
-              <ReferenceArea
-                x1={refAreaLeft}
-                x2={refAreaRight}
-                strokeOpacity={0.3}
-                fill="oklch(var(--primary))"
-                fillOpacity={0.2}
-                stroke="oklch(var(--primary))"
+              }
+              return label;
+            }) as any}
+          />
+          <Legend
+            content={renderCustomLegend}
+            wrapperStyle={{
+              paddingTop: '10px',
+            }}
+          />
+          {/* Render all active sensors, but use light gray for unchecked ones */}
+          {activeSensors.map((sensorKey) => {
+            const sensorNumber = parseInt(sensorKey.substring(1));
+            const isVisible = sensorVisibility[sensorKey];
+            const originalColor = sensorColors[sensorNumber - 1];
+            const displayColor = isVisible ? originalColor : '#d1d5db';
+
+            return (
+              <Line
+                key={sensorKey}
+                type="monotone"
+                dataKey={sensorKey}
+                name={sensorKey}
+                stroke={displayColor}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 4 }}
+                opacity={isVisible ? 1 : 0.3}
+                connectNulls={false}
               />
-            )}
-            <Brush
-              dataKey="timeLabel"
-              height={40}
+            );
+          })}
+          {refAreaLeft && refAreaRight && (
+            <ReferenceArea
+              x1={refAreaLeft}
+              x2={refAreaRight}
+              strokeOpacity={0.3}
+              fill="oklch(var(--primary))"
+              fillOpacity={0.2}
               stroke="oklch(var(--primary))"
-              fill="oklch(var(--muted))"
-              startIndex={startIndex}
-              endIndex={endIndex}
-              onChange={handleBrushChange}
-              travellerWidth={10}
             />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+          )}
+          <Brush
+            dataKey="timeLabel"
+            height={40}
+            stroke="oklch(var(--primary))"
+            fill="oklch(var(--muted))"
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onChange={handleBrushChange}
+            travellerWidth={10}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      {activeSensors.length < 72 && (
+        <p className="text-xs text-muted-foreground mt-2 text-center">
+          Showing {visibleSensorCount} of {activeSensors.length} active sensors (sensors with all zero values are hidden)
+        </p>
+      )}
       {(zoomedYBottom !== null || (startIndex > 0 || endIndex < data.length - 1)) && (
         <p className="text-xs text-muted-foreground text-center mt-1">
           💡 Drag on the chart to zoom in · Use the brush below to pan · Reset Zoom to restore
