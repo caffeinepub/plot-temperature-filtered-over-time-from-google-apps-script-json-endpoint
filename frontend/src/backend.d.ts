@@ -27,6 +27,7 @@ export enum UserRole {
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
+    getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
@@ -39,4 +40,5 @@ export interface backendInterface {
     isConceptMachineVisible(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
+    setLoggerIdLabel(id: bigint, loggerLabel: string): Promise<void>;
 }

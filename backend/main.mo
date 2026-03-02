@@ -2,15 +2,15 @@ import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Iter "mo:core/Iter";
-import Text "mo:core/Text";
 import List "mo:core/List";
 import Nat "mo:core/Nat";
-
+import Text "mo:core/Text";
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
+import Migration "migration";
 
 // Apply migration on upgrade
-
+(with migration = Migration.run)
 actor {
   type UserProfile = {
     name : Text;
@@ -30,6 +30,7 @@ actor {
   var accessControlState = AccessControl.initState();
   var grantedAdminsList = List.empty<Principal>();
   var userProfiles = Map.empty<Principal, UserProfile>();
+  var loggerIdLoggerLabels = Map.empty<Nat, Text>();
   var conceptMachineVisible = true;
 
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
@@ -106,7 +107,7 @@ actor {
       case (null, true) {
         { name = "<admin user>"; principal = user; isAdmin = true };
       };
-      case (null, false) { Runtime.trap("User not found") };
+      case (null, false) { Runtime.trap("User not found.") };
     };
   };
 
@@ -208,5 +209,19 @@ actor {
       Runtime.trap("Unauthorized: Only admins can change ConceptMachine visibility");
     };
     conceptMachineVisible := visible;
+  };
+
+  public shared ({ caller }) func setLoggerIdLabel(id : Nat, loggerLabel : Text) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can set logger labels");
+    };
+    loggerIdLoggerLabels.add(id, loggerLabel);
+  };
+
+  public query ({ caller }) func getAllLoggerLabels() : async [(Nat, Text)] {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins may query logger labels");
+    };
+    loggerIdLoggerLabels.toArray();
   };
 };

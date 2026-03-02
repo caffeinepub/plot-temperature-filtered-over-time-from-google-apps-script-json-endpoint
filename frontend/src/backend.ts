@@ -110,6 +110,7 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
+    getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
@@ -122,6 +123,7 @@ export interface backendInterface {
     isConceptMachineVisible(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
+    setLoggerIdLabel(id: bigint, loggerLabel: string): Promise<void>;
 }
 import type { UserProfileInfo as _UserProfileInfo, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -165,6 +167,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllAdmins();
+            return result;
+        }
+    }
+    async getAllLoggerLabels(): Promise<Array<[bigint, string]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllLoggerLabels();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllLoggerLabels();
             return result;
         }
     }
@@ -333,6 +349,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.setConceptMachineVisible(arg0);
+            return result;
+        }
+    }
+    async setLoggerIdLabel(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setLoggerIdLabel(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setLoggerIdLabel(arg0, arg1);
             return result;
         }
     }

@@ -28,6 +28,11 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+  'getAllLoggerLabels' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfileInfo)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
@@ -40,6 +45,7 @@ export const idlService = IDL.Service({
   'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
+  'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
@@ -65,6 +71,11 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+    'getAllLoggerLabels' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func(
         [],
         [IDL.Opt(UserProfileInfo)],
@@ -81,6 +92,7 @@ export const idlFactory = ({ IDL }) => {
     'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
+    'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   });
 };
 

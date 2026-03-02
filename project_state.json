@@ -1,27 +1,28 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Dashboard applicatie met meerdere grafieken die data tonen van Google Apps Script endpoints. Bevat lichte/donkere modus en automatisch inzoomen op de laatste dag bij laden.",
+  "summary": "App with TSIC Loggers page featuring ID buttons. Adding admin-only persistent editable text labels under each ID button, visible and editable only by admins, with data never sent to non-admin clients.",
   "architectural_notes": [
-    "Data wordt opgehaald via Google Apps Script endpoints",
-    "App ondersteunt lichte en donkere modus"
+    "Admin-only data must never be sent to non-admin clients — enforce server-side checks before returning sensitive data"
   ],
-  "known_issues": [],
-  "isFixRequest": true,
+  "known_issues": [
+    "Backend canister c5wce-mqaaa-aaaai-q577a-cai has experienced repeated 'stopped' state issues due to cycle depletion"
+  ],
+  "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-fanvoltageflowcontrolchart-tsx-fix-the-flow-control-pa-line-color-so-it-renders-black-in-light-mode-and-white-in-dark-mode-currently-inverted",
-      "title": "In FanVoltageFlowControlChart.tsx, fix the 'Flow control (Pa)' line color so it renders black in light mode and white in dark mode (currently inverted).",
+      "id": "feature-on-the-tsic-loggers-page-under-each-id-button-display-an-editable-text-input-field-that-is-only-rendered-when-the-current-user-is-confirmed-as-an-admin-via-the-existing-useiscalleradmin-hook-the-field-shows-the-saved-label-for-that-id-and-allows-the-admin-to-edit-and-save-it-non-admin-users-see-no-input-no-text-and-no-placeholder-the-component-must-not-render-the-label-data-into-the-dom-at-all-for-non-admins",
+      "title": "On the TSIC Loggers page, under each ID button, display an editable text input field that is only rendered when the current user is confirmed as an admin (via the existing useIsCallerAdmin hook). The field shows the saved label for that ID and allows the admin to edit and save it. Non-admin users see no input, no text, and no placeholder — the component must not render the label data into the DOM at all for non-admins.",
       "reqIds": [
-        "REQ-1"
+        "REQ-2"
       ],
       "version": 1
     },
     {
-      "id": "feature-on-initial-page-load-all-charts-temperaturechart-co2chart-coolingheatingventilationchart-fanvoltageflowcontrolchart-tsicsensorchart-must-automatically-zoom-into-the-last-day-of-available-data-the-user-must-still-be-able-to-zoom-out-manually-to-view-the-full-dataset",
-      "title": "On initial page load, all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) must automatically zoom into the last day of available data. The user must still be able to zoom out manually to view the full dataset.",
+      "id": "feature-add-a-react-query-hook-e-g-usetsiclabels-that-fetches-all-tsic-id-labels-from-the-new-backend-query-function-and-a-mutation-hook-to-save-a-label-for-a-given-id-both-must-only-be-called-when-the-user-is-an-admin",
+      "title": "Add a React Query hook (e.g. useTSICLabels) that fetches all TSIC ID labels from the new backend query function, and a mutation hook to save a label for a given ID. Both must only be called when the user is an admin.",
       "reqIds": [
-        "REQ-2"
+        "REQ-3"
       ],
       "version": 1
     }
@@ -29,19 +30,21 @@
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Fix 'Flow control (Pa)' lijnkleur: zwart in lichte modus, wit in donkere modus (momenteel omgekeerd)",
+      "summary": "Add persistent admin-only editable text field under each ID button on TSIC Loggers page, invisible to non-admins even via DevTools",
       "reqIds": [],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Alle grafieken automatisch inzoomen op de laatste dag bij laden van de site, met mogelijkheid om handmatig uit te zoomen",
-      "reqIds": [],
+      "summary": "Add a backend storage map that persists a text label (string) for each TSIC Logger ID button. Provide an admin-only update function to set the label for a given ID, and an admin-only query function to retrieve all labels. Non-admin callers must receive no label data whatsoever — the query must check admin status server-side and return an empty or rejected response for non-admins.",
+      "reqIds": [
+        "REQ-1"
+      ],
       "status": "pending"
     }
   ],
   "gameProjectType": "none",
-  "projectName": "Conceptmachine Live Data",
+  "projectName": "ConceptMachine",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

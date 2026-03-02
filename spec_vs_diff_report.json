@@ -1,31 +1,34 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T13:43:24.488Z",
-  "summary": "Both REQ-1 and REQ-2 appear to be implemented. FanVoltageFlowControlChart.tsx detects dark mode via document class and uses isDark to set the Flow control (Pa) line color (black in light, white in dark). All five chart components (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) have the auto-zoom useEffect pattern using useRef to initialize to the last 24 hours of data on first load. No missing requirements found. A potential quality concern exists that isDark is computed statically at render time rather than reactively, but this does not constitute a missing requirement per the spec.",
-  "missing_requirements": [],
-  "hallucinated_features": [
+  "generatedAt": "2026-03-02T13:05:17.243Z",
+  "summary": "The diff implements most of the required functionality: a stable backend map with admin-only get/set functions (REQ-1), a useTSICLabels hook with mutation (REQ-3), and a LoggerIdLabelEditor component on the TSIC Loggers page gated by admin status (REQ-2). However, the TSICLoggersPage.tsx is truncated and does not clearly show the admin gate wrapping the LoggerIdLabelEditor, so we cannot fully confirm non-admin DOM exclusion. The backend is also truncated, preventing full verification of getAllLoggerLabels and setLoggerIdLabel implementations. Based on available evidence, implementation appears largely complete with some unverifiable portions due to truncation.",
+  "missing_requirements": [
     {
-      "description": "Drag-to-zoom (ReferenceArea) functionality with dynamic Y-axis domain clamping added to chart components",
-      "reason": "The diff includes click-and-drag zoom with ReferenceArea and zoomedY state variables across chart components. This was not requested in either REQ-1 or REQ-2. File summaries suggest some of this may be pre-existing, but the presence in the modified files is noted.",
+      "id": "REQ-2",
+      "requirement": "For non-admin users, neither the text field nor any label text appears in the rendered DOM. The component must not render the label data into the DOM at all for non-admins.",
+      "reason": "The TSICLoggersPage.tsx diff is truncated and does not show the section where LoggerIdLabelEditor is conditionally rendered based on isAdmin. The LoggerIdLabelEditor component itself contains no admin check — it relies entirely on the parent to gate rendering. We cannot confirm from the available diff that the editor is strictly gated behind an isAdmin check in the page component.",
       "evidence": [
-        "frontend/src/components/CO2Chart.tsx",
-        "frontend/src/components/CoolingHeatingVentilationChart.tsx",
-        "frontend/src/components/TemperatureChart.tsx",
-        "frontend/src/components/FanVoltageFlowControlChart.tsx",
-        "frontend/src/components/TSICSensorChart.tsx"
+        "frontend/src/pages/TSICLoggersPage.tsx"
       ]
     }
   ],
-  "confidence": 0.78,
+  "hallucinated_features": [
+    {
+      "description": "A separate backend/migration.mo module was added to handle canister upgrade state migration using a structured migration pattern.",
+      "reason": "The build request only requires stable storage surviving upgrades and that all Motoko logic remain in backend/main.mo (single-actor architecture). Creating a separate migration.mo file was not requested and introduces an architectural element beyond what was specified.",
+      "evidence": [
+        "backend/migration.mo"
+      ]
+    }
+  ],
+  "confidence": 0.62,
   "changed_files": [
+    "backend/main.mo",
+    "backend/migration.mo",
     "frontend-file-summaries.txt",
-    "frontend/src/components/CO2Chart.tsx",
-    "frontend/src/components/CoolingHeatingVentilationChart.tsx",
-    "frontend/src/components/FanVoltageFlowControlChart.tsx",
-    "frontend/src/components/TSICSensorChart.tsx",
-    "frontend/src/components/TemperatureChart.tsx",
-    "frontend/src/utils/urlParams.ts",
+    "frontend/src/hooks/useTSICLabels.ts",
+    "frontend/src/pages/TSICLoggersPage.tsx",
     "project_state.json"
   ]
 }

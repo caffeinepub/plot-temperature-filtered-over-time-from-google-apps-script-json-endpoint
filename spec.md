@@ -1,11 +1,14 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the "Flow control (Pa)" line color in FanVoltageFlowControlChart and auto-zoom all charts to the last day of data on page load.
+**Goal:** Add admin-only persistent editable text labels beneath each TSIC Logger ID button, stored securely on the backend and never exposed to non-admin users.
 
 **Planned changes:**
-- In `FanVoltageFlowControlChart.tsx`, correct the "Flow control (Pa)" line color so it is black in light mode and white in dark mode (currently inverted).
-- On initial page load, automatically set the visible time window of all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) to the last 24 hours of available data.
-- Ensure users can still manually zoom out or drag the Brush to view the full dataset.
+- Add a stable backend map in `backend/main.mo` that stores one text label per TSIC Logger ID, surviving canister upgrades.
+- Add an admin-only update function to set a label for a given ID and an admin-only query function to retrieve all labels; non-admin callers receive no label data.
+- Add a `useTSICLabels` React Query hook that fetches all labels only when the user is confirmed as an admin.
+- Add a mutation hook to save a label by ID (invalidates the labels query on success).
+- On the TSIC Loggers page, render an editable text input below each ID button only when `useIsCallerAdmin` returns true; non-admin users see nothing in the DOM related to labels.
+- The frontend only initiates the label fetch after confirming admin status; label data never enters the React component tree for non-admins.
 
-**User-visible outcome:** The "Flow control (Pa)" line displays the correct color per theme, and every chart opens already zoomed into the most recent day of data while still allowing the user to pan/zoom out to the full history.
+**User-visible outcome:** Admin users see and can edit a persistent text label beneath each TSIC Logger ID button; the label is saved across page reloads. Non-admin users see no label, no input field, and no related data anywhere in the page or DOM.

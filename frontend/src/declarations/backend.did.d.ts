@@ -24,6 +24,7 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
+  'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfileInfo]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGoogleSheetsDownloadLink' : ActorMethod<[], string>,
@@ -36,6 +37,7 @@ export interface _SERVICE {
   'isConceptMachineVisible' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setConceptMachineVisible' : ActorMethod<[boolean], undefined>,
+  'setLoggerIdLabel' : ActorMethod<[bigint, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

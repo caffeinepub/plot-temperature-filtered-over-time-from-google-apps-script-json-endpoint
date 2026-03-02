@@ -1,4 +1,4 @@
-import { RefreshCw, AlertCircle, RotateCcw, Calendar } from 'lucide-react';
+import { RefreshCw, AlertCircle, RotateCcw, Calendar, Pencil, Check, X } from 'lucide-react';
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -9,20 +9,127 @@ import { DashboardCard } from '@/components/DashboardCard';
 import { TSICSensorChart } from '@/components/TSICSensorChart';
 import { useTSICData } from '@/hooks/useTSICData';
 import { useSyncedTimeWindow } from '@/hooks/useSyncedTimeWindow';
+import { useIsCallerAdmin } from '@/hooks/useIsCallerAdmin';
+import { useTSICLabels, useSetLoggerLabel } from '@/hooks/useTSICLabels';
 import { format } from 'date-fns';
+
+/**
+ * Admin-only inline label editor for a single logger ID button.
+ * Renders nothing for non-admins.
+ */
+function LoggerIdLabelEditor({
+  id,
+  currentLabel,
+  onSave,
+  isSaving,
+}: {
+  id: number;
+  currentLabel: string;
+  onSave: (id: number, label: string) => void;
+  isSaving: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(currentLabel);
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(currentLabel);
+    setIsEditing(true);
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSave(id, draft);
+    setIsEditing(false);
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(currentLabel);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      onSave(id, draft);
+      setIsEditing(false);
+    } else if (e.key === 'Escape') {
+      setDraft(currentLabel);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className="flex items-center gap-1 mt-1.5 w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Label..."
+          className="h-6 text-xs px-1.5 py-0 flex-1 min-w-0"
+          autoFocus
+          maxLength={30}
+          disabled={isSaving}
+        />
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0"
+          title="Save"
+        >
+          {isSaving ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-50 flex-shrink-0"
+          title="Cancel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center justify-center gap-1 mt-1.5 w-full group/label"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+        {currentLabel || <span className="italic opacity-50">label...</span>}
+      </span>
+      <button
+        onClick={handleEdit}
+        className="opacity-0 group-hover/label:opacity-100 transition-opacity text-muted-foreground hover:text-foreground flex-shrink-0"
+        title="Edit label"
+      >
+        <Pencil className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
 
 export function TSICLoggersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { data, isLoading, isError, error, isRefetching, refetch } = useTSICData(selectedId);
   const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(data?.length || 0);
-  
+
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  
+
   // Y-axis controls (reset to null for automatic scaling on page refresh)
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
   const [yAxisMax, setYAxisMax] = useState<number | null>(null);
-  
+
   // Sensor visibility state (all sensors enabled by default)
   const [sensorVisibility, setSensorVisibility] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -35,18 +142,39 @@ export function TSICLoggersPage() {
   // Track data length to detect when new data is loaded
   const prevDataLengthRef = useRef<number>(0);
 
+  // Admin status and labels — only fetched when admin
+  const { isAdmin, isConfirmed } = useIsCallerAdmin();
+  const { data: labelsMap } = useTSICLabels();
+  const { mutate: saveLabel, isPending: isSavingLabel } = useSetLoggerLabel();
+
+  // Track which ID is currently being saved
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  const handleSaveLabel = useCallback(
+    (id: number, label: string) => {
+      setSavingId(id);
+      saveLabel(
+        { id, label },
+        {
+          onSettled: () => setSavingId(null),
+        }
+      );
+    },
+    [saveLabel]
+  );
+
   // Reset states when new data is loaded
   const handleResetStates = useCallback(() => {
     const currentDataLength = data?.length || 0;
-    
+
     // Only reset if data length changed (new data loaded)
     if (currentDataLength > 0 && currentDataLength !== prevDataLengthRef.current) {
       prevDataLengthRef.current = currentDataLength;
-      
+
       // Reset Y-axis controls
       setYAxisMin(null);
       setYAxisMax(null);
-      
+
       // Reset sensor visibility to all enabled
       const resetVisibility: Record<string, boolean> = {};
       for (let i = 1; i <= 72; i++) {
@@ -146,6 +274,9 @@ export function TSICLoggersPage() {
     return { minDate, maxDate };
   }, [data]);
 
+  // Only show labels section when admin status is confirmed and user is admin
+  const showLabels = isConfirmed && isAdmin;
+
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
       {/* ID Selection Buttons */}
@@ -155,15 +286,25 @@ export function TSICLoggersPage() {
             <h3 className="text-lg font-semibold">Select Logger ID</h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((id) => (
-                <Button
-                  key={id}
-                  onClick={() => handleIdClick(id)}
-                  variant={selectedId === id ? 'default' : 'outline'}
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  ID {id}
-                </Button>
+                <div key={id} className="flex flex-col items-center">
+                  <Button
+                    onClick={() => handleIdClick(id)}
+                    variant={selectedId === id ? 'default' : 'outline'}
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    ID {id}
+                  </Button>
+                  {/* Admin-only label editor — never rendered for non-admins */}
+                  {showLabels && (
+                    <LoggerIdLabelEditor
+                      id={id}
+                      currentLabel={labelsMap?.get(id) ?? ''}
+                      onSave={handleSaveLabel}
+                      isSaving={isSavingLabel && savingId === id}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </div>

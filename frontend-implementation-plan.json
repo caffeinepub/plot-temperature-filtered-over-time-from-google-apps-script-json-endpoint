@@ -1,58 +1,39 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix Flow Control line color and auto-zoom to last day on all charts",
+  "title": "Add admin-only persistent editable text labels under TSIC Logger ID buttons",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Fix the 'Flow control (Pa)' line color in FanVoltageFlowControlChart to render black in light mode and white in dark mode (currently inverted).",
+      "id": "REQ-2",
+      "summary": "Display admin-only editable text input fields under each TSIC Logger ID button that show and allow editing of persistent labels",
       "acceptanceCriteria": [
-        "In light mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually black.",
-        "In dark mode, the 'Flow control (Pa)' line in FanVoltageFlowControlChart is visually white.",
-        "No other chart line colors are affected."
+        "Each ID button on the TSIC Loggers page has an editable text field rendered below it, visible only when useIsCallerAdmin returns true.",
+        "For non-admin users, neither the text field nor any label text appears in the rendered DOM.",
+        "Admin users can type in the field and save the label; the saved value persists after a page reload.",
+        "The frontend only fetches label data after confirming admin status; the fetch is not initiated for non-admin sessions.",
+        "Label data is never present in the JS bundle state or React component tree for non-admin users."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/FanVoltageFlowControlChart.tsx",
+          "path": "frontend/src/pages/TSICLoggersPage.tsx",
           "operation": "modify",
-          "description": "Correct the stroke color for the 'Flow control (Pa)' Line component by swapping the light/dark mode color values. Change from 'hsl(var(--background))' for light and 'hsl(var(--foreground))' for dark to the opposite: use 'hsl(var(--foreground))' in light mode (renders as black/dark text color) and 'hsl(var(--background))' in dark mode (renders as white/light background color). Ensure no other line colors in this chart are modified."
+          "description": "Add editable text input fields below each TSIC Logger ID button that are only rendered when useIsCallerAdmin returns true. The input shows the saved label for that ID and allows admin users to edit and save it. For non-admin users, do not render the label field or any label data into the DOM. Use the useTSICLabels hook to fetch label data only when admin status is confirmed, and the mutation hook to save label changes. Include inline save/edit UI controls (e.g., edit icon, save button) that appear only for admins. Ensure the component does not fetch or display label data for non-admin sessions."
         }
       ]
     },
     {
-      "id": "REQ-2",
-      "summary": "On initial page load, all charts must automatically zoom into the last day of available data while allowing manual zoom out to the full dataset.",
+      "id": "REQ-3",
+      "summary": "Create React Query hooks for fetching and saving TSIC ID labels, callable only by admin users",
       "acceptanceCriteria": [
-        "When the page loads, every chart's visible time window is automatically set to the last 24 hours (last day) of available data.",
-        "The Brush and/or zoom state is initialized to the last day range on mount.",
-        "Users can manually drag or reset the Brush/zoom to view earlier data or the full dataset.",
-        "This auto-zoom behavior applies to all chart components: TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, and TSICSensorChart."
+        "useTSICLabels hook fetches labels only when isAdmin is true.",
+        "A mutation function allows saving a label by ID and invalidates the labels query on success.",
+        "Hooks follow the same pattern as existing hooks (useGoogleSheetsDownloadLink, useIsCallerAdmin)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/TemperatureChart.tsx",
-          "operation": "modify",
-          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
-        },
-        {
-          "path": "frontend/src/components/CO2Chart.tsx",
-          "operation": "modify",
-          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
-        },
-        {
-          "path": "frontend/src/components/CoolingHeatingVentilationChart.tsx",
-          "operation": "modify",
-          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
-        },
-        {
-          "path": "frontend/src/components/FanVoltageFlowControlChart.tsx",
-          "operation": "modify",
-          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
-        },
-        {
-          "path": "frontend/src/components/TSICSensorChart.tsx",
-          "operation": "modify",
-          "description": "Add logic to automatically initialize the time window (zoom state) to the last day (24 hours) of available data on component mount. After data loads, compute the last data point's index and set the initial window to span from (lastIndex - pointsInOneDay) to lastIndex. Ensure the Brush component reflects this initial range. Users must still be able to manually drag the Brush or reset zoom to view the full dataset."
+          "path": "frontend/src/hooks/useTSICLabels.ts",
+          "operation": "create",
+          "description": "Create a React Query hook that fetches all TSIC ID labels from the backend getAllLoggerLabels function, returning a map of bigint ID to string label. The hook must only fetch data when the caller is confirmed as an admin (use useIsCallerAdmin hook to check). Also export a mutation hook (e.g., useSetLoggerLabel) that calls the backend setLoggerIdLabel function to save a label for a given ID, and invalidates the labels query on success. Follow the existing pattern used in useGoogleSheetsDownloadLink and useIsCallerAdmin, and ensure the query is disabled when the user is not an admin."
         }
       ]
     }

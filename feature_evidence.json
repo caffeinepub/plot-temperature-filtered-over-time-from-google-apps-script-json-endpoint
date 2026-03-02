@@ -2,34 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-in-fanvoltageflowcontrolchart-tsx-fix-the-flow-control-pa-line-color-so-it-renders-black-in-light-mode-and-white-in-dark-mode-currently-inverted",
-      "featureTitle": "In FanVoltageFlowControlChart.tsx, fix the 'Flow control (Pa)' line color so it renders black in light mode and white in dark mode (currently inverted).",
+      "featureId": "feature-on-the-tsic-loggers-page-under-each-id-button-display-an-editable-text-input-field-that-is-only-rendered-when-the-current-user-is-confirmed-as-an-admin-via-the-existing-useiscalleradmin-hook-the-field-shows-the-saved-label-for-that-id-and-allows-the-admin-to-edit-and-save-it-non-admin-users-see-no-input-no-text-and-no-placeholder-the-component-must-not-render-the-label-data-into-the-dom-at-all-for-non-admins",
+      "featureTitle": "On the TSIC Loggers page, under each ID button, display an editable text input field that is only rendered when the current user is confirmed as an admin (via the existing useIsCallerAdmin hook). The field shows the saved label for that ID and allows the admin to edit and save it. Non-admin users see no input, no text, and no placeholder — the component must not render the label data into the DOM at all for non-admins.",
       "files": [
-        "frontend/src/components/FanVoltageFlowControlChart.tsx"
-      ],
-      "components": [
-        "http-outcalls@3.0.0",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0",
-        "authorization@4.0.0"
-      ],
-      "testIds": [
-        "REQ-1"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-on-initial-page-load-all-charts-temperaturechart-co2chart-coolingheatingventilationchart-fanvoltageflowcontrolchart-tsicsensorchart-must-automatically-zoom-into-the-last-day-of-available-data-the-user-must-still-be-able-to-zoom-out-manually-to-view-the-full-dataset",
-      "featureTitle": "On initial page load, all charts (TemperatureChart, CO2Chart, CoolingHeatingVentilationChart, FanVoltageFlowControlChart, TSICSensorChart) must automatically zoom into the last day of available data. The user must still be able to zoom out manually to view the full dataset.",
-      "files": [
-        "frontend/src/components/CO2Chart.tsx",
-        "frontend/src/components/CoolingHeatingVentilationChart.tsx",
-        "frontend/src/components/FanVoltageFlowControlChart.tsx",
-        "frontend/src/components/TSICSensorChart.tsx",
-        "frontend/src/components/TemperatureChart.tsx"
+        "frontend/src/pages/TSICLoggersPage.tsx"
       ],
       "components": [
         "http-outcalls@3.0.0",
@@ -42,6 +18,26 @@
       ],
       "testIds": [
         "REQ-2"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-add-a-react-query-hook-e-g-usetsiclabels-that-fetches-all-tsic-id-labels-from-the-new-backend-query-function-and-a-mutation-hook-to-save-a-label-for-a-given-id-both-must-only-be-called-when-the-user-is-an-admin",
+      "featureTitle": "Add a React Query hook (e.g. useTSICLabels) that fetches all TSIC ID labels from the new backend query function, and a mutation hook to save a label for a given ID. Both must only be called when the user is an admin.",
+      "files": [
+        "frontend/src/hooks/useTSICLabels.ts"
+      ],
+      "components": [
+        "http-outcalls@3.0.0",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0",
+        "authorization@4.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
       ],
       "confidence": "high"
     }
