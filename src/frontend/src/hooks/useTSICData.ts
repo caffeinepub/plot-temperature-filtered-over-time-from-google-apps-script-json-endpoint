@@ -1,13 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchTSICData } from '@/lib/tsicDataSource';
-import type { TSICDataPoint } from '@/lib/tsicDataParsing';
+import type { TSICDataPoint } from "@/lib/tsicDataParsing";
+import { fetchTSICData } from "@/lib/tsicDataSource";
+import { useQuery } from "@tanstack/react-query";
 
 export function useTSICData(id: number | null) {
   const query = useQuery<TSICDataPoint[], Error>({
-    queryKey: ['tsic-data', id],
+    queryKey: ["tsic-data", id],
     queryFn: () => {
       if (id === null) {
-        throw new Error('No ID selected');
+        throw new Error("No ID selected");
       }
       return fetchTSICData(id);
     },
@@ -15,7 +15,7 @@ export function useTSICData(id: number | null) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   return {

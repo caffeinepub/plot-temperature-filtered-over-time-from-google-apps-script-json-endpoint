@@ -85,7 +85,7 @@ function parseTimestamp(timestampStr: string): Date | null {
   try {
     // Try parsing ISO format first
     const date = new Date(timestampStr);
-    if (!isNaN(date.getTime())) {
+    if (!Number.isNaN(date.getTime())) {
       return date;
     }
     return null;
@@ -95,12 +95,12 @@ function parseTimestamp(timestampStr: string): Date | null {
 }
 
 function parseNumericValue(value: unknown): number {
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return value;
   }
-  if (typeof value === 'string') {
-    const parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
   return 0;
 }

@@ -110,16 +110,22 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
+    getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
     getGrantedAdmins(): Promise<Array<Principal>>;
+    getSensorGroupsForId(id: bigint): Promise<string>;
     getUserProfile(user: Principal): Promise<UserProfileInfo>;
     getUserRole(): Promise<UserRole | null>;
     grantAdminRole(target: Principal): Promise<boolean>;
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
+    isConceptMachineVisible(): Promise<boolean>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
+    setConceptMachineVisible(visible: boolean): Promise<void>;
+    setLoggerIdLabel(id: bigint, loggerLabel: string): Promise<void>;
 }
 import type { UserProfileInfo as _UserProfileInfo, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -163,6 +169,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllAdmins();
+            return result;
+        }
+    }
+    async getAllLoggerLabels(): Promise<Array<[bigint, string]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllLoggerLabels();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllLoggerLabels();
             return result;
         }
     }
@@ -219,6 +239,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getGrantedAdmins();
+            return result;
+        }
+    }
+    async getSensorGroupsForId(arg0: bigint): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSensorGroupsForId(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSensorGroupsForId(arg0);
             return result;
         }
     }
@@ -292,6 +326,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async isConceptMachineVisible(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.isConceptMachineVisible();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.isConceptMachineVisible();
+            return result;
+        }
+    }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
         if (this.processError) {
             try {
@@ -303,6 +351,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async saveSensorGroupsForId(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveSensorGroupsForId(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveSensorGroupsForId(arg0, arg1);
+            return result;
+        }
+    }
+    async setConceptMachineVisible(arg0: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setConceptMachineVisible(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setConceptMachineVisible(arg0);
+            return result;
+        }
+    }
+    async setLoggerIdLabel(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setLoggerIdLabel(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setLoggerIdLabel(arg0, arg1);
             return result;
         }
     }

@@ -1,36 +1,214 @@
-import { RefreshCw, AlertCircle, RotateCcw, Calendar } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { DashboardCard } from '@/components/DashboardCard';
-import { TSICSensorChart } from '@/components/TSICSensorChart';
-import { useTSICData } from '@/hooks/useTSICData';
-import { useSyncedTimeWindow } from '@/hooks/useSyncedTimeWindow';
-import { format } from 'date-fns';
+import { DashboardCard } from "@/components/DashboardCard";
+import { SensorGroupManager } from "@/components/SensorGroupManager";
+import { TSICSensorChart } from "@/components/TSICSensorChart";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
+import { useSensorGroups } from "@/hooks/useSensorGroups";
+import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
+import { useTSICData } from "@/hooks/useTSICData";
+import { useSetLoggerLabel, useTSICLabels } from "@/hooks/useTSICLabels";
+import { format } from "date-fns";
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  X,
+} from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+
+/**
+ * Admin-only inline label editor for a single logger ID button.
+ * Renders nothing for non-admins.
+ */
+function LoggerIdLabelEditor({
+  id,
+  currentLabel,
+  onSave,
+  isSaving,
+}: {
+  id: number;
+  currentLabel: string;
+  onSave: (id: number, label: string) => void;
+  isSaving: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(currentLabel);
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(currentLabel);
+    setIsEditing(true);
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onSave(id, draft);
+    setIsEditing(false);
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDraft(currentLabel);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      onSave(id, draft);
+      setIsEditing(false);
+    } else if (e.key === "Escape") {
+      setDraft(currentLabel);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      // biome-ignore lint/a11y/useKeyWithClickEvents: presentational wrapper stops event propagation only
+      <div
+        className="flex items-center gap-1 mt-1.5 w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Label..."
+          className="h-6 text-xs px-1.5 py-0 flex-1 min-w-0"
+          autoFocus
+          maxLength={30}
+          disabled={isSaving}
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0"
+          title="Save"
+        >
+          {isSaving ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          disabled={isSaving}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-50 flex-shrink-0"
+          title="Cancel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: presentational wrapper stops event propagation only
+    <div
+      className="flex items-center justify-center gap-1 mt-1.5 w-full group/label"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="text-xs text-muted-foreground truncate max-w-[80px]">
+        {currentLabel || <span className="italic opacity-50">label...</span>}
+      </span>
+      <button
+        type="button"
+        onClick={handleEdit}
+        className="opacity-0 group-hover/label:opacity-100 transition-opacity text-muted-foreground hover:text-foreground flex-shrink-0"
+        title="Edit label"
+      >
+        <Pencil className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
 
 export function TSICLoggersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const { data, isLoading, isError, error, isRefetching, refetch } = useTSICData(selectedId);
-  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(data?.length || 0);
-  
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  
+  const { data, isLoading, isError, error, isRefetching, refetch } =
+    useTSICData(selectedId);
+  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(
+    data?.length || 0,
+  );
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
   // Y-axis controls (reset to null for automatic scaling on page refresh)
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
   const [yAxisMax, setYAxisMax] = useState<number | null>(null);
-  
-  // Sensor visibility state (all sensors enabled by default)
-  const [sensorVisibility, setSensorVisibility] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {};
-    for (let i = 1; i <= 72; i++) {
-      initial[`S${i}`] = true;
+
+  // Track data length to detect when new data is loaded
+  const prevDataLengthRef = useRef<number>(0);
+
+  // Admin status and labels — only fetched when admin
+  const { isAdmin, isConfirmed } = useIsCallerAdmin();
+  const { data: labelsMap } = useTSICLabels();
+  const { mutate: saveLabel, isPending: isSavingLabel } = useSetLoggerLabel();
+
+  // Sensor grouping (persistent, ICP backend)
+  const {
+    groups,
+    ungroupedSensors,
+    ungroupedVisible,
+    sensorVisibilityOverrides,
+    createGroup,
+    deleteGroup,
+    renameGroup,
+    changeGroupColor,
+    addSensorToGroup,
+    removeSensorFromGroup,
+    toggleGroupVisible,
+    toggleSensorVisible,
+    toggleUngroupedVisible,
+    resetGroups,
+    getSensorColor,
+    isSensorVisible,
+    isLoading: isGroupsLoading,
+  } = useSensorGroups(isAdmin, selectedId);
+
+  // Track which ID is currently being saved
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  const handleSaveLabel = useCallback(
+    (id: number, label: string) => {
+      setSavingId(id);
+      saveLabel(
+        { id, label },
+        {
+          onSettled: () => setSavingId(null),
+        },
+      );
+    },
+    [saveLabel],
+  );
+
+  // Reset states when new data is loaded
+  const handleResetStates = useCallback(() => {
+    const currentDataLength = data?.length || 0;
+
+    // Only reset if data length changed (new data loaded)
+    if (
+      currentDataLength > 0 &&
+      currentDataLength !== prevDataLengthRef.current
+    ) {
+      prevDataLengthRef.current = currentDataLength;
+
+      // Reset Y-axis controls
+      setYAxisMin(null);
+      setYAxisMax(null);
     }
-    return initial;
-  });
+  }, [data?.length]);
 
   // Calculate date range indices
   const dateRangeIndices = useMemo(() => {
@@ -40,7 +218,8 @@ export function TSICLoggersPage() {
     const end = new Date(endDate);
 
     // Validate dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
+      return null;
     if (start > end) return null;
 
     // Set end date to end of day for inclusive range
@@ -77,32 +256,21 @@ export function TSICLoggersPage() {
 
   const handleResetZoom = () => {
     resetZoom();
-    setStartDate('');
-    setEndDate('');
+    setStartDate("");
+    setEndDate("");
   };
 
   const handleIdClick = (id: number) => {
     setSelectedId(id);
     // Reset zoom and date filters when switching IDs
     resetZoom();
-    setStartDate('');
-    setEndDate('');
+    setStartDate("");
+    setEndDate("");
     // Reset Y-axis controls
     setYAxisMin(null);
     setYAxisMax(null);
-    // Reset sensor visibility to all enabled
-    const resetVisibility: Record<string, boolean> = {};
-    for (let i = 1; i <= 72; i++) {
-      resetVisibility[`S${i}`] = true;
-    }
-    setSensorVisibility(resetVisibility);
-  };
-
-  const handleToggleSensor = (sensorKey: string) => {
-    setSensorVisibility(prev => ({
-      ...prev,
-      [sensorKey]: !prev[sensorKey]
-    }));
+    // Reset data length tracker
+    prevDataLengthRef.current = 0;
   };
 
   const refreshingIndicator = isRefetching ? (
@@ -115,10 +283,51 @@ export function TSICLoggersPage() {
   // Get min and max dates from data for input constraints
   const dateConstraints = useMemo(() => {
     if (!data || data.length === 0) return null;
-    const minDate = format(data[0].timestamp, 'yyyy-MM-dd');
-    const maxDate = format(data[data.length - 1].timestamp, 'yyyy-MM-dd');
+    const minDate = format(data[0].timestamp, "yyyy-MM-dd");
+    const maxDate = format(data[data.length - 1].timestamp, "yyyy-MM-dd");
     return { minDate, maxDate };
   }, [data]);
+
+  // Derive which sensors actually have data (from the chart's perspective)
+  const activeSensors = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    const active: number[] = [];
+    for (let s = 1; s <= 72; s++) {
+      const key = `S${s}` as keyof (typeof data)[0]["sensors"];
+      const hasData = data.some((point) => {
+        const val = point.sensors[key];
+        return (
+          val !== undefined &&
+          val !== null &&
+          !Number.isNaN(val as number) &&
+          (val as number) !== 0
+        );
+      });
+      if (hasData) active.push(s);
+    }
+    return active;
+  }, [data]);
+
+  // Build sensorColorMap for the chart
+  const sensorColorMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (let s = 1; s <= 72; s++) {
+      map[s] = getSensorColor(s);
+    }
+    return map;
+  }, [getSensorColor]);
+
+  // Build sensorVisibility for the chart: merge group-level and individual overrides
+  const sensorVisibility = useMemo(() => {
+    const visibility: Record<string, boolean> = {};
+    for (let s = 1; s <= 72; s++) {
+      visibility[`S${s}`] = isSensorVisible(s);
+    }
+    return visibility;
+  }, [isSensorVisible]);
+
+  // Only show labels and group manager section when admin status is confirmed and user is admin
+  const showAdminFeatures = isConfirmed && isAdmin;
 
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
@@ -129,15 +338,25 @@ export function TSICLoggersPage() {
             <h3 className="text-lg font-semibold">Select Logger ID</h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {Array.from({ length: 10 }, (_, i) => i + 1).map((id) => (
-                <Button
-                  key={id}
-                  onClick={() => handleIdClick(id)}
-                  variant={selectedId === id ? 'default' : 'outline'}
-                  className="w-full"
-                  disabled={isLoading}
-                >
-                  ID {id}
-                </Button>
+                <div key={id} className="flex flex-col items-center">
+                  <Button
+                    onClick={() => handleIdClick(id)}
+                    variant={selectedId === id ? "default" : "outline"}
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    ID {id}
+                  </Button>
+                  {/* Admin-only label editor — never rendered for non-admins */}
+                  {showAdminFeatures && (
+                    <LoggerIdLabelEditor
+                      id={id}
+                      currentLabel={labelsMap?.get(id) ?? ""}
+                      onSave={handleSaveLabel}
+                      isSaving={isSavingLabel && savingId === id}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -150,7 +369,9 @@ export function TSICLoggersPage() {
           <CardContent className="flex items-center justify-center py-16">
             <div className="text-center">
               <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading data for ID {selectedId}...</p>
+              <p className="text-muted-foreground">
+                Loading data for ID {selectedId}...
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -162,7 +383,7 @@ export function TSICLoggersPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription className="mt-2">
-            {error instanceof Error ? error.message : 'Failed to fetch data'}
+            {error instanceof Error ? error.message : "Failed to fetch data"}
             <Button
               onClick={() => refetch()}
               variant="outline"
@@ -180,7 +401,9 @@ export function TSICLoggersPage() {
         <Card className="shadow-lg">
           <CardContent className="flex items-center justify-center py-16">
             <div className="text-center text-muted-foreground">
-              <p className="text-lg">Please select a logger ID to view sensor data</p>
+              <p className="text-lg">
+                Please select a logger ID to view sensor data
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -192,7 +415,8 @@ export function TSICLoggersPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
-            No valid data points to display for ID {selectedId}. Please check the data source.
+            No valid data points to display for ID {selectedId}. Please check
+            the data source.
           </AlertDescription>
         </Alert>
       )}
@@ -205,7 +429,10 @@ export function TSICLoggersPage() {
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-4 items-end">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="start-date" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="start-date"
+                    className="flex items-center gap-2"
+                  >
                     <Calendar className="h-4 w-4" />
                     Start Date
                   </Label>
@@ -251,7 +478,8 @@ export function TSICLoggersPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No Data in Selected Range</AlertTitle>
                   <AlertDescription>
-                    There are no data points between the selected start and end dates. Please choose a different date range.
+                    There are no data points between the selected start and end
+                    dates. Please choose a different date range.
                   </AlertDescription>
                 </Alert>
               )}
@@ -268,8 +496,14 @@ export function TSICLoggersPage() {
                     id="y-axis-min"
                     type="number"
                     placeholder="Auto"
-                    value={yAxisMin ?? ''}
-                    onChange={(e) => setYAxisMin(e.target.value ? parseFloat(e.target.value) : null)}
+                    value={yAxisMin ?? ""}
+                    onChange={(e) =>
+                      setYAxisMin(
+                        e.target.value
+                          ? Number.parseFloat(e.target.value)
+                          : null,
+                      )
+                    }
                     className="w-full"
                   />
                 </div>
@@ -279,8 +513,14 @@ export function TSICLoggersPage() {
                     id="y-axis-max"
                     type="number"
                     placeholder="Auto"
-                    value={yAxisMax ?? ''}
-                    onChange={(e) => setYAxisMax(e.target.value ? parseFloat(e.target.value) : null)}
+                    value={yAxisMax ?? ""}
+                    onChange={(e) =>
+                      setYAxisMax(
+                        e.target.value
+                          ? Number.parseFloat(e.target.value)
+                          : null,
+                      )
+                    }
                     className="w-full"
                   />
                 </div>
@@ -302,20 +542,45 @@ export function TSICLoggersPage() {
             </CardContent>
           </Card>
 
-          {/* TSIC Sensor Chart */}
+          {/* Sensor Group Manager — admin only */}
+          {showAdminFeatures && !isGroupsLoading && (
+            <SensorGroupManager
+              activeSensors={activeSensors}
+              groups={groups}
+              ungroupedSensors={ungroupedSensors}
+              ungroupedVisible={ungroupedVisible}
+              sensorVisibilityOverrides={sensorVisibilityOverrides}
+              getSensorColor={getSensorColor}
+              isSensorVisible={isSensorVisible}
+              onCreateGroup={createGroup}
+              onDeleteGroup={deleteGroup}
+              onRenameGroup={renameGroup}
+              onAddSensorToGroup={addSensorToGroup}
+              onRemoveSensorFromGroup={removeSensorFromGroup}
+              onToggleGroupVisible={toggleGroupVisible}
+              onToggleSensorVisible={toggleSensorVisible}
+              onToggleUngroupedVisible={toggleUngroupedVisible}
+              onReset={resetGroups}
+              onChangeGroupColor={changeGroupColor}
+            />
+          )}
+
+          {/* Chart */}
           <DashboardCard
-            title={`TSIC Logger ID ${selectedId} - All Sensors (S1-S72)`}
+            title={`TSIC Logger ${selectedId} - All sensor readings over time`}
             headerAction={refreshingIndicator}
           >
-            <TSICSensorChart 
-              data={data} 
+            <TSICSensorChart
+              data={data}
               startIndex={visibleRange.startIndex}
               endIndex={visibleRange.endIndex}
               onRangeChange={setRange}
               yAxisMin={yAxisMin}
               yAxisMax={yAxisMax}
               sensorVisibility={sensorVisibility}
-              onToggleSensor={handleToggleSensor}
+              onToggleSensor={undefined}
+              onResetStates={handleResetStates}
+              sensorColorMap={sensorColorMap}
             />
           </DashboardCard>
         </>

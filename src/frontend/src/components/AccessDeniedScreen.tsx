@@ -1,13 +1,22 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldAlert, Loader2 } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Loader2, ShieldAlert } from "lucide-react";
 
 interface AccessDeniedScreenProps {
   onGoToProfile: () => void;
   isCheckingAccess?: boolean;
 }
 
-export function AccessDeniedScreen({ onGoToProfile, isCheckingAccess = false }: AccessDeniedScreenProps) {
+export function AccessDeniedScreen({
+  onGoToProfile,
+  isCheckingAccess = false,
+}: AccessDeniedScreenProps) {
   if (isCheckingAccess) {
     return (
       <main className="container mx-auto px-6 py-16">
@@ -17,7 +26,9 @@ export function AccessDeniedScreen({ onGoToProfile, isCheckingAccess = false }: 
               <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-2">
                 <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
               </div>
-              <CardTitle className="text-2xl font-bold">Checking Access</CardTitle>
+              <CardTitle className="text-2xl font-bold">
+                Checking Access
+              </CardTitle>
               <CardDescription className="text-base">
                 Verifying your permissions...
               </CardDescription>
@@ -38,7 +49,8 @@ export function AccessDeniedScreen({ onGoToProfile, isCheckingAccess = false }: 
             </div>
             <CardTitle className="text-2xl font-bold">Access Denied</CardTitle>
             <CardDescription className="text-base">
-              You don't have permission to view this page. Only administrators can access the log systems.
+              You don't have permission to view this page. Only administrators
+              can access the log systems.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4 pt-4">

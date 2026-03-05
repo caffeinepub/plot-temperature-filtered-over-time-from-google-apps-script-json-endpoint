@@ -1,31 +1,65 @@
-import { useState } from 'react';
-import { useCurrentUserProfile, useSaveUserProfile, useGrantAdmin } from '@/hooks/useQueries';
-import { useIsCallerAdmin } from '@/hooks/useIsCallerAdmin';
-import { useAdminList } from '@/hooks/useAdminList';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, Shield, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
-import { Principal } from '@icp-sdk/core/principal';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { useAdminList } from "@/hooks/useAdminList";
+import {
+  useConceptMachineVisibility,
+  useSetConceptMachineVisibility,
+} from "@/hooks/useConceptMachineVisibility";
+import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
+import {
+  useCurrentUserProfile,
+  useGrantAdmin,
+  useSaveUserProfile,
+} from "@/hooks/useQueries";
+import { Principal } from "@icp-sdk/core/principal";
+import {
+  AlertCircle,
+  Check,
+  Copy,
+  RefreshCw,
+  Shield,
+  User,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export function ProfilePage() {
   const { userProfile, isLoading } = useCurrentUserProfile();
   const { isAdmin, isConfirmed: adminConfirmed } = useIsCallerAdmin();
   const { mutate: saveProfile, isPending: isSaving } = useSaveUserProfile();
   const { mutate: grantAdmin, isPending: isGranting } = useGrantAdmin();
-  
-  const { data: adminList, isLoading: adminListLoading, error: adminListError, refetch: refetchAdminList } = useAdminList(adminConfirmed && isAdmin);
-  
-  const [name, setName] = useState('');
+
+  const {
+    data: adminList,
+    isLoading: adminListLoading,
+    error: adminListError,
+    refetch: refetchAdminList,
+  } = useAdminList(adminConfirmed && isAdmin);
+
+  const { isVisible: conceptMachineVisible, isLoading: visibilityLoading } =
+    useConceptMachineVisibility();
+  const { mutate: setConceptMachineVisible, isPending: isSettingVisibility } =
+    useSetConceptMachineVisibility();
+
+  const [name, setName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
-  const [adminPrincipal, setAdminPrincipal] = useState('');
+  const [adminPrincipal, setAdminPrincipal] = useState("");
   const [copiedPrincipal, setCopiedPrincipal] = useState(false);
-  const [copiedAdminPrincipal, setCopiedAdminPrincipal] = useState<string | null>(null);
+  const [copiedAdminPrincipal, setCopiedAdminPrincipal] = useState<
+    string | null
+  >(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleSaveName = () => {
@@ -35,13 +69,13 @@ export function ProfilePage() {
         {
           onSuccess: () => {
             setIsEditingName(false);
-            setName('');
-            toast.success('Name updated successfully');
+            setName("");
+            toast.success("Name updated successfully");
           },
           onError: (error) => {
             toast.error(`Failed to update name: ${error.message}`);
           },
-        }
+        },
       );
     }
   };
@@ -49,37 +83,34 @@ export function ProfilePage() {
   const handleGrantAdmin = () => {
     const principalText = adminPrincipal.trim();
     if (!principalText) {
-      toast.error('Please enter a principal ID');
+      toast.error("Please enter a principal ID");
       return;
     }
 
     // Validate principal format client-side before calling backend
     try {
       Principal.fromText(principalText);
-    } catch (error) {
-      toast.error('Invalid principal ID format. Please check and try again.');
+    } catch (_error) {
+      toast.error("Invalid principal ID format. Please check and try again.");
       return;
     }
 
-    grantAdmin(
-      principalText,
-      {
-        onSuccess: () => {
-          setAdminPrincipal('');
-          toast.success('Admin rights granted successfully');
-        },
-        onError: (error) => {
-          toast.error(error.message || 'Failed to grant admin rights');
-        },
-      }
-    );
+    grantAdmin(principalText, {
+      onSuccess: () => {
+        setAdminPrincipal("");
+        toast.success("Admin rights granted successfully");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to grant admin rights");
+      },
+    });
   };
 
   const handleCopyPrincipal = async () => {
     if (userProfile?.principal) {
       await navigator.clipboard.writeText(userProfile.principal.toString());
       setCopiedPrincipal(true);
-      toast.success('Principal copied to clipboard');
+      toast.success("Principal copied to clipboard");
       setTimeout(() => setCopiedPrincipal(false), 2000);
     }
   };
@@ -87,7 +118,7 @@ export function ProfilePage() {
   const handleCopyAdminPrincipal = async (principal: string) => {
     await navigator.clipboard.writeText(principal);
     setCopiedAdminPrincipal(principal);
-    toast.success('Principal copied to clipboard');
+    toast.success("Principal copied to clipboard");
     setTimeout(() => setCopiedAdminPrincipal(null), 2000);
   };
 
@@ -95,12 +126,27 @@ export function ProfilePage() {
     setIsRefreshing(true);
     try {
       await refetchAdminList();
-      toast.success('Admin list refreshed');
+      toast.success("Admin list refreshed");
     } catch (error: any) {
       toast.error(`Failed to refresh: ${error.message}`);
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleToggleConceptMachineVisibility = (checked: boolean) => {
+    setConceptMachineVisible(checked, {
+      onSuccess: () => {
+        toast.success(
+          checked
+            ? "ConceptMachine page is now visible"
+            : "ConceptMachine page is now hidden",
+        );
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to update visibility setting");
+      },
+    });
   };
 
   if (isLoading) {
@@ -109,7 +155,9 @@ export function ProfilePage() {
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardContent className="py-8">
-              <div className="text-center text-muted-foreground">Loading profile...</div>
+              <div className="text-center text-muted-foreground">
+                Loading profile...
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -118,9 +166,11 @@ export function ProfilePage() {
   }
 
   // Sort admin list by principal for stable ordering
-  const sortedAdminList = adminList ? [...adminList].sort((a, b) => 
-    a.principal.toString().localeCompare(b.principal.toString())
-  ) : [];
+  const sortedAdminList = adminList
+    ? [...adminList].sort((a, b) =>
+        a.principal.toString().localeCompare(b.principal.toString()),
+      )
+    : [];
 
   return (
     <main className="container mx-auto px-6 py-8">
@@ -135,7 +185,9 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <CardTitle>Profile</CardTitle>
-                  <CardDescription>Manage your account information</CardDescription>
+                  <CardDescription>
+                    Manage your account information
+                  </CardDescription>
                 </div>
               </div>
               {isAdmin && (
@@ -155,17 +207,20 @@ export function ProfilePage() {
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={userProfile?.name || 'Enter your name'}
+                    placeholder={userProfile?.name || "Enter your name"}
                     disabled={isSaving}
                   />
-                  <Button onClick={handleSaveName} disabled={!name.trim() || isSaving}>
-                    {isSaving ? 'Saving...' : 'Save'}
+                  <Button
+                    onClick={handleSaveName}
+                    disabled={!name.trim() || isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save"}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => {
                       setIsEditingName(false);
-                      setName('');
+                      setName("");
                     }}
                     disabled={isSaving}
                   >
@@ -174,12 +229,14 @@ export function ProfilePage() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between p-3 border rounded-md">
-                  <span className="font-medium">{userProfile?.name || 'Not set'}</span>
+                  <span className="font-medium">
+                    {userProfile?.name || "Not set"}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setName(userProfile?.name || '');
+                      setName(userProfile?.name || "");
                       setIsEditingName(true);
                     }}
                   >
@@ -196,7 +253,7 @@ export function ProfilePage() {
               <Label>Principal ID</Label>
               <div className="flex gap-2">
                 <Input
-                  value={userProfile?.principal.toString() || ''}
+                  value={userProfile?.principal.toString() || ""}
                   readOnly
                   className="font-mono text-sm"
                 />
@@ -226,11 +283,36 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <CardTitle>Admin Controls</CardTitle>
-                  <CardDescription>Manage administrator access</CardDescription>
+                  <CardDescription>
+                    Manage administrator access and page visibility
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* ConceptMachine Page Visibility Toggle */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="conceptmachine-visibility">
+                      ConceptMachine pagina weergeven
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Schakel de ConceptMachine pagina in of uit voor alle
+                      gebruikers
+                    </p>
+                  </div>
+                  <Switch
+                    id="conceptmachine-visibility"
+                    checked={conceptMachineVisible}
+                    onCheckedChange={handleToggleConceptMachineVisibility}
+                    disabled={visibilityLoading || isSettingVisibility}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
               <div className="space-y-2">
                 <Label htmlFor="admin-principal">Grant Admin Rights</Label>
                 <div className="flex gap-2">
@@ -242,7 +324,7 @@ export function ProfilePage() {
                     className="font-mono text-sm"
                     disabled={isGranting}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && adminPrincipal.trim()) {
+                      if (e.key === "Enter" && adminPrincipal.trim()) {
                         handleGrantAdmin();
                       }
                     }}
@@ -251,11 +333,12 @@ export function ProfilePage() {
                     onClick={handleGrantAdmin}
                     disabled={!adminPrincipal.trim() || isGranting}
                   >
-                    {isGranting ? 'Granting...' : 'Grant'}
+                    {isGranting ? "Granting..." : "Grant"}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Enter the principal ID of the user you want to make an administrator.
+                  Enter the principal ID of the user you want to make an
+                  administrator.
                 </p>
               </div>
 
@@ -272,53 +355,70 @@ export function ProfilePage() {
                     disabled={isRefreshing || adminListLoading}
                     className="gap-2"
                   >
-                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <RefreshCw
+                      className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                    />
                     Refresh
                   </Button>
                 </div>
                 {adminListLoading && (
-                  <div className="text-sm text-muted-foreground">Loading admin list...</div>
+                  <div className="text-sm text-muted-foreground">
+                    Loading admin list...
+                  </div>
                 )}
                 {adminListError && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      {adminListError.message || 'Failed to load admin list'}
+                      {adminListError.message || "Failed to load admin list"}
                     </AlertDescription>
                   </Alert>
                 )}
-                {!adminListLoading && !adminListError && sortedAdminList.length > 0 && (
-                  <div className="space-y-2">
-                    {sortedAdminList.map((admin) => (
-                      <div
-                        key={admin.principal.toString()}
-                        className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{admin.name}</div>
-                          <div className="text-xs text-muted-foreground font-mono truncate">
-                            {admin.principal.toString()}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleCopyAdminPrincipal(admin.principal.toString())}
-                          className="ml-2 flex-shrink-0"
+                {!adminListLoading &&
+                  !adminListError &&
+                  sortedAdminList.length > 0 && (
+                    <div className="space-y-2">
+                      {sortedAdminList.map((admin) => (
+                        <div
+                          key={admin.principal.toString()}
+                          className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
                         >
-                          {copiedAdminPrincipal === admin.principal.toString() ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!adminListLoading && !adminListError && sortedAdminList.length === 0 && (
-                  <div className="text-sm text-muted-foreground">No administrators found</div>
-                )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">
+                              {admin.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono truncate">
+                              {admin.principal.toString()}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleCopyAdminPrincipal(
+                                admin.principal.toString(),
+                              )
+                            }
+                            className="ml-2 flex-shrink-0"
+                          >
+                            {copiedAdminPrincipal ===
+                            admin.principal.toString() ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                {!adminListLoading &&
+                  !adminListError &&
+                  sortedAdminList.length === 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      No administrators found
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>

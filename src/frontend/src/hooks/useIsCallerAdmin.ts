@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useActor } from './useActor';
+import { useQuery } from "@tanstack/react-query";
+import { useActor } from "./useActor";
 
 /**
  * Dedicated hook to determine if the current caller is an admin.
@@ -9,14 +9,14 @@ export function useIsCallerAdmin() {
   const { actor, isFetching: actorFetching } = useActor();
 
   const query = useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
+    queryKey: ["isCallerAdmin"],
     queryFn: async () => {
       if (!actor) return false;
       try {
         return await actor.isCallerAdmin();
       } catch (error: any) {
         // Any authorization error means not admin
-        console.error('Admin check failed:', error);
+        console.error("Admin check failed:", error);
         return false;
       }
     },

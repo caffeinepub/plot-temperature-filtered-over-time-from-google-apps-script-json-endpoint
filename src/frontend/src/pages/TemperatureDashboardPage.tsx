@@ -1,25 +1,28 @@
-import { RefreshCw, AlertCircle, RotateCcw, Calendar } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { DashboardCard } from '@/components/DashboardCard';
-import { TemperatureChart } from '@/components/TemperatureChart';
-import { CO2Chart } from '@/components/CO2Chart';
-import { CoolingHeatingVentilationChart } from '@/components/CoolingHeatingVentilationChart';
-import { FanVoltageFlowControlChart } from '@/components/FanVoltageFlowControlChart';
-import { useTemperatureSeries } from '@/hooks/useTemperatureSeries';
-import { useSyncedTimeWindow } from '@/hooks/useSyncedTimeWindow';
-import { format } from 'date-fns';
+import { CO2Chart } from "@/components/CO2Chart";
+import { CoolingHeatingVentilationChart } from "@/components/CoolingHeatingVentilationChart";
+import { DashboardCard } from "@/components/DashboardCard";
+import { FanVoltageFlowControlChart } from "@/components/FanVoltageFlowControlChart";
+import { TemperatureChart } from "@/components/TemperatureChart";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
+import { useTemperatureSeries } from "@/hooks/useTemperatureSeries";
+import { format } from "date-fns";
+import { AlertCircle, Calendar, RefreshCw, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export function TemperatureDashboardPage() {
-  const { data, isLoading, isError, error, isRefetching, refetch } = useTemperatureSeries();
-  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(data?.length || 0);
-  
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const { data, isLoading, isError, error, isRefetching, refetch } =
+    useTemperatureSeries();
+  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(
+    data?.length || 0,
+  );
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // Calculate date range indices
   const dateRangeIndices = useMemo(() => {
@@ -29,7 +32,8 @@ export function TemperatureDashboardPage() {
     const end = new Date(endDate);
 
     // Validate dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
+      return null;
     if (start > end) return null;
 
     // Set end date to end of day for inclusive range
@@ -66,8 +70,8 @@ export function TemperatureDashboardPage() {
 
   const handleResetZoom = () => {
     resetZoom();
-    setStartDate('');
-    setEndDate('');
+    setStartDate("");
+    setEndDate("");
   };
 
   const refreshingIndicator = isRefetching ? (
@@ -80,8 +84,8 @@ export function TemperatureDashboardPage() {
   // Get min and max dates from data for input constraints
   const dateConstraints = useMemo(() => {
     if (!data || data.length === 0) return null;
-    const minDate = format(data[0].timestamp, 'yyyy-MM-dd');
-    const maxDate = format(data[data.length - 1].timestamp, 'yyyy-MM-dd');
+    const minDate = format(data[0].timestamp, "yyyy-MM-dd");
+    const maxDate = format(data[data.length - 1].timestamp, "yyyy-MM-dd");
     return { minDate, maxDate };
   }, [data]);
 
@@ -103,7 +107,7 @@ export function TemperatureDashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription className="mt-2">
-            {error instanceof Error ? error.message : 'Failed to fetch data'}
+            {error instanceof Error ? error.message : "Failed to fetch data"}
             <Button
               onClick={() => refetch()}
               variant="outline"
@@ -133,7 +137,10 @@ export function TemperatureDashboardPage() {
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row gap-4 items-end">
                 <div className="flex-1 space-y-2">
-                  <Label htmlFor="start-date" className="flex items-center gap-2">
+                  <Label
+                    htmlFor="start-date"
+                    className="flex items-center gap-2"
+                  >
                     <Calendar className="h-4 w-4" />
                     Start Date
                   </Label>
@@ -179,7 +186,8 @@ export function TemperatureDashboardPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No Data in Selected Range</AlertTitle>
                   <AlertDescription>
-                    There are no data points between the selected start and end dates. Please choose a different date range.
+                    There are no data points between the selected start and end
+                    dates. Please choose a different date range.
                   </AlertDescription>
                 </Alert>
               )}
@@ -191,8 +199,8 @@ export function TemperatureDashboardPage() {
             title="Temperature Over Time"
             headerAction={refreshingIndicator}
           >
-            <TemperatureChart 
-              data={data} 
+            <TemperatureChart
+              data={data}
               startIndex={visibleRange.startIndex}
               endIndex={visibleRange.endIndex}
               onRangeChange={setRange}
@@ -204,7 +212,7 @@ export function TemperatureDashboardPage() {
             title="CO₂ Levels Over Time"
             headerAction={refreshingIndicator}
           >
-            <CO2Chart 
+            <CO2Chart
               data={data}
               startIndex={visibleRange.startIndex}
               endIndex={visibleRange.endIndex}
@@ -217,7 +225,7 @@ export function TemperatureDashboardPage() {
             title="Cooling/Heating/Ventilation Over Time"
             headerAction={refreshingIndicator}
           >
-            <CoolingHeatingVentilationChart 
+            <CoolingHeatingVentilationChart
               data={data}
               startIndex={visibleRange.startIndex}
               endIndex={visibleRange.endIndex}
@@ -230,7 +238,7 @@ export function TemperatureDashboardPage() {
             title="Fan Voltage & Flow Control Over Time"
             headerAction={refreshingIndicator}
           >
-            <FanVoltageFlowControlChart 
+            <FanVoltageFlowControlChart
               data={data}
               startIndex={visibleRange.startIndex}
               endIndex={visibleRange.endIndex}

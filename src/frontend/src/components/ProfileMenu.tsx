@@ -1,6 +1,5 @@
-import { useInternetIdentity } from '@/hooks/useInternetIdentity';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
+import type { UserProfileInfo } from "@/backend";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,25 +7,30 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { User, Copy, Check, LogOut, UserCircle } from 'lucide-react';
-import { useState } from 'react';
-import type { UserProfileInfo } from '@/backend';
+} from "@/components/ui/dropdown-menu";
+import { useInternetIdentity } from "@/hooks/useInternetIdentity";
+import { useQueryClient } from "@tanstack/react-query";
+import { Check, Copy, LogOut, User, UserCircle } from "lucide-react";
+import { useState } from "react";
 
 interface ProfileMenuProps {
   userProfile: UserProfileInfo | null | undefined;
   onNavigateToProfile: () => void;
 }
 
-export function ProfileMenu({ userProfile, onNavigateToProfile }: ProfileMenuProps) {
+export function ProfileMenu({
+  userProfile,
+  onNavigateToProfile,
+}: ProfileMenuProps) {
   const { clear, identity } = useInternetIdentity();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
 
-  const principal = identity?.getPrincipal().toString() || '';
-  const truncatedPrincipal = principal.length > 20 
-    ? `${principal.slice(0, 10)}...${principal.slice(-8)}`
-    : principal;
+  const principal = identity?.getPrincipal().toString() || "";
+  const truncatedPrincipal =
+    principal.length > 20
+      ? `${principal.slice(0, 10)}...${principal.slice(-8)}`
+      : principal;
 
   const handleSignOut = async () => {
     await clear();
@@ -43,11 +47,7 @@ export function ProfileMenu({ userProfile, onNavigateToProfile }: ProfileMenuPro
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Profile menu"
-        >
+        <Button variant="ghost" size="icon" aria-label="Profile menu">
           <User className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
@@ -55,7 +55,7 @@ export function ProfileMenu({ userProfile, onNavigateToProfile }: ProfileMenuPro
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {userProfile?.name || 'User'}
+              {userProfile?.name || "User"}
             </p>
             <p className="text-xs leading-none text-muted-foreground font-mono">
               {truncatedPrincipal}
@@ -69,7 +69,7 @@ export function ProfileMenu({ userProfile, onNavigateToProfile }: ProfileMenuPro
           ) : (
             <Copy className="mr-2 h-4 w-4" />
           )}
-          <span>{copied ? 'Copied!' : 'Copy principal'}</span>
+          <span>{copied ? "Copied!" : "Copy principal"}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onNavigateToProfile}>
           <UserCircle className="mr-2 h-4 w-4" />

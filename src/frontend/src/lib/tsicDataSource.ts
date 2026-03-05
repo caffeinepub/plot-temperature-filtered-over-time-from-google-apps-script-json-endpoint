@@ -1,7 +1,8 @@
-import { parseTSICData } from './tsicDataParsing';
-import type { TSICDataPoint } from './tsicDataParsing';
+import { parseTSICData } from "./tsicDataParsing";
+import type { TSICDataPoint } from "./tsicDataParsing";
 
-const BASE_URL = 'https://script.google.com/macros/s/AKfycbzdLbsbeJY5oRIQ-rgLJHciqrZCPxK4efH_Xuva7MuOlnXuPEQsk7ZtnRgSHumV47pu/exec';
+const BASE_URL =
+  "https://script.google.com/macros/s/AKfycbzdLbsbeJY5oRIQ-rgLJHciqrZCPxK4efH_Xuva7MuOlnXuPEQsk7ZtnRgSHumV47pu/exec";
 
 interface RawTSICDataPoint {
   Timestamp: string;
@@ -84,9 +85,9 @@ export async function fetchTSICData(id: number): Promise<TSICDataPoint[]> {
   try {
     const url = `${BASE_URL}?id=${id}`;
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Accept': 'application/json',
+        Accept: "application/json",
       },
     });
 
@@ -97,18 +98,20 @@ export async function fetchTSICData(id: number): Promise<TSICDataPoint[]> {
     const rawData: RawTSICDataPoint[] = await response.json();
 
     if (!Array.isArray(rawData)) {
-      throw new Error('Invalid data format: expected an array');
+      throw new Error("Invalid data format: expected an array");
     }
 
     const parsedData = parseTSICData(rawData);
 
     if (parsedData.length === 0) {
-      throw new Error('No valid data points found in the response');
+      throw new Error("No valid data points found in the response");
     }
 
     return parsedData;
   } catch (error) {
-    console.error('Error fetching TSIC data:', error);
-    throw error instanceof Error ? error : new Error('Failed to fetch TSIC data');
+    console.error("Error fetching TSIC data:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to fetch TSIC data");
   }
 }

@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { useSaveUserProfile } from '@/hooks/useQueries';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useSaveUserProfile } from "@/hooks/useQueries";
+import { useState } from "react";
 
 export function ProfileSetupModal() {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const { mutate: saveProfile, isPending } = useSaveUserProfile();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -18,7 +24,10 @@ export function ProfileSetupModal() {
 
   return (
     <Dialog open={true}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-md"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Welcome! Set up your profile</DialogTitle>
           <DialogDescription>
@@ -37,8 +46,12 @@ export function ProfileSetupModal() {
               disabled={isPending}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={!name.trim() || isPending}>
-            {isPending ? 'Saving...' : 'Continue'}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!name.trim() || isPending}
+          >
+            {isPending ? "Saving..." : "Continue"}
           </Button>
         </form>
       </DialogContent>

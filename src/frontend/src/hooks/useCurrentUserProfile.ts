@@ -1,20 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
-import { useActor } from './useActor';
-import type { UserProfileInfo } from '@/backend';
+import type { UserProfileInfo } from "@/backend";
+import { useQuery } from "@tanstack/react-query";
+import { useActor } from "./useActor";
 
 export function useCurrentUserProfile() {
   const { actor, isFetching: actorFetching } = useActor();
 
   const query = useQuery<UserProfileInfo | null>({
-    queryKey: ['currentUserProfile'],
+    queryKey: ["currentUserProfile"],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
+      if (!actor) throw new Error("Actor not available");
       try {
         return await actor.getCallerUserProfile();
       } catch (error: any) {
         // Handle authorization errors gracefully
-        if (error.message?.includes('Unauthorized')) {
-          console.error('Profile fetch unauthorized:', error);
+        if (error.message?.includes("Unauthorized")) {
+          console.error("Profile fetch unauthorized:", error);
           return null;
         }
         throw error;

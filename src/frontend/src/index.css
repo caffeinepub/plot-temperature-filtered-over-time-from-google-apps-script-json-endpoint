@@ -3,116 +3,126 @@
 @tailwind utilities;
 
 @layer base {
-    :root {
-        --radius: 0.5rem;
-        
-        /* Clean white theme with olive accent #65714B */
-        --background: 0.98 0 0;
-        --foreground: 0.20 0.01 90;
-        --card: 1 0 0;
-        --card-foreground: 0.20 0.01 90;
-        --popover: 1 0 0;
-        --popover-foreground: 0.20 0.01 90;
-        
-        /* Olive green primary accent #65714B */
-        --primary: 0.48 0.04 110;
-        --primary-foreground: 0.98 0 0;
-        
-        --secondary: 0.96 0.005 90;
-        --secondary-foreground: 0.20 0.01 90;
-        --muted: 0.97 0.005 90;
-        --muted-foreground: 0.50 0.01 90;
-        --accent: 0.95 0.01 110;
-        --accent-foreground: 0.20 0.01 90;
-        
-        --destructive: 0.55 0.22 25;
-        --destructive-foreground: 0.98 0 0;
-        
-        --border: 0.90 0.005 90;
-        --input: 0.90 0.005 90;
-        --ring: 0.48 0.04 110;
-        
-        /* Chart colors - darker red for temperature series */
-        --chart-1: 0.50 0.20 25;
-        --chart-2: 0.48 0.18 25;
-        
-        /* Chart colors - green for CO2 series */
-        /* CO2 Right (%) - lighter green */
-        --chart-co2-1: 0.55 0.10 145;
-        /* CO2 Left (%) - darker green */
-        --chart-co2-2: 0.35 0.12 145;
-        /* CO2 CSV (%) - dashed, medium green */
-        --chart-co2-3: 0.35 0.12 145;
-        
-        /* Chart colors - Cooling/Heating/Ventilation */
-        --chart-cooling: 0.55 0.15 240;
-        --chart-heating: 0.55 0.22 25;
-        --chart-ventilation: 0.50 0.12 145;
-        
-        /* Flow Control color - dark in light mode */
-        --chart-flow-control: 0.20 0.01 90;
-        
-        /* Very light olive-green tint for chart headers */
-        --chart-header: 0.97 0.01 110;
-    }
+  :root {
+    --radius: 0.5rem;
 
-    .dark {
-        /* Dark mode with olive accent */
-        --background: 0.15 0.01 90;
-        --foreground: 0.95 0.005 90;
-        --card: 0.18 0.01 90;
-        --card-foreground: 0.95 0.005 90;
-        --popover: 0.20 0.01 90;
-        --popover-foreground: 0.95 0.005 90;
-        
-        /* Lighter olive for dark mode */
-        --primary: 0.58 0.05 110;
-        --primary-foreground: 0.98 0 0;
-        
-        --secondary: 0.22 0.01 90;
-        --secondary-foreground: 0.95 0.005 90;
-        --muted: 0.25 0.01 90;
-        --muted-foreground: 0.65 0.01 90;
-        --accent: 0.28 0.01 110;
-        --accent-foreground: 0.95 0.005 90;
-        
-        --destructive: 0.60 0.24 25;
-        --destructive-foreground: 0.95 0 0;
-        
-        --border: 0.28 0.01 90;
-        --input: 0.28 0.01 90;
-        --ring: 0.58 0.05 110;
-        
-        /* Chart colors for dark mode - darker red temperature lines */
-        --chart-1: 0.58 0.22 25;
-        --chart-2: 0.56 0.20 25;
-        
-        /* Chart colors for dark mode - green CO2 lines */
-        /* CO2 Right (%) - lighter green */
-        --chart-co2-1: 0.65 0.12 145;
-        /* CO2 Left (%) - darker green */
-        --chart-co2-2: 0.45 0.14 145;
-        /* CO2 CSV (%) - dashed, medium green */
-        --chart-co2-3: 0.45 0.14 145;
-        
-        /* Chart colors for dark mode - Cooling/Heating/Ventilation */
-        --chart-cooling: 0.60 0.18 240;
-        --chart-heating: 0.60 0.24 25;
-        --chart-ventilation: 0.55 0.14 145;
-        
-        /* Flow Control color - light/white in dark mode for visibility */
-        --chart-flow-control: 0.92 0.005 90;
-        
-        /* Subtle olive-green tint for chart headers in dark mode */
-        --chart-header: 0.22 0.02 110;
-    }
+    /* Clean white theme with olive accent #65714B */
+    --background: 0.98 0 0;
+    --foreground: 0.2 0.01 90;
+    --card: 1 0 0;
+    --card-foreground: 0.2 0.01 90;
+    --popover: 1 0 0;
+    --popover-foreground: 0.2 0.01 90;
 
-    * {
-        @apply border-border;
-    }
-    
-    body {
-        @apply bg-background text-foreground;
-        font-feature-settings: "rlig" 1, "calt" 1;
-    }
+    /* Olive green primary accent #65714B */
+    --primary: 0.48 0.04 110;
+    --primary-foreground: 0.98 0 0;
+
+    --secondary: 0.96 0.005 90;
+    --secondary-foreground: 0.2 0.01 90;
+    --muted: 0.97 0.005 90;
+    --muted-foreground: 0.5 0.01 90;
+    --accent: 0.95 0.01 110;
+    --accent-foreground: 0.2 0.01 90;
+
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.9 0.005 90;
+    --input: 0.9 0.005 90;
+    --ring: 0.48 0.04 110;
+
+    /* Chart colors - darker red for temperature series */
+    --chart-1: 0.5 0.2 25;
+    --chart-2: 0.48 0.18 25;
+
+    /* Chart colors - green for CO2 series */
+    /* CO2 Right (%) - light green (#C2CF85) */
+    --chart-co2-1: 0.82 0.09 120;
+    /* CO2 Left (%) - dark green (#808A54) */
+    --chart-co2-2: 0.52 0.08 118;
+    /* CO2 CSV (%) - dashed, dark green (same as CO2 Left) */
+    --chart-co2-3: 0.52 0.08 118;
+
+    /* Chart colors - Cooling (blue) / Heating (red) / Ventilation (green) */
+    --chart-cooling: 0.55 0.18 240;
+    --chart-heating: 0.55 0.22 25;
+    --chart-ventilation: 0.52 0.14 145;
+
+    /* Fan voltage colors - light grey / grey / dark grey */
+    --chart-fan1: 0.75 0 0;
+    --chart-fan2: 0.6 0 0;
+    --chart-fan3: 0.45 0 0;
+
+    /* Flow Control color - near-black in light mode */
+    --chart-flow-control: 0.1 0 0;
+
+    /* Very light olive-green tint for chart headers */
+    --chart-header: 0.97 0.01 110;
+  }
+
+  .dark {
+    /* Dark mode with olive accent */
+    --background: 0.15 0.01 90;
+    --foreground: 0.95 0.005 90;
+    --card: 0.18 0.01 90;
+    --card-foreground: 0.95 0.005 90;
+    --popover: 0.2 0.01 90;
+    --popover-foreground: 0.95 0.005 90;
+
+    /* Lighter olive for dark mode */
+    --primary: 0.58 0.05 110;
+    --primary-foreground: 0.98 0 0;
+
+    --secondary: 0.22 0.01 90;
+    --secondary-foreground: 0.95 0.005 90;
+    --muted: 0.25 0.01 90;
+    --muted-foreground: 0.65 0.01 90;
+    --accent: 0.28 0.01 110;
+    --accent-foreground: 0.95 0.005 90;
+
+    --destructive: 0.6 0.24 25;
+    --destructive-foreground: 0.95 0 0;
+
+    --border: 0.28 0.01 90;
+    --input: 0.28 0.01 90;
+    --ring: 0.58 0.05 110;
+
+    /* Chart colors for dark mode - darker red temperature lines */
+    --chart-1: 0.58 0.22 25;
+    --chart-2: 0.56 0.2 25;
+
+    /* Chart colors for dark mode - green CO2 lines */
+    /* CO2 Right (%) - light green (#C2CF85 brighter in dark mode) */
+    --chart-co2-1: 0.86 0.1 120;
+    /* CO2 Left (%) - dark green (#808A54 brighter in dark mode) */
+    --chart-co2-2: 0.62 0.09 118;
+    /* CO2 CSV (%) - dashed, dark green (same as CO2 Left) */
+    --chart-co2-3: 0.62 0.09 118;
+
+    /* Chart colors for dark mode - Cooling (blue) / Heating (red) / Ventilation (green) */
+    --chart-cooling: 0.62 0.2 240;
+    --chart-heating: 0.62 0.24 25;
+    --chart-ventilation: 0.6 0.16 145;
+
+    /* Fan voltage colors dark mode - light grey / grey / dark grey */
+    --chart-fan1: 0.82 0 0;
+    --chart-fan2: 0.67 0 0;
+    --chart-fan3: 0.52 0 0;
+
+    /* Flow Control color - white in dark mode for visibility */
+    --chart-flow-control: 0.95 0 0;
+
+    /* Subtle olive-green tint for chart headers in dark mode */
+    --chart-header: 0.22 0.02 110;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }

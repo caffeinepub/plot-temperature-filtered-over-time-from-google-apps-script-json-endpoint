@@ -24,16 +24,22 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
+  'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfileInfo]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGoogleSheetsDownloadLink' : ActorMethod<[], string>,
   'getGrantedAdmins' : ActorMethod<[], Array<Principal>>,
+  'getSensorGroupsForId' : ActorMethod<[bigint], string>,
   'getUserProfile' : ActorMethod<[Principal], UserProfileInfo>,
   'getUserRole' : ActorMethod<[], [] | [UserRole]>,
   'grantAdminRole' : ActorMethod<[Principal], boolean>,
   'hasProfile' : ActorMethod<[], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'isConceptMachineVisible' : ActorMethod<[], boolean>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'saveSensorGroupsForId' : ActorMethod<[bigint, string], undefined>,
+  'setConceptMachineVisible' : ActorMethod<[boolean], undefined>,
+  'setLoggerIdLabel' : ActorMethod<[bigint, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -1,6 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
+import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { useEffect, useState } from "react";
 
 /**
  * Hook that derives a global "last updated" timestamp from the temperature-series query cache.
@@ -14,10 +14,10 @@ export function useGlobalLastUpdated(): string {
     // Subscribe to query cache changes
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (
-        event?.query.queryKey[0] === 'temperature-series' &&
-        event?.type === 'updated'
+        event?.query.queryKey[0] === "temperature-series" &&
+        event?.type === "updated"
       ) {
-        const queryState = queryClient.getQueryState(['temperature-series']);
+        const queryState = queryClient.getQueryState(["temperature-series"]);
         if (queryState?.dataUpdatedAt) {
           setLastUpdated(queryState.dataUpdatedAt);
         }
@@ -25,7 +25,7 @@ export function useGlobalLastUpdated(): string {
     });
 
     // Initialize with current value
-    const queryState = queryClient.getQueryState(['temperature-series']);
+    const queryState = queryClient.getQueryState(["temperature-series"]);
     if (queryState?.dataUpdatedAt) {
       setLastUpdated(queryState.dataUpdatedAt);
     }
@@ -34,8 +34,8 @@ export function useGlobalLastUpdated(): string {
   }, [queryClient]);
 
   if (!lastUpdated || lastUpdated === 0) {
-    return '--:--:--';
+    return "--:--:--";
   }
 
-  return format(new Date(lastUpdated), 'HH:mm:ss');
+  return format(new Date(lastUpdated), "HH:mm:ss");
 }

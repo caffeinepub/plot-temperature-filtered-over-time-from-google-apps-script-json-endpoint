@@ -1,19 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
-import { fetchTemperatureData } from '@/lib/temperatureDataSource';
-import type { TemperatureDataPoint } from '@/lib/temperatureParsing';
+import { fetchTemperatureData } from "@/lib/temperatureDataSource";
+import type { TemperatureDataPoint } from "@/lib/temperatureParsing";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 export function useTemperatureSeries() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const query = useQuery<TemperatureDataPoint[], Error>({
-    queryKey: ['temperature-series'],
+    queryKey: ["temperature-series"],
     queryFn: fetchTemperatureData,
     // Auto-refresh disabled - data only updates on manual refresh
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 
   useEffect(() => {

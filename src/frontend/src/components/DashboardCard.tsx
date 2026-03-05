@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ReactNode } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ReactNode } from "react";
 
 interface DashboardCardProps {
   title: string;
@@ -8,7 +8,12 @@ interface DashboardCardProps {
   className?: string;
 }
 
-export function DashboardCard({ title, children, headerAction, className = '' }: DashboardCardProps) {
+export function DashboardCard({
+  title,
+  children,
+  headerAction,
+  className = "",
+}: DashboardCardProps) {
   return (
     <Card className={`shadow-lg border-2 p-0 overflow-hidden ${className}`}>
       <CardHeader className="border-b p-6 bg-chart-header rounded-t-[calc(var(--radius)-2px)]">
@@ -17,9 +22,7 @@ export function DashboardCard({ title, children, headerAction, className = '' }:
           {headerAction}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-6">
-        {children}
-      </CardContent>
+      <CardContent className="pt-6">{children}</CardContent>
     </Card>
   );
 }

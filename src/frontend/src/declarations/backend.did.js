@@ -28,16 +28,26 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+  'getAllLoggerLabels' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfileInfo)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
   'getGrantedAdmins' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
+  'getSensorGroupsForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
   'getUserProfile' : IDL.Func([IDL.Principal], [UserProfileInfo], ['query']),
   'getUserRole' : IDL.Func([], [IDL.Opt(UserRole)], ['query']),
   'grantAdminRole' : IDL.Func([IDL.Principal], [IDL.Bool], []),
   'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
+  'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
@@ -63,6 +73,11 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+    'getAllLoggerLabels' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func(
         [],
         [IDL.Opt(UserProfileInfo)],
@@ -71,12 +86,17 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
     'getGrantedAdmins' : IDL.Func([], [IDL.Vec(IDL.Principal)], ['query']),
+    'getSensorGroupsForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
     'getUserProfile' : IDL.Func([IDL.Principal], [UserProfileInfo], ['query']),
     'getUserRole' : IDL.Func([], [IDL.Opt(UserRole)], ['query']),
     'grantAdminRole' : IDL.Func([IDL.Principal], [IDL.Bool], []),
     'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
+    'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   });
 };
 
