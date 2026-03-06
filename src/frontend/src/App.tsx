@@ -83,6 +83,22 @@ function App() {
     goToPageId("profile");
   };
 
+  // Compute prev/next page names for nav buttons (wraps around, uses visiblePages)
+  const visiblePageCount = visiblePages.length;
+  const currentVisibleIndex = visiblePages.findIndex(
+    (p) => p.id === currentVisiblePage.id,
+  );
+  const previousPageName =
+    visiblePageCount > 1
+      ? visiblePages[
+          (currentVisibleIndex - 1 + visiblePageCount) % visiblePageCount
+        ].displayName
+      : undefined;
+  const nextPageName =
+    visiblePageCount > 1
+      ? visiblePages[(currentVisibleIndex + 1) % visiblePageCount].displayName
+      : undefined;
+
   // Show login page while initializing or when not authenticated
   if (isInitializing || !isAuthenticated) {
     return <LoginPage />;
@@ -112,6 +128,8 @@ function App() {
                 lastUpdated={lastUpdated}
                 onPrevious={goToPrevious}
                 onNext={goToNext}
+                previousPageName={previousPageName}
+                nextPageName={nextPageName}
                 pageId={currentVisiblePage.id}
                 downloadUrl={undefined}
                 isDarkMode={isDarkMode}
@@ -152,6 +170,8 @@ function App() {
             lastUpdated={lastUpdated}
             onPrevious={goToPrevious}
             onNext={goToNext}
+            previousPageName={previousPageName}
+            nextPageName={nextPageName}
             pageId={currentVisiblePage.id}
             downloadUrl={getDownloadUrl()}
             isDarkMode={isDarkMode}

@@ -102,20 +102,20 @@ export function CustomXTick(props: {
 
   const d = new Date(ts);
   if (entry.isDate) {
-    const day = d.getDate();
-    const month = MONTH_NAMES[d.getMonth()];
+    const day = d.getDate().toString().padStart(2, "0");
+    const month = (d.getMonth() + 1).toString().padStart(2, "0");
     return (
       <g transform={`translate(${x},${y})`}>
-        <line x1={0} y1={0} x2={0} y2={10} stroke={fill} strokeWidth={2} />
+        <line x1={0} y1={0} x2={0} y2={14} stroke={fill} strokeWidth={2} />
         <text
           x={0}
-          y={22}
+          y={26}
           textAnchor="middle"
           fill={fill}
           fontSize={12}
           fontWeight="bold"
         >
-          {`${day} ${month}`}
+          {`${day}/${month}`}
         </text>
       </g>
     );

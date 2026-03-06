@@ -2,15 +2,15 @@ import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import List "mo:core/List";
-import Nat "mo:core/Nat";
 import Text "mo:core/Text";
-
-
+import Nat "mo:core/Nat";
+import Iter "mo:core/Iter";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Migration "migration";
 
-// Apply migration on upgrade
-
+// Apply migration on upgrade.
+(with migration = Migration.run)
 actor {
   type UserProfile = {
     name : Text;
@@ -32,11 +32,11 @@ actor {
   var userProfiles = Map.empty<Principal, UserProfile>();
   var conceptMachineVisible = true;
   var loggerIdLoggerLabels = Map.empty<Nat, Text>();
-  var sensorLabels = Map.empty<Nat, Text>();
   var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
-
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
 
+  // key: "loggerId:sensorNum" (e.g. "2:5" for logger 2 sensor 5)
+  var sensorLabels = Map.empty<Text, Text>();
   include MixinAuthorization(accessControlState);
 
   func isHardcodedAdmin(pr : Principal) : Bool {
@@ -228,34 +228,79 @@ actor {
   };
 
   // ========= SENSOR LABELS =========
-  public query ({ caller }) func getAllSensorLabels() : async [(Nat, Text)] {
+  // key: "loggerId:sensorNum" (e.g. "2:5" for logger 2 sensor 5)
+  public query ({ caller }) func getAllSensorLabelsForId(loggerId : Nat) : async [(Nat, Text)] {
     if (not isEffectiveAdmin(caller)) {
       Runtime.trap("Unauthorized: Only admins may query sensor labels");
     };
-    sensorLabels.toArray();
+    if (loggerId < 1 or loggerId > 10) {
+      Runtime.trap("Logger ID must be 1-10. ");
+    };
+    let filteredEntries = sensorLabels.entries().filter(
+      func((key, _)) {
+        key.startsWith(#text(loggerId.toText() # ":"));
+      }
+    );
+
+    let result = filteredEntries.map(
+      func((key, value)) {
+        let parts = key.split(#char(':')).toArray();
+        if (parts.size() == 2) {
+          switch (Nat.fromText(parts[1])) {
+            case (?sensorNum) {
+              (sensorNum, value);
+            };
+            case (null) { (0, value) };
+          };
+        } else {
+          (0, value);
+        };
+      }
+    );
+
+    result.toArray();
   };
 
-  public shared ({ caller }) func setSensorLabel(sensorNum : Nat, sensorLabel : Text) : async () {
+  public shared ({ caller }) func setSensorLabel(loggerId : Nat, sensorNum : Nat, sensorLabel : Text) : async () {
     if (not isEffectiveAdmin(caller)) {
       Runtime.trap("Unauthorized: Only admins can set sensor labels");
+    };
+
+    if (loggerId < 1 or loggerId > 10) {
+      Runtime.trap("Logger ID must be 1-10. ");
     };
 
     if (sensorNum < 1 or sensorNum > 72) {
       Runtime.trap("Sensor number must be between 1 and 72");
     };
 
-    sensorLabels.add(sensorNum, sensorLabel);
+    let key = loggerId.toText() # ":" # sensorNum.toText();
+    sensorLabels.add(key, sensorLabel);
   };
 
-  public shared ({ caller }) func resetSensorLabels() : async () {
+  public shared ({ caller }) func resetSensorLabelsForId(loggerId : Nat) : async () {
     if (not isEffectiveAdmin(caller)) {
-      Runtime.trap("Unauthorized: Only admins can reset ALL sensor labels!");
+      Runtime.trap("Unauthorized: Only admins can reset sensor labels for id. ");
     };
-    sensorLabels := Map.empty<Nat, Text>();
+
+    if (loggerId < 1 or loggerId > 10) {
+      Runtime.trap("Logger ID must be 1-10. ");
+    };
+
+    let newSensorLabels = sensorLabels.filter(
+      func(key, _) {
+        not key.startsWith(#text(loggerId.toText() # ":"));
+      }
+    );
+
+    sensorLabels := newSensorLabels;
   };
 
   // ========= SENSOR GROUPS =========
-  public query func getSensorGroupsForId(id : Nat) : async Text {
+  public query ({ caller }) func getSensorGroupsForId(id : Nat) : async Text {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can query sensor groups");
+    };
     switch (sensorGroupsPerIdJson.get(id)) {
       case (null) { "" };
       case (?json) { json };

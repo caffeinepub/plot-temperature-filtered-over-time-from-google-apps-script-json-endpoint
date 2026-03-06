@@ -10,9 +10,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
 import { useTemperatureSeries } from "@/hooks/useTemperatureSeries";
-import { format } from "date-fns";
 import { AlertCircle, Calendar, RefreshCw, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
+
+/**
+ * Parse a date string typed as DD/MM/YYYY into a Date object.
+ * Returns null if the input is not a valid complete date.
+ */
+function parseDDMMYYYY(value: string): Date | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10) - 1;
+  const year = Number.parseInt(match[3], 10);
+  const d = new Date(year, month, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day)
+    return null;
+  return d;
+}
 
 export function TemperatureDashboardPage() {
   const { data, isLoading, isError, error, isRefetching, refetch } =
@@ -21,19 +36,15 @@ export function TemperatureDashboardPage() {
     data?.length || 0,
   );
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // Raw text inputs from user (DD/MM/JJJJ)
+  const [startDateText, setStartDateText] = useState("");
+  const [endDateText, setEndDateText] = useState("");
 
   // Calculate date range indices
   const dateRangeIndices = useMemo(() => {
-    if (!data || !startDate || !endDate) return null;
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // Validate dates
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
-      return null;
+    const start = parseDDMMYYYY(startDateText);
+    const end = parseDDMMYYYY(endDateText);
+    if (!data || !start || !end) return null;
     if (start > end) return null;
 
     // Set end date to end of day for inclusive range
@@ -59,7 +70,7 @@ export function TemperatureDashboardPage() {
     }
 
     return { startIndex, endIndex, isEmpty: false };
-  }, [data, startDate, endDate]);
+  }, [data, startDateText, endDateText]);
 
   // Apply date range zoom when indices change
   useMemo(() => {
@@ -70,8 +81,8 @@ export function TemperatureDashboardPage() {
 
   const handleResetZoom = () => {
     resetZoom();
-    setStartDate("");
-    setEndDate("");
+    setStartDateText("");
+    setEndDateText("");
   };
 
   const refreshingIndicator = isRefetching ? (
@@ -80,14 +91,6 @@ export function TemperatureDashboardPage() {
       Refreshing...
     </span>
   ) : null;
-
-  // Get min and max dates from data for input constraints
-  const dateConstraints = useMemo(() => {
-    if (!data || data.length === 0) return null;
-    const minDate = format(data[0].timestamp, "yyyy-MM-dd");
-    const maxDate = format(data[data.length - 1].timestamp, "yyyy-MM-dd");
-    return { minDate, maxDate };
-  }, [data]);
 
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
@@ -146,11 +149,11 @@ export function TemperatureDashboardPage() {
                   </Label>
                   <Input
                     id="start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    min={dateConstraints?.minDate}
-                    max={dateConstraints?.maxDate}
+                    type="text"
+                    value={startDateText}
+                    onChange={(e) => setStartDateText(e.target.value)}
+                    placeholder="DD/MM/JJJJ"
+                    maxLength={10}
                     className="w-full"
                   />
                 </div>
@@ -161,15 +164,15 @@ export function TemperatureDashboardPage() {
                   </Label>
                   <Input
                     id="end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    min={dateConstraints?.minDate}
-                    max={dateConstraints?.maxDate}
+                    type="text"
+                    value={endDateText}
+                    onChange={(e) => setEndDateText(e.target.value)}
+                    placeholder="DD/MM/JJJJ"
+                    maxLength={10}
                     className="w-full"
                   />
                 </div>
-                {(isZoomed || startDate || endDate) && (
+                {(isZoomed || startDateText || endDateText) && (
                   <Button
                     onClick={handleResetZoom}
                     variant="outline"

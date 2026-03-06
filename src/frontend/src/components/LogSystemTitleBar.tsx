@@ -31,6 +31,8 @@ interface LogSystemTitleBarProps {
   lastUpdated: string;
   onPrevious: () => void;
   onNext: () => void;
+  previousPageName?: string;
+  nextPageName?: string;
   pageId: string;
   downloadUrl?: string;
   isDarkMode: boolean;
@@ -47,6 +49,8 @@ export function LogSystemTitleBar({
   lastUpdated,
   onPrevious,
   onNext,
+  previousPageName,
+  nextPageName,
   pageId,
   downloadUrl,
   isDarkMode,
@@ -118,15 +122,27 @@ export function LogSystemTitleBar({
       >
         {/* Left: Previous button */}
         <div className="flex justify-start shrink-0">
-          <Button
-            onClick={onPrevious}
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            aria-label="Previous log system"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </Button>
+          {previousPageName ? (
+            <Button
+              onClick={onPrevious}
+              variant="ghost"
+              className="shrink-0 gap-1 text-sm font-medium text-muted-foreground hover:text-foreground px-2"
+              aria-label={`Go to ${previousPageName}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {previousPageName}
+            </Button>
+          ) : (
+            <Button
+              onClick={onPrevious}
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              aria-label="Previous log system"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </Button>
+          )}
         </div>
 
         {/* Center: Title (absolutely centered relative to full bar) */}
@@ -185,15 +201,27 @@ export function LogSystemTitleBar({
             />
           </Button>
 
-          <Button
-            onClick={onNext}
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            aria-label="Next log system"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </Button>
+          {nextPageName ? (
+            <Button
+              onClick={onNext}
+              variant="ghost"
+              className="shrink-0 gap-1 text-sm font-medium text-muted-foreground hover:text-foreground px-2"
+              aria-label={`Go to ${nextPageName}`}
+            >
+              {nextPageName}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={onNext}
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              aria-label="Next log system"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -247,7 +275,7 @@ export function LogSystemTitleBar({
                   className="w-full justify-start h-11 text-base hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
                 >
                   <ChevronLeft className="h-5 w-5 mr-3" />
-                  Previous Page
+                  {previousPageName || "Previous Page"}
                 </Button>
 
                 <Button
@@ -256,7 +284,7 @@ export function LogSystemTitleBar({
                   className="w-full justify-start h-11 text-base hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors"
                 >
                   <ChevronRight className="h-5 w-5 mr-3" />
-                  Next Page
+                  {nextPageName || "Next Page"}
                 </Button>
               </div>
 

@@ -25,7 +25,7 @@ export interface _SERVICE {
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
   'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
-  'getAllSensorLabels' : ActorMethod<[], Array<[bigint, string]>>,
+  'getAllSensorLabelsForId' : ActorMethod<[bigint], Array<[bigint, string]>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfileInfo]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGoogleSheetsDownloadLink' : ActorMethod<[], string>,
@@ -37,12 +37,12 @@ export interface _SERVICE {
   'hasProfile' : ActorMethod<[], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isConceptMachineVisible' : ActorMethod<[], boolean>,
-  'resetSensorLabels' : ActorMethod<[], undefined>,
+  'resetSensorLabelsForId' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveSensorGroupsForId' : ActorMethod<[bigint, string], undefined>,
   'setConceptMachineVisible' : ActorMethod<[boolean], undefined>,
   'setLoggerIdLabel' : ActorMethod<[bigint, string], undefined>,
-  'setSensorLabel' : ActorMethod<[bigint, string], undefined>,
+  'setSensorLabel' : ActorMethod<[bigint, bigint, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -22,7 +22,6 @@ import {
 import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
 import { useTSICData } from "@/hooks/useTSICData";
 import { useSetLoggerLabel, useTSICLabels } from "@/hooks/useTSICLabels";
-import { format } from "date-fns";
 import {
   AlertCircle,
   Calendar,
@@ -36,6 +35,22 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+
+/**
+ * Parse a date string typed as DD/MM/YYYY into a Date object.
+ * Returns null if the input is not a valid complete date.
+ */
+function parseDDMMYYYY(value: string): Date | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10) - 1;
+  const year = Number.parseInt(match[3], 10);
+  const d = new Date(year, month, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day)
+    return null;
+  return d;
+}
 
 interface TSICSensorLegendProps {
   groups: SensorGroup[];
@@ -283,8 +298,8 @@ export function TSICLoggersPage() {
     data?.length || 0,
   );
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDateText, setStartDateText] = useState("");
+  const [endDateText, setEndDateText] = useState("");
 
   // Y-axis controls (reset to null for automatic scaling on page refresh)
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
@@ -301,8 +316,8 @@ export function TSICLoggersPage() {
   const { data: labelsMap } = useTSICLabels();
   const { mutate: saveLabel, isPending: isSavingLabel } = useSetLoggerLabel();
 
-  // Sensor labels (admin only)
-  const { data: sensorLabels } = useSensorLabels();
+  // Sensor labels (admin only, per logger ID)
+  const { data: sensorLabels } = useSensorLabels(selectedId);
   const { mutate: saveSensorLabel, isPending: isSavingSensorLabel } =
     useSetSensorLabel();
   const { mutate: resetSensorLabels } = useResetSensorLabels();
@@ -346,16 +361,19 @@ export function TSICLoggersPage() {
 
   const handleSaveSensorLabel = useCallback(
     (sensorNum: number, label: string) => {
-      saveSensorLabel({ sensorNum, label });
+      if (selectedId === null) return;
+      saveSensorLabel({ loggerId: selectedId, sensorNum, label });
     },
-    [saveSensorLabel],
+    [saveSensorLabel, selectedId],
   );
 
   // Reset groups and sensor labels together
   const handleReset = useCallback(() => {
     resetGroups();
-    resetSensorLabels();
-  }, [resetGroups, resetSensorLabels]);
+    if (selectedId !== null) {
+      resetSensorLabels({ loggerId: selectedId });
+    }
+  }, [resetGroups, resetSensorLabels, selectedId]);
 
   // Reset states when new data is loaded
   const handleResetStates = useCallback(() => {
@@ -376,14 +394,9 @@ export function TSICLoggersPage() {
 
   // Calculate date range indices
   const dateRangeIndices = useMemo(() => {
-    if (!data || !startDate || !endDate) return null;
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    // Validate dates
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()))
-      return null;
+    const start = parseDDMMYYYY(startDateText);
+    const end = parseDDMMYYYY(endDateText);
+    if (!data || !start || !end) return null;
     if (start > end) return null;
 
     // Set end date to end of day for inclusive range
@@ -409,7 +422,7 @@ export function TSICLoggersPage() {
     }
 
     return { startIndex, endIndex, isEmpty: false };
-  }, [data, startDate, endDate]);
+  }, [data, startDateText, endDateText]);
 
   // Apply date range zoom when indices change
   useMemo(() => {
@@ -420,16 +433,16 @@ export function TSICLoggersPage() {
 
   const handleResetZoom = () => {
     resetZoom();
-    setStartDate("");
-    setEndDate("");
+    setStartDateText("");
+    setEndDateText("");
   };
 
   const handleIdClick = (id: number) => {
     setSelectedId(id);
     // Reset zoom and date filters when switching IDs
     resetZoom();
-    setStartDate("");
-    setEndDate("");
+    setStartDateText("");
+    setEndDateText("");
     // Reset Y-axis controls
     setYAxisMin(null);
     setYAxisMax(null);
@@ -443,14 +456,6 @@ export function TSICLoggersPage() {
       Refreshing...
     </span>
   ) : null;
-
-  // Get min and max dates from data for input constraints
-  const dateConstraints = useMemo(() => {
-    if (!data || data.length === 0) return null;
-    const minDate = format(data[0].timestamp, "yyyy-MM-dd");
-    const maxDate = format(data[data.length - 1].timestamp, "yyyy-MM-dd");
-    return { minDate, maxDate };
-  }, [data]);
 
   // Derive which sensors actually have data (from the chart's perspective)
   const activeSensors = useMemo(() => {
@@ -632,11 +637,11 @@ export function TSICLoggersPage() {
                       </Label>
                       <Input
                         id="start-date"
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        min={dateConstraints?.minDate}
-                        max={dateConstraints?.maxDate}
+                        type="text"
+                        value={startDateText}
+                        onChange={(e) => setStartDateText(e.target.value)}
+                        placeholder="DD/MM/JJJJ"
+                        maxLength={10}
                         className="w-full h-8 text-sm"
                         data-ocid="tsic.controls.input"
                       />
@@ -650,17 +655,17 @@ export function TSICLoggersPage() {
                       </Label>
                       <Input
                         id="end-date"
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        min={dateConstraints?.minDate}
-                        max={dateConstraints?.maxDate}
+                        type="text"
+                        value={endDateText}
+                        onChange={(e) => setEndDateText(e.target.value)}
+                        placeholder="DD/MM/JJJJ"
+                        maxLength={10}
                         className="w-full h-8 text-sm"
                         data-ocid="tsic.controls.input"
                       />
                     </div>
                   </div>
-                  {(isZoomed || startDate || endDate) && (
+                  {(isZoomed || startDateText || endDateText) && (
                     <Button
                       onClick={handleResetZoom}
                       variant="outline"
