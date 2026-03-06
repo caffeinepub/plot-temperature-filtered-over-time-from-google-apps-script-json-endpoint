@@ -28,6 +28,7 @@ export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
+    getAllSensorLabels(): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
@@ -39,8 +40,10 @@ export interface backendInterface {
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
     isConceptMachineVisible(): Promise<boolean>;
+    resetSensorLabels(): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
     setLoggerIdLabel(id: bigint, loggerLabel: string): Promise<void>;
+    setSensorLabel(sensorNum: bigint, sensorLabel: string): Promise<void>;
 }

@@ -1,3 +1,10 @@
+import {
+  CustomXTick,
+  MONTH_NAMES,
+  type XTickEntry,
+  buildXTicks,
+  computeXDomain,
+} from "@/lib/chartXAxis";
 import type { TemperatureDataPoint } from "@/lib/temperatureParsing";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +20,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+// CO2 chart colors - hardcoded for reliable SVG rendering
+// CO2 Right (%): light green (#C2CF85)
+const CO2_RIGHT_COLOR = "#C2CF85";
+// CO2 Left (%): dark green (#808A54)
+const CO2_LEFT_COLOR = "#808A54";
+// CO2 CSV (%): dark green dashed (same as CO2 Left)
+const CO2_CSV_COLOR = "#808A54";
 
 interface CO2ChartProps {
   data: TemperatureDataPoint[];
@@ -38,10 +53,30 @@ export function CO2Chart({
       co2Right: point.co2Right,
       co2Left: point.co2Left,
       co2CSV: point.co2CSV,
-      timeLabel: format(point.timestamp, "HH:mm:ss"),
       fullTimestamp: format(point.timestamp, "yyyy-MM-dd HH:mm:ss"),
     }));
   }, [data]);
+
+  // X-axis ticks
+  const xTickEntries = useMemo((): XTickEntry[] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return [];
+    return buildXTicks(slice[0].timestamp, slice[slice.length - 1].timestamp);
+  }, [chartData, startIndex, endIndex]);
+
+  const xTickValues = useMemo(
+    () => xTickEntries.map((t) => t.timestamp),
+    [xTickEntries],
+  );
+
+  const xDomain = useMemo((): [number, number] | [string, string] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return ["dataMin", "dataMax"];
+    return computeXDomain(
+      slice[0].timestamp,
+      slice[slice.length - 1].timestamp,
+    );
+  }, [chartData, startIndex, endIndex]);
 
   // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
@@ -84,7 +119,7 @@ export function CO2Chart({
 
   const handleMouseDown = useCallback((e: any) => {
     if (!e || !e.activeLabel) return;
-    setRefAreaLeft(e.activeLabel);
+    setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
@@ -92,7 +127,7 @@ export function CO2Chart({
 
   const handleMouseMove = useCallback((e: any) => {
     if (!selectingRef.current || !e || !e.activeLabel) return;
-    setRefAreaRight(e.activeLabel);
+    setRefAreaRight(String(e.activeLabel));
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -107,8 +142,12 @@ export function CO2Chart({
     }
 
     const visibleData = chartData.slice(startIndex, endIndex + 1);
-    const leftIdx = visibleData.findIndex((d) => d.timeLabel === refAreaLeft);
-    const rightIdx = visibleData.findIndex((d) => d.timeLabel === refAreaRight);
+    const leftIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaLeft,
+    );
+    const rightIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaRight,
+    );
 
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
@@ -167,7 +206,7 @@ export function CO2Chart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+          margin={{ top: 2, right: 30, left: 20, bottom: 60 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -179,11 +218,23 @@ export function CO2Chart({
             opacity={0.3}
           />
           <XAxis
-            dataKey="timeLabel"
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
+            dataKey="timestamp"
+            type="number"
+            domain={xDomain}
+            scale="time"
+            ticks={xTickValues}
+            interval={0}
+            tick={(tickProps) => (
+              <CustomXTick
+                {...tickProps}
+                allTicks={xTickEntries}
+                fill="oklch(var(--muted-foreground))"
+              />
+            )}
+            tickLine={false}
+            axisLine={{ stroke: "oklch(var(--border))" }}
             allowDataOverflow
+            height={46}
           />
           <YAxis
             domain={yDomain}
@@ -248,34 +299,37 @@ export function CO2Chart({
             type="monotone"
             dataKey="co2Right"
             name="co2Right"
-            stroke="oklch(var(--chart-co2-1))"
+            stroke={CO2_RIGHT_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-co2-1))" }}
+            activeDot={{ r: 6, fill: CO2_RIGHT_COLOR }}
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
             dataKey="co2Left"
             name="co2Left"
-            stroke="oklch(var(--chart-co2-2))"
+            stroke={CO2_LEFT_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-co2-2))" }}
+            activeDot={{ r: 6, fill: CO2_LEFT_COLOR }}
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
             dataKey="co2CSV"
             name="co2CSV"
-            stroke="oklch(var(--chart-co2-3))"
+            stroke={CO2_CSV_COLOR}
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-co2-3))" }}
+            activeDot={{ r: 6, fill: CO2_CSV_COLOR }}
+            isAnimationActive={false}
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea
-              x1={refAreaLeft}
-              x2={refAreaRight}
+              x1={Number(refAreaLeft)}
+              x2={Number(refAreaRight)}
               strokeOpacity={0.3}
               fill="oklch(var(--primary))"
               fillOpacity={0.2}
@@ -283,7 +337,7 @@ export function CO2Chart({
             />
           )}
           <Brush
-            dataKey="timeLabel"
+            dataKey="timestamp"
             height={40}
             stroke="oklch(var(--primary))"
             fill="oklch(var(--muted))"
@@ -291,17 +345,13 @@ export function CO2Chart({
             endIndex={endIndex}
             onChange={handleBrushChange}
             travellerWidth={10}
+            tickFormatter={(ts: number) => {
+              const d = new Date(ts);
+              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+            }}
           />
         </LineChart>
       </ResponsiveContainer>
-      {(zoomedYBottom !== null ||
-        startIndex > 0 ||
-        endIndex < data.length - 1) && (
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          💡 Drag on the chart to zoom in · Use the brush below to pan · Reset
-          Zoom to restore
-        </p>
-      )}
     </div>
   );
 }

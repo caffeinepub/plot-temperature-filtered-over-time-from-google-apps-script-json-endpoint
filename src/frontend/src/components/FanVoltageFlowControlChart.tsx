@@ -1,3 +1,11 @@
+import { useIsDarkMode } from "@/hooks/useIsDarkMode";
+import {
+  CustomXTick,
+  MONTH_NAMES,
+  type XTickEntry,
+  buildXTicks,
+  computeXDomain,
+} from "@/lib/chartXAxis";
 import type { TemperatureDataPoint } from "@/lib/temperatureParsing";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +22,13 @@ import {
   YAxis,
 } from "recharts";
 
+// Fan voltage colors - light grey shades
+const FAN1_COLOR = "#C8C8C8"; // lichtgrijs
+const FAN2_COLOR = "#A0A0A0"; // grijs
+const FAN3_COLOR = "#787878"; // donkergrijs
+// Flow control - zwart (light mode)
+const FLOW_CONTROL_COLOR = "#222222";
+
 interface FanVoltageFlowControlChartProps {
   data: TemperatureDataPoint[];
   startIndex: number;
@@ -26,25 +41,18 @@ const formatYTick = (value: number) => {
   return Number.parseFloat(value.toFixed(2)).toString();
 };
 
-// Resolve a CSS variable to its computed value for use in SVG stroke attributes
-function resolveCssVar(varName: string): string {
-  const raw = getComputedStyle(document.documentElement)
-    .getPropertyValue(varName)
-    .trim();
-  return raw ? `oklch(${raw})` : "#888";
-}
-
 export function FanVoltageFlowControlChart({
   data,
   startIndex,
   endIndex,
   onRangeChange,
 }: FanVoltageFlowControlChartProps) {
-  // Resolve colors at render time so they react to dark/light mode changes
-  const fan1Color = resolveCssVar("--chart-fan1");
-  const fan2Color = resolveCssVar("--chart-fan2");
-  const fan3Color = resolveCssVar("--chart-fan3");
-  const flowControlColor = resolveCssVar("--chart-flow-control");
+  const isDarkMode = useIsDarkMode();
+  const fan1Color = FAN1_COLOR;
+  const fan2Color = FAN2_COLOR;
+  const fan3Color = FAN3_COLOR;
+  // Flow Control: wit in dark mode, zwart in light mode
+  const flowControlColor = isDarkMode ? "#ffffff" : FLOW_CONTROL_COLOR;
 
   const chartData = useMemo(() => {
     return data.map((point) => ({
@@ -53,10 +61,30 @@ export function FanVoltageFlowControlChart({
       fan2V: point.fan2V,
       fan3V: point.fan3V,
       flowControlPa: point.flowControlPa,
-      timeLabel: format(point.timestamp, "HH:mm:ss"),
       fullTimestamp: format(point.timestamp, "yyyy-MM-dd HH:mm:ss"),
     }));
   }, [data]);
+
+  // X-axis ticks
+  const xTickEntries = useMemo((): XTickEntry[] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return [];
+    return buildXTicks(slice[0].timestamp, slice[slice.length - 1].timestamp);
+  }, [chartData, startIndex, endIndex]);
+
+  const xTickValues = useMemo(
+    () => xTickEntries.map((t) => t.timestamp),
+    [xTickEntries],
+  );
+
+  const xDomain = useMemo((): [number, number] | [string, string] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return ["dataMin", "dataMax"];
+    return computeXDomain(
+      slice[0].timestamp,
+      slice[slice.length - 1].timestamp,
+    );
+  }, [chartData, startIndex, endIndex]);
 
   // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
@@ -101,7 +129,7 @@ export function FanVoltageFlowControlChart({
 
   const handleMouseDown = useCallback((e: any) => {
     if (!e || !e.activeLabel) return;
-    setRefAreaLeft(e.activeLabel);
+    setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
@@ -109,7 +137,7 @@ export function FanVoltageFlowControlChart({
 
   const handleMouseMove = useCallback((e: any) => {
     if (!selectingRef.current || !e || !e.activeLabel) return;
-    setRefAreaRight(e.activeLabel);
+    setRefAreaRight(String(e.activeLabel));
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -124,8 +152,12 @@ export function FanVoltageFlowControlChart({
     }
 
     const visibleData = chartData.slice(startIndex, endIndex + 1);
-    const leftIdx = visibleData.findIndex((d) => d.timeLabel === refAreaLeft);
-    const rightIdx = visibleData.findIndex((d) => d.timeLabel === refAreaRight);
+    const leftIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaLeft,
+    );
+    const rightIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaRight,
+    );
 
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
@@ -203,7 +235,7 @@ export function FanVoltageFlowControlChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 60, left: 20, bottom: 60 }}
+          margin={{ top: 2, right: 60, left: 20, bottom: 60 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -215,11 +247,23 @@ export function FanVoltageFlowControlChart({
             opacity={0.3}
           />
           <XAxis
-            dataKey="timeLabel"
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
+            dataKey="timestamp"
+            type="number"
+            domain={xDomain}
+            scale="time"
+            ticks={xTickValues}
+            interval={0}
+            tick={(tickProps) => (
+              <CustomXTick
+                {...tickProps}
+                allTicks={xTickEntries}
+                fill="oklch(var(--muted-foreground))"
+              />
+            )}
+            tickLine={false}
+            axisLine={{ stroke: "oklch(var(--border))" }}
             allowDataOverflow
+            height={46}
           />
           <YAxis
             yAxisId="left"
@@ -345,8 +389,8 @@ export function FanVoltageFlowControlChart({
           {refAreaLeft && refAreaRight && (
             <ReferenceArea
               yAxisId="left"
-              x1={refAreaLeft}
-              x2={refAreaRight}
+              x1={Number(refAreaLeft)}
+              x2={Number(refAreaRight)}
               strokeOpacity={0.3}
               fill="oklch(var(--primary))"
               fillOpacity={0.2}
@@ -354,7 +398,7 @@ export function FanVoltageFlowControlChart({
             />
           )}
           <Brush
-            dataKey="timeLabel"
+            dataKey="timestamp"
             height={40}
             stroke="oklch(var(--primary))"
             fill="oklch(var(--muted))"
@@ -362,17 +406,13 @@ export function FanVoltageFlowControlChart({
             endIndex={endIndex}
             onChange={handleBrushChange}
             travellerWidth={10}
+            tickFormatter={(ts: number) => {
+              const d = new Date(ts);
+              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+            }}
           />
         </LineChart>
       </ResponsiveContainer>
-      {(zoomedYBottom !== null ||
-        startIndex > 0 ||
-        endIndex < data.length - 1) && (
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          💡 Drag on the chart to zoom in · Use the brush below to pan · Reset
-          Zoom to restore
-        </p>
-      )}
     </div>
   );
 }

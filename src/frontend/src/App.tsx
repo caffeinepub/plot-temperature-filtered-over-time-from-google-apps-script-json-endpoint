@@ -130,7 +130,7 @@ function App() {
           <footer className="border-t border-border bg-card mt-16">
             <div className="container mx-auto px-6 py-6">
               <div className="text-center text-sm text-muted-foreground">
-                V2.0
+                V2.1
               </div>
             </div>
           </footer>
@@ -170,7 +170,7 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-16">
         <div className="container mx-auto px-6 py-6">
-          <div className="text-center text-sm text-muted-foreground">V2.0</div>
+          <div className="text-center text-sm text-muted-foreground">V2.1</div>
         </div>
       </footer>
     </div>

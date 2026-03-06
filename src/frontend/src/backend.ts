@@ -111,6 +111,7 @@ export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
+    getAllSensorLabels(): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
@@ -122,10 +123,12 @@ export interface backendInterface {
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
     isConceptMachineVisible(): Promise<boolean>;
+    resetSensorLabels(): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
     setLoggerIdLabel(id: bigint, loggerLabel: string): Promise<void>;
+    setSensorLabel(sensorNum: bigint, sensorLabel: string): Promise<void>;
 }
 import type { UserProfileInfo as _UserProfileInfo, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -183,6 +186,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllLoggerLabels();
+            return result;
+        }
+    }
+    async getAllSensorLabels(): Promise<Array<[bigint, string]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllSensorLabels();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllSensorLabels();
             return result;
         }
     }
@@ -340,6 +357,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async resetSensorLabels(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.resetSensorLabels();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.resetSensorLabels();
+            return result;
+        }
+    }
     async saveCallerUserProfile(arg0: UserProfile): Promise<void> {
         if (this.processError) {
             try {
@@ -393,6 +424,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.setLoggerIdLabel(arg0, arg1);
+            return result;
+        }
+    }
+    async setSensorLabel(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setSensorLabel(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setSensorLabel(arg0, arg1);
             return result;
         }
     }

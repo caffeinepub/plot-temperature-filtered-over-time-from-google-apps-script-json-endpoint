@@ -295,11 +295,10 @@ export function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="conceptmachine-visibility">
-                      ConceptMachine pagina weergeven
+                      Show ConceptMachine page
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Schakel de ConceptMachine pagina in of uit voor alle
-                      gebruikers
+                      Enable or disable the ConceptMachine page for all users
                     </p>
                   </div>
                   <Switch

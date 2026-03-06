@@ -1,3 +1,10 @@
+import {
+  CustomXTick,
+  MONTH_NAMES,
+  type XTickEntry,
+  buildXTicks,
+  computeXDomain,
+} from "@/lib/chartXAxis";
 import type { TemperatureDataPoint } from "@/lib/temperatureParsing";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,6 +20,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+// Cooling / Heating / Ventilation chart colors - hardcoded for reliable SVG rendering
+const COOLING_COLOR = "#4A90D9"; // blauw
+const HEATING_COLOR = "#E05252"; // rood
+const VENTILATION_COLOR = "#5BAD6F"; // groen
 
 interface CoolingHeatingVentilationChartProps {
   data: TemperatureDataPoint[];
@@ -56,10 +68,30 @@ export function CoolingHeatingVentilationChart({
       coolingV: coolingToPercent(point.coolingV),
       heatingPwm: heatingToPercent(point.heatingPwm),
       ventilationV: ventilationToPercent(point.ventilationV),
-      timeLabel: format(point.timestamp, "HH:mm:ss"),
       fullTimestamp: format(point.timestamp, "yyyy-MM-dd HH:mm:ss"),
     }));
   }, [data]);
+
+  // X-axis ticks
+  const xTickEntries = useMemo((): XTickEntry[] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return [];
+    return buildXTicks(slice[0].timestamp, slice[slice.length - 1].timestamp);
+  }, [chartData, startIndex, endIndex]);
+
+  const xTickValues = useMemo(
+    () => xTickEntries.map((t) => t.timestamp),
+    [xTickEntries],
+  );
+
+  const xDomain = useMemo((): [number, number] | [string, string] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return ["dataMin", "dataMax"];
+    return computeXDomain(
+      slice[0].timestamp,
+      slice[slice.length - 1].timestamp,
+    );
+  }, [chartData, startIndex, endIndex]);
 
   // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
@@ -102,7 +134,7 @@ export function CoolingHeatingVentilationChart({
 
   const handleMouseDown = useCallback((e: any) => {
     if (!e || !e.activeLabel) return;
-    setRefAreaLeft(e.activeLabel);
+    setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
@@ -110,7 +142,7 @@ export function CoolingHeatingVentilationChart({
 
   const handleMouseMove = useCallback((e: any) => {
     if (!selectingRef.current || !e || !e.activeLabel) return;
-    setRefAreaRight(e.activeLabel);
+    setRefAreaRight(String(e.activeLabel));
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -125,8 +157,12 @@ export function CoolingHeatingVentilationChart({
     }
 
     const visibleData = chartData.slice(startIndex, endIndex + 1);
-    const leftIdx = visibleData.findIndex((d) => d.timeLabel === refAreaLeft);
-    const rightIdx = visibleData.findIndex((d) => d.timeLabel === refAreaRight);
+    const leftIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaLeft,
+    );
+    const rightIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaRight,
+    );
 
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
@@ -186,7 +222,7 @@ export function CoolingHeatingVentilationChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+          margin={{ top: 2, right: 30, left: 20, bottom: 60 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -198,11 +234,23 @@ export function CoolingHeatingVentilationChart({
             opacity={0.3}
           />
           <XAxis
-            dataKey="timeLabel"
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
+            dataKey="timestamp"
+            type="number"
+            domain={xDomain}
+            scale="time"
+            ticks={xTickValues}
+            interval={0}
+            tick={(tickProps) => (
+              <CustomXTick
+                {...tickProps}
+                allTicks={xTickEntries}
+                fill="oklch(var(--muted-foreground))"
+              />
+            )}
+            tickLine={false}
+            axisLine={{ stroke: "oklch(var(--border))" }}
             allowDataOverflow
+            height={46}
           />
           <YAxis
             domain={yDomain}
@@ -266,33 +314,36 @@ export function CoolingHeatingVentilationChart({
             type="monotone"
             dataKey="coolingV"
             name="coolingV"
-            stroke="oklch(var(--chart-cooling))"
+            stroke={COOLING_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-cooling))" }}
+            activeDot={{ r: 6, fill: COOLING_COLOR }}
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
             dataKey="heatingPwm"
             name="heatingPwm"
-            stroke="oklch(var(--chart-heating))"
+            stroke={HEATING_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-heating))" }}
+            activeDot={{ r: 6, fill: HEATING_COLOR }}
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
             dataKey="ventilationV"
             name="ventilationV"
-            stroke="oklch(var(--chart-ventilation))"
+            stroke={VENTILATION_COLOR}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-ventilation))" }}
+            activeDot={{ r: 6, fill: VENTILATION_COLOR }}
+            isAnimationActive={false}
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea
-              x1={refAreaLeft}
-              x2={refAreaRight}
+              x1={Number(refAreaLeft)}
+              x2={Number(refAreaRight)}
               strokeOpacity={0.3}
               fill="oklch(var(--primary))"
               fillOpacity={0.2}
@@ -300,7 +351,7 @@ export function CoolingHeatingVentilationChart({
             />
           )}
           <Brush
-            dataKey="timeLabel"
+            dataKey="timestamp"
             height={40}
             stroke="oklch(var(--primary))"
             fill="oklch(var(--muted))"
@@ -308,17 +359,13 @@ export function CoolingHeatingVentilationChart({
             endIndex={endIndex}
             onChange={handleBrushChange}
             travellerWidth={10}
+            tickFormatter={(ts: number) => {
+              const d = new Date(ts);
+              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+            }}
           />
         </LineChart>
       </ResponsiveContainer>
-      {(zoomedYBottom !== null ||
-        startIndex > 0 ||
-        endIndex < data.length - 1) && (
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          💡 Drag on the chart to zoom in · Use the brush below to pan · Reset
-          Zoom to restore
-        </p>
-      )}
     </div>
   );
 }

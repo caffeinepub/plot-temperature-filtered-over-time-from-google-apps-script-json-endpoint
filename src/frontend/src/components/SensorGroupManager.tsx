@@ -1,4 +1,12 @@
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { SensorGroup } from "@/hooks/useSensorGroups";
@@ -32,6 +40,10 @@ interface SensorGroupManagerProps {
   onToggleUngroupedVisible: () => void;
   onReset: () => void;
   onChangeGroupColor: (id: string, hue: number) => void;
+  // Sensor label props (admin only)
+  sensorLabels?: Map<number, string>;
+  onSaveSensorLabel?: (sensorNum: number, label: string) => void;
+  isSavingSensorLabel?: boolean;
 }
 
 // ─── Sensor chip ─────────────────────────────────────────────────────────────
@@ -42,6 +54,11 @@ interface SensorChipProps {
   isVisible: boolean;
   onToggleVisible: () => void;
   chipIndex: number;
+  // Label editing (admin only)
+  label?: string;
+  isAdmin?: boolean;
+  onSaveLabel?: (sensorNum: number, label: string) => void;
+  isSavingLabel?: boolean;
 }
 
 function SensorChip({
@@ -50,16 +67,108 @@ function SensorChip({
   isVisible,
   onToggleVisible,
   chipIndex,
+  label,
+  isAdmin,
+  onSaveLabel,
+  isSavingLabel,
 }: SensorChipProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(label ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const originalLabel = `S${sensorNum}`;
+  const displayLabel = label && label.trim() !== "" ? label : originalLabel;
+
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     e.dataTransfer.setData("text/plain", String(sensorNum));
     e.dataTransfer.effectAllowed = "move";
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!isAdmin || !onSaveLabel) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setDraft(label ?? "");
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleSave = () => {
+    if (onSaveLabel) {
+      onSaveLabel(sensorNum, draft.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setDraft(label ?? "");
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      handleCancel();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      // biome-ignore lint/a11y/useKeyWithClickEvents: presentational stop propagation
+      <div
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border border-primary bg-primary/10"
+        style={{ minWidth: 80 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span
+          className="w-2 h-2 rounded-full flex-shrink-0"
+          style={{ backgroundColor: color }}
+        />
+        <Input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={originalLabel}
+          className="h-4 text-xs px-1 py-0 border-0 bg-transparent focus-visible:ring-0 w-16 min-w-0"
+          maxLength={20}
+          disabled={isSavingLabel}
+        />
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSave();
+          }}
+          disabled={isSavingLabel}
+          className="text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0"
+          title="Save"
+        >
+          <Check className="w-2.5 h-2.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCancel();
+          }}
+          disabled={isSavingLabel}
+          className="text-muted-foreground hover:text-foreground disabled:opacity-50 flex-shrink-0"
+          title="Cancel"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       draggable
       onDragStart={handleDragStart}
+      onDoubleClick={handleDoubleClick}
       data-ocid={`tsic.sensor.drag_handle.${chipIndex}`}
       className={`
         inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono
@@ -67,19 +176,20 @@ function SensorChip({
         border transition-all duration-150
         ${isVisible ? "opacity-100" : "opacity-40"}
         hover:shadow-sm hover:scale-105
+        ${isAdmin && onSaveLabel ? "cursor-grab" : ""}
       `}
       style={{
         backgroundColor: `${color}22`,
         borderColor: color,
         color: "inherit",
       }}
-      title={`S${sensorNum} — drag to assign to a group`}
+      title={originalLabel}
     >
       <span
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: color }}
       />
-      <span>S{sensorNum}</span>
+      <span>{displayLabel}</span>
       <button
         type="button"
         onClick={(e) => {
@@ -87,7 +197,7 @@ function SensorChip({
           onToggleVisible();
         }}
         className="text-muted-foreground hover:text-foreground transition-colors ml-0.5"
-        title={isVisible ? "Verbergen" : "Tonen"}
+        title={isVisible ? "Hide" : "Show"}
       >
         {isVisible ? (
           <Eye className="w-2.5 h-2.5" />
@@ -223,6 +333,11 @@ interface GroupCardProps {
   onRemoveSensor: (groupId: string, sensorNum: number) => void;
   onToggleSensorVisible: (sensorNum: number) => void;
   onChangeColor: (id: string, hue: number) => void;
+  // Label props
+  sensorLabels?: Map<number, string>;
+  isAdmin?: boolean;
+  onSaveSensorLabel?: (sensorNum: number, label: string) => void;
+  isSavingSensorLabel?: boolean;
 }
 
 function GroupCard({
@@ -237,6 +352,10 @@ function GroupCard({
   onRemoveSensor,
   onToggleSensorVisible,
   onChangeColor,
+  sensorLabels,
+  isAdmin,
+  onSaveSensorLabel,
+  isSavingSensorLabel,
 }: GroupCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(group.name);
@@ -270,7 +389,7 @@ function GroupCard({
       {/* Group header */}
       <div className="flex items-center gap-2">
         {/* Color picker dot */}
-        <div className="relative flex-shrink-0" title="Kleur wijzigen">
+        <div className="relative flex-shrink-0" title="Change color">
           <span
             role="button"
             tabIndex={0}
@@ -309,7 +428,7 @@ function GroupCard({
               type="button"
               onClick={commitEdit}
               className="text-primary hover:text-primary/80"
-              title="Opslaan"
+              title="Save"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -317,7 +436,7 @@ function GroupCard({
               type="button"
               onClick={cancelEdit}
               className="text-muted-foreground hover:text-foreground"
-              title="Annuleren"
+              title="Cancel"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -327,7 +446,7 @@ function GroupCard({
             type="button"
             onClick={startEdit}
             className="flex-1 text-left text-sm font-medium hover:text-primary transition-colors flex items-center gap-1 group"
-            title="Naam bewerken"
+            title="Edit name"
           >
             <span className="truncate">{group.name}</span>
             <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
@@ -348,7 +467,7 @@ function GroupCard({
             onClick={() => onDelete(group.id)}
             data-ocid={`tsic.group.delete_button.${groupIndex}`}
             className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
-            title="Groep verwijderen"
+            title="Delete group"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -357,7 +476,7 @@ function GroupCard({
 
       {/* Sensor drop zone */}
       <DropZone
-        label="Sleep sensoren hierheen…"
+        label="Drag sensors here…"
         onDrop={(sensorNum) => onAddSensor(group.id, sensorNum)}
         isEmpty={group.sensors.length === 0}
       >
@@ -369,6 +488,10 @@ function GroupCard({
               isVisible={isSensorVisible(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
               chipIndex={chipIdx + 1}
+              label={sensorLabels?.get(sensorNum)}
+              isAdmin={isAdmin}
+              onSaveLabel={onSaveSensorLabel}
+              isSavingLabel={isSavingSensorLabel}
             />
             {/* Remove from group button */}
             <button
@@ -378,7 +501,7 @@ function GroupCard({
                 text-muted-foreground hover:text-destructive hover:bg-destructive/10
                 opacity-0 group-hover/chip:opacity-100 transition-opacity
                 flex items-center justify-center text-[9px] leading-none"
-              title="Uit groep verwijderen"
+              title="Remove from group"
             >
               ×
             </button>
@@ -409,8 +532,14 @@ export function SensorGroupManager({
   onToggleUngroupedVisible,
   onReset,
   onChangeGroupColor,
+  sensorLabels,
+  onSaveSensorLabel,
+  isSavingSensorLabel,
 }: SensorGroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const isAdmin = !!onSaveSensorLabel;
 
   const handleCreateGroup = () => {
     const name = newGroupName.trim();
@@ -449,13 +578,20 @@ export function SensorGroupManager({
     >
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
-          Sensor Groepen
-        </h3>
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-sm font-semibold text-foreground">
+            Sensor Groups
+          </h3>
+          {isAdmin && (
+            <p className="text-xs text-muted-foreground">
+              Double-click a sensor to edit its label
+            </p>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={onReset}
+          onClick={() => setShowResetConfirm(true)}
           data-ocid="tsic.reset_groups.button"
           className="h-7 gap-1.5 text-xs text-destructive border-destructive/30
             hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
@@ -463,13 +599,48 @@ export function SensorGroupManager({
           <RotateCcw className="w-3 h-3" />
           Reset
         </Button>
+
+        {/* Reset confirmation dialog */}
+        <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+          <DialogContent
+            className="max-w-sm"
+            data-ocid="tsic.reset_confirm.dialog"
+          >
+            <DialogHeader>
+              <DialogTitle>Reset groups</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to reset all sensor groups and labels?
+                This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2 sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowResetConfirm(false)}
+                data-ocid="tsic.reset_confirm.cancel_button"
+              >
+                No
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  onReset();
+                  setShowResetConfirm(false);
+                }}
+                data-ocid="tsic.reset_confirm.confirm_button"
+              >
+                Yes, reset
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Ungrouped sensors */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">
-            Ongegroepeerd:
+            Ungrouped:
           </span>
           <Switch
             checked={ungroupedVisible}
@@ -479,7 +650,7 @@ export function SensorGroupManager({
           />
         </div>
         <DropZone
-          label="Alle sensoren zijn ingedeeld in groepen"
+          label="All sensors are assigned to groups"
           onDrop={handleDropOnUngrouped}
           isEmpty={visibleUngrouped.length === 0}
         >
@@ -491,6 +662,10 @@ export function SensorGroupManager({
               isVisible={isSensorVisible(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
               chipIndex={idx + 1}
+              label={sensorLabels?.get(sensorNum)}
+              isAdmin={isAdmin}
+              onSaveLabel={onSaveSensorLabel}
+              isSavingLabel={isSavingSensorLabel}
             />
           ))}
         </DropZone>
@@ -515,6 +690,10 @@ export function SensorGroupManager({
               onRemoveSensor={onRemoveSensorFromGroup}
               onToggleSensorVisible={onToggleSensorVisible}
               onChangeColor={onChangeGroupColor}
+              sensorLabels={sensorLabels}
+              isAdmin={isAdmin}
+              onSaveSensorLabel={onSaveSensorLabel}
+              isSavingSensorLabel={isSavingSensorLabel}
             />
           ))}
         </div>
@@ -526,7 +705,7 @@ export function SensorGroupManager({
           value={newGroupName}
           onChange={(e) => setNewGroupName(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Groepsnaam…"
+          placeholder="Group name…"
           className="h-8 text-xs flex-1"
           maxLength={40}
           data-ocid="tsic.add_group.input"
@@ -539,7 +718,7 @@ export function SensorGroupManager({
           data-ocid="tsic.add_group.button"
         >
           <Plus className="w-3.5 h-3.5" />
-          Groep toevoegen
+          Add group
         </Button>
       </div>
     </div>

@@ -33,6 +33,11 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
       ['query'],
     ),
+  'getAllSensorLabels' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfileInfo)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
@@ -44,10 +49,12 @@ export const idlService = IDL.Service({
   'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
+  'resetSensorLabels' : IDL.Func([], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
   'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'setSensorLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
@@ -78,6 +85,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
         ['query'],
       ),
+    'getAllSensorLabels' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func(
         [],
         [IDL.Opt(UserProfileInfo)],
@@ -93,10 +105,12 @@ export const idlFactory = ({ IDL }) => {
     'hasProfile' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
+    'resetSensorLabels' : IDL.Func([], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
     'setLoggerIdLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'setSensorLabel' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   });
 };
 

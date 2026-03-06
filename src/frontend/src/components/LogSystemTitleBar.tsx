@@ -112,9 +112,12 @@ export function LogSystemTitleBar({
   return (
     <div className="space-y-4">
       {/* Desktop layout - hidden on mobile */}
-      <div className="hidden md:grid grid-cols-[auto_1fr_auto] items-center gap-4 w-full">
+      <div
+        className="hidden md:flex relative items-center w-full"
+        style={{ minHeight: "40px" }}
+      >
         {/* Left: Previous button */}
-        <div className="flex justify-start">
+        <div className="flex justify-start shrink-0">
           <Button
             onClick={onPrevious}
             variant="ghost"
@@ -126,15 +129,15 @@ export function LogSystemTitleBar({
           </Button>
         </div>
 
-        {/* Center: Title (truly centered) */}
-        <div className="flex justify-center items-center min-w-0">
+        {/* Center: Title (absolutely centered relative to full bar) */}
+        <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
           <h1 className="text-3xl font-bold tracking-tight text-foreground text-center px-4">
             {title}
           </h1>
         </div>
 
         {/* Right: Control buttons */}
-        <div className="flex items-center gap-2 shrink-0 justify-end">
+        <div className="flex items-center gap-2 shrink-0 justify-end ml-auto">
           {/* Profile menu */}
           <ProfileMenu
             userProfile={userProfile}

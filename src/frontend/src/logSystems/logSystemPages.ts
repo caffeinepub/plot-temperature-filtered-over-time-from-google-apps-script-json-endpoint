@@ -12,17 +12,17 @@ export interface LogSystemPage {
 
 export const logSystemPages: LogSystemPage[] = [
   {
+    id: "tsic-loggers",
+    displayName: "TSIC Loggers",
+    subtitle: "Select a logger ID to view 72 sensor data streams",
+    component: TSICLoggersPage,
+  },
+  {
     id: "conceptmachine",
     displayName: "Conceptmachine",
     subtitle:
       "data logging • Updated every 10-20 min • Data older than 19 days is not retained",
     component: TemperatureDashboardPage,
-  },
-  {
-    id: "tsic-loggers",
-    displayName: "TSIC Loggers",
-    subtitle: "Select a logger ID to view 72 sensor data streams",
-    component: TSICLoggersPage,
   },
   {
     id: "profile",

@@ -1,13 +1,13 @@
 import Map "mo:core/Map";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
-import Iter "mo:core/Iter";
 import List "mo:core/List";
 import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 
-import AccessControl "authorization/access-control";
+
 import MixinAuthorization "authorization/MixinAuthorization";
+import AccessControl "authorization/access-control";
 
 // Apply migration on upgrade
 
@@ -30,25 +30,26 @@ actor {
   var accessControlState = AccessControl.initState();
   var grantedAdminsList = List.empty<Principal>();
   var userProfiles = Map.empty<Principal, UserProfile>();
-  var loggerIdLoggerLabels = Map.empty<Nat, Text>();
   var conceptMachineVisible = true;
+  var loggerIdLoggerLabels = Map.empty<Nat, Text>();
+  var sensorLabels = Map.empty<Nat, Text>();
   var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
 
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
 
-  func isHardcodedAdmin(principal : Principal) : Bool {
-    Principal.equal(principal, HARDCODED_ADMIN);
+  include MixinAuthorization(accessControlState);
+
+  func isHardcodedAdmin(pr : Principal) : Bool {
+    pr == HARDCODED_ADMIN;
   };
 
-  func isEffectiveAdmin(principal : Principal) : Bool {
-    AccessControl.isAdmin(accessControlState, principal) or isHardcodedAdmin(principal);
+  func isEffectiveAdmin(pr : Principal) : Bool {
+    AccessControl.isAdmin(accessControlState, pr) or isHardcodedAdmin(pr);
   };
 
   func listContainsAdmin(list : List.List<Principal>, admin : Principal) : Bool {
     list.any(func(p) { p == admin });
   };
-
-  include MixinAuthorization(accessControlState);
 
   public query ({ caller }) func hasProfile() : async Bool {
     userProfiles.containsKey(caller);
@@ -212,13 +213,6 @@ actor {
     conceptMachineVisible := visible;
   };
 
-  public shared ({ caller }) func setLoggerIdLabel(id : Nat, loggerLabel : Text) : async () {
-    if (not isEffectiveAdmin(caller)) {
-      Runtime.trap("Unauthorized: Only admins can set logger labels");
-    };
-    loggerIdLoggerLabels.add(id, loggerLabel);
-  };
-
   public query ({ caller }) func getAllLoggerLabels() : async [(Nat, Text)] {
     if (not isEffectiveAdmin(caller)) {
       Runtime.trap("Unauthorized: Only admins may query logger labels");
@@ -226,8 +220,41 @@ actor {
     loggerIdLoggerLabels.toArray();
   };
 
-  // ========= SENSOR GROUPS =========
+  public shared ({ caller }) func setLoggerIdLabel(id : Nat, loggerLabel : Text) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can set logger labels");
+    };
+    loggerIdLoggerLabels.add(id, loggerLabel);
+  };
 
+  // ========= SENSOR LABELS =========
+  public query ({ caller }) func getAllSensorLabels() : async [(Nat, Text)] {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins may query sensor labels");
+    };
+    sensorLabels.toArray();
+  };
+
+  public shared ({ caller }) func setSensorLabel(sensorNum : Nat, sensorLabel : Text) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can set sensor labels");
+    };
+
+    if (sensorNum < 1 or sensorNum > 72) {
+      Runtime.trap("Sensor number must be between 1 and 72");
+    };
+
+    sensorLabels.add(sensorNum, sensorLabel);
+  };
+
+  public shared ({ caller }) func resetSensorLabels() : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can reset ALL sensor labels!");
+    };
+    sensorLabels := Map.empty<Nat, Text>();
+  };
+
+  // ========= SENSOR GROUPS =========
   public query func getSensorGroupsForId(id : Nat) : async Text {
     switch (sensorGroupsPerIdJson.get(id)) {
       case (null) { "" };

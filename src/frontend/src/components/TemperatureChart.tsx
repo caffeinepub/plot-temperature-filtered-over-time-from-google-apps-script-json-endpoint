@@ -1,3 +1,11 @@
+import { useIsDarkMode } from "@/hooks/useIsDarkMode";
+import {
+  CustomXTick,
+  MONTH_NAMES,
+  type XTickEntry,
+  buildXTicks,
+  computeXDomain,
+} from "@/lib/chartXAxis";
 import type { TemperatureDataPoint } from "@/lib/temperatureParsing";
 import { format } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,15 +40,39 @@ export function TemperatureChart({
   endIndex,
   onRangeChange,
 }: TemperatureChartProps) {
+  const isDarkMode = useIsDarkMode();
+  // Temperature filtered: rood in dark mode, standaard chart-1 kleur in light mode
+  const tempFilteredColor = isDarkMode ? "#e53e3e" : "oklch(var(--chart-1))";
+
   const chartData = useMemo(() => {
     return data.map((point) => ({
       timestamp: point.timestamp.getTime(),
       temperatureFiltered: point.temperatureFiltered,
       temperatureCSV: point.temperatureCSV,
-      timeLabel: format(point.timestamp, "HH:mm:ss"),
       fullTimestamp: format(point.timestamp, "yyyy-MM-dd HH:mm:ss"),
     }));
   }, [data]);
+
+  // X-axis ticks
+  const xTickEntries = useMemo((): XTickEntry[] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return [];
+    return buildXTicks(slice[0].timestamp, slice[slice.length - 1].timestamp);
+  }, [chartData, startIndex, endIndex]);
+
+  const xTickValues = useMemo(
+    () => xTickEntries.map((t) => t.timestamp),
+    [xTickEntries],
+  );
+
+  const xDomain = useMemo((): [number, number] | [string, string] => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    if (slice.length === 0) return ["dataMin", "dataMax"];
+    return computeXDomain(
+      slice[0].timestamp,
+      slice[slice.length - 1].timestamp,
+    );
+  }, [chartData, startIndex, endIndex]);
 
   // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
@@ -64,7 +96,7 @@ export function TemperatureChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
-  // Drag-zoom state
+  // Drag-zoom state — use timestamp as label
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [_isSelecting, setIsSelecting] = useState(false);
@@ -83,7 +115,7 @@ export function TemperatureChart({
 
   const handleMouseDown = useCallback((e: any) => {
     if (!e || !e.activeLabel) return;
-    setRefAreaLeft(e.activeLabel);
+    setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
@@ -91,7 +123,7 @@ export function TemperatureChart({
 
   const handleMouseMove = useCallback((e: any) => {
     if (!selectingRef.current || !e || !e.activeLabel) return;
-    setRefAreaRight(e.activeLabel);
+    setRefAreaRight(String(e.activeLabel));
   }, []);
 
   const handleMouseUp = useCallback(() => {
@@ -106,8 +138,12 @@ export function TemperatureChart({
     }
 
     const visibleData = chartData.slice(startIndex, endIndex + 1);
-    const leftIdx = visibleData.findIndex((d) => d.timeLabel === refAreaLeft);
-    const rightIdx = visibleData.findIndex((d) => d.timeLabel === refAreaRight);
+    const leftIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaLeft,
+    );
+    const rightIdx = visibleData.findIndex(
+      (d) => String(d.timestamp) === refAreaRight,
+    );
 
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
@@ -167,7 +203,7 @@ export function TemperatureChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 60 }}
+          margin={{ top: 2, right: 30, left: 20, bottom: 60 }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -179,11 +215,23 @@ export function TemperatureChart({
             opacity={0.3}
           />
           <XAxis
-            dataKey="timeLabel"
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
+            dataKey="timestamp"
+            type="number"
+            domain={xDomain}
+            scale="time"
+            ticks={xTickValues}
+            interval={0}
+            tick={(tickProps) => (
+              <CustomXTick
+                {...tickProps}
+                allTicks={xTickEntries}
+                fill="oklch(var(--muted-foreground))"
+              />
+            )}
+            tickLine={false}
+            axisLine={{ stroke: "oklch(var(--border))" }}
             allowDataOverflow
+            height={46}
           />
           <YAxis
             domain={yDomain}
@@ -244,10 +292,11 @@ export function TemperatureChart({
             type="monotone"
             dataKey="temperatureFiltered"
             name="temperatureFiltered"
-            stroke="oklch(var(--chart-1))"
+            stroke={tempFilteredColor}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 6, fill: "oklch(var(--chart-1))" }}
+            activeDot={{ r: 6, fill: tempFilteredColor }}
+            isAnimationActive={false}
           />
           <Line
             type="monotone"
@@ -258,11 +307,12 @@ export function TemperatureChart({
             strokeDasharray="5 5"
             dot={false}
             activeDot={{ r: 6, fill: "#e53e3e" }}
+            isAnimationActive={false}
           />
           {refAreaLeft && refAreaRight && (
             <ReferenceArea
-              x1={refAreaLeft}
-              x2={refAreaRight}
+              x1={Number(refAreaLeft)}
+              x2={Number(refAreaRight)}
               strokeOpacity={0.3}
               fill="oklch(var(--primary))"
               fillOpacity={0.2}
@@ -270,7 +320,7 @@ export function TemperatureChart({
             />
           )}
           <Brush
-            dataKey="timeLabel"
+            dataKey="timestamp"
             height={40}
             stroke="oklch(var(--primary))"
             fill="oklch(var(--muted))"
@@ -278,17 +328,13 @@ export function TemperatureChart({
             endIndex={endIndex}
             onChange={handleBrushChange}
             travellerWidth={10}
+            tickFormatter={(ts: number) => {
+              const d = new Date(ts);
+              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+            }}
           />
         </LineChart>
       </ResponsiveContainer>
-      {(zoomedYBottom !== null ||
-        startIndex > 0 ||
-        endIndex < data.length - 1) && (
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          💡 Drag on the chart to zoom in · Use the brush below to pan · Reset
-          Zoom to restore
-        </p>
-      )}
     </div>
   );
 }
