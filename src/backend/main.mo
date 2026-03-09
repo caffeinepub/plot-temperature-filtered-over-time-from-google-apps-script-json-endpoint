@@ -7,10 +7,10 @@ import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Migration "migration";
+
 
 // Apply migration on upgrade.
-(with migration = Migration.run)
+
 actor {
   type UserProfile = {
     name : Text;

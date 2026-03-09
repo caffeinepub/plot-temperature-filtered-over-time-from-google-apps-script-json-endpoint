@@ -14,7 +14,8 @@ export const logSystemPages: LogSystemPage[] = [
   {
     id: "tsic-loggers",
     displayName: "TSIC Loggers",
-    subtitle: "Select a logger ID to view 72 sensor data streams",
+    subtitle:
+      "Select a logger ID to view 72 sensor data streams - sensor data older then 19 days is deleted",
     component: TSICLoggersPage,
   },
   {
