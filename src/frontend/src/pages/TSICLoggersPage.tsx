@@ -436,6 +436,7 @@ export function TSICLoggersPage() {
     toggleSensorBold,
     changeNameGroupColor,
     toggleNameGroupVisible,
+    reorderGroups,
     getSensorColor,
     getSensorColorByName,
     isSensorVisible,
@@ -933,6 +934,7 @@ export function TSICLoggersPage() {
                       onToggleSensorBold={toggleSensorBold}
                       onReset={handleReset}
                       onChangeGroupColor={changeGroupColor}
+                      onReorderGroups={reorderGroups}
                       sensorLabels={sensorLabels}
                       onSaveSensorLabel={handleSaveSensorLabel}
                       isSavingSensorLabel={isSavingSensorLabel}

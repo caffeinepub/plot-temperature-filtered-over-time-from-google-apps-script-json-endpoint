@@ -15,6 +15,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  GripVertical,
   Pencil,
   Plus,
   RotateCcw,
@@ -43,6 +44,7 @@ interface SensorGroupManagerProps {
   onToggleSensorBold?: (sensorNum: number) => void;
   onReset: () => void;
   onChangeGroupColor: (id: string, hue: number) => void;
+  onReorderGroups: (fromIndex: number, toIndex: number) => void;
   // Sensor label props (admin only)
   sensorLabels?: Map<number, string>;
   onSaveSensorLabel?: (sensorNum: number, label: string) => void;
@@ -230,7 +232,7 @@ function SensorChip({
   );
 }
 
-// ─── Drop zone ────────────────────────────────────────────────────────────────
+// ─── Drop zone (sensors) ──────────────────────────────────────────────────────
 
 function DropZone({
   label,
@@ -248,12 +250,15 @@ function DropZone({
   return (
     <div
       onDragOver={(e) => {
+        // Only accept sensor drags (text/plain with a number), not group drags
+        if (e.dataTransfer.types.includes("application/group-id")) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
         setIsDragOver(true);
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={(e) => {
+        if (e.dataTransfer.types.includes("application/group-id")) return;
         e.preventDefault();
         setIsDragOver(false);
         const sensorNum = Number.parseInt(
@@ -353,6 +358,10 @@ function GroupCard({
   isAdmin,
   onSaveSensorLabel,
   isSavingSensorLabel,
+  onDragGroupStart,
+  onDragGroupOver,
+  onDropGroup,
+  isDragOverGroup,
 }: {
   group: SensorGroup;
   groupIndex: number;
@@ -371,6 +380,10 @@ function GroupCard({
   isAdmin?: boolean;
   onSaveSensorLabel?: (sensorNum: number, label: string) => void;
   isSavingSensorLabel?: boolean;
+  onDragGroupStart: (index: number) => void;
+  onDragGroupOver: (index: number) => void;
+  onDropGroup: () => void;
+  isDragOverGroup: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(group.name);
@@ -378,7 +391,9 @@ function GroupCard({
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   const hslDot = `hsl(${group.hue}, 70%, 50%)`;
-  const hslBorder = `hsl(${group.hue}, 50%, 70%)`;
+  const hslBorder = isDragOverGroup
+    ? `hsl(${group.hue}, 70%, 50%)`
+    : `hsl(${group.hue}, 50%, 70%)`;
 
   const commitEdit = () => {
     if (draftName.trim()) onRename(group.id, draftName);
@@ -387,11 +402,43 @@ function GroupCard({
 
   return (
     <div
-      className="border rounded-lg p-2 space-y-1.5 transition-all duration-150 bg-card"
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes("application/group-id")) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragGroupOver(groupIndex - 1);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.types.includes("application/group-id")) return;
+        e.preventDefault();
+        onDropGroup();
+      }}
+      className={[
+        "border rounded-lg p-2 space-y-1.5 transition-all duration-150 bg-card",
+        isDragOverGroup ? "ring-2 ring-primary/60 scale-[1.02]" : "",
+      ].join(" ")}
       style={{ borderColor: hslBorder }}
     >
       {/* Group header row */}
       <div className="flex items-center gap-1.5">
+        {/* Drag handle for reordering groups */}
+        <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData(
+              "application/group-id",
+              String(groupIndex - 1),
+            );
+            e.dataTransfer.effectAllowed = "move";
+            onDragGroupStart(groupIndex - 1);
+          }}
+          data-ocid={`tsic.group.drag_handle.${groupIndex}`}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          title="Drag to reorder group"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </div>
+
         {/* Color dot */}
         <div className="relative flex-shrink-0" title="Change color">
           <span
@@ -550,6 +597,7 @@ export function SensorGroupManager({
   onToggleSensorBold,
   onReset,
   onChangeGroupColor,
+  onReorderGroups,
   sensorLabels,
   onSaveSensorLabel,
   isSavingSensorLabel,
@@ -557,6 +605,14 @@ export function SensorGroupManager({
   const [newGroupName, setNewGroupName] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [columns, setColumns] = useState(2);
+
+  // Group drag-and-drop state
+  const [draggingGroupIndex, setDraggingGroupIndex] = useState<number | null>(
+    null,
+  );
+  const [dragOverGroupIndex, setDragOverGroupIndex] = useState<number | null>(
+    null,
+  );
 
   const isAdmin = !!onSaveSensorLabel;
 
@@ -567,6 +623,14 @@ export function SensorGroupManager({
         return;
       }
     }
+  };
+
+  const handleDropGroup = () => {
+    if (draggingGroupIndex !== null && dragOverGroupIndex !== null) {
+      onReorderGroups(draggingGroupIndex, dragOverGroupIndex);
+    }
+    setDraggingGroupIndex(null);
+    setDragOverGroupIndex(null);
   };
 
   const visibleUngrouped = ungroupedSensors.filter((s) =>
@@ -645,7 +709,8 @@ export function SensorGroupManager({
       {isAdmin && (
         <p className="text-xs text-muted-foreground">
           Double-click a sensor chip to edit its label. Click B to
-          bold/foreground.
+          bold/foreground. Drag the <GripVertical className="inline w-3 h-3" />{" "}
+          handle to reorder groups.
         </p>
       )}
 
@@ -692,9 +757,14 @@ export function SensorGroupManager({
 
       {/* ── Groups grid ── */}
       {groups.length > 0 && (
+        // biome-ignore lint/a11y/useKeyWithClickEvents: drag container
         <div
           className="grid gap-2"
           style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          onDragEnd={() => {
+            setDraggingGroupIndex(null);
+            setDragOverGroupIndex(null);
+          }}
         >
           {groups.map((group, idx) => (
             <GroupCard
@@ -716,6 +786,12 @@ export function SensorGroupManager({
               isAdmin={isAdmin}
               onSaveSensorLabel={onSaveSensorLabel}
               isSavingSensorLabel={isSavingSensorLabel}
+              onDragGroupStart={(index) => setDraggingGroupIndex(index)}
+              onDragGroupOver={(index) => setDragOverGroupIndex(index)}
+              onDropGroup={handleDropGroup}
+              isDragOverGroup={
+                dragOverGroupIndex === idx && draggingGroupIndex !== idx
+              }
             />
           ))}
         </div>

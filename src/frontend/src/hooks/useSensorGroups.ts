@@ -67,7 +67,6 @@ export function labelToHue(label: string): number {
   for (let i = 0; i < label.length; i++) {
     hash = ((hash << 5) + hash) ^ label.charCodeAt(i);
   }
-  // Avoid hues that produce near-grey at 70%sat/50%light (there are none, but keep away from 60 = yellow)
   return Math.abs(hash) % 360;
 }
 
@@ -266,6 +265,17 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     }));
   }, []);
 
+  /** Reorder groups: move the group at fromIndex to toIndex */
+  const reorderGroups = useCallback((fromIndex: number, toIndex: number) => {
+    setState((prev) => {
+      if (fromIndex === toIndex) return prev;
+      const newGroups = [...prev.groups];
+      const [moved] = newGroups.splice(fromIndex, 1);
+      newGroups.splice(toIndex, 0, moved);
+      return { ...prev, groups: newGroups };
+    });
+  }, []);
+
   /**
    * Single flat color per group (no gradient). Ungrouped = grey.
    */
@@ -347,6 +357,7 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     toggleSensorBold,
     changeNameGroupColor,
     toggleNameGroupVisible,
+    reorderGroups,
     getSensorColor,
     getSensorColorByName,
     isSensorVisible,
