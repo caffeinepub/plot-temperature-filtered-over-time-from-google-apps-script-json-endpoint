@@ -54,9 +54,10 @@ function App() {
   const PageComponent = currentVisiblePage.component;
   const isAuthenticated = !!identity;
 
-  // Check if temperature-series query is currently fetching
+  // Check if any relevant query is currently fetching
   const isRefreshing =
-    queryClient.isFetching({ queryKey: ["temperature-series"] }) > 0;
+    queryClient.isFetching({ queryKey: ["temperature-series"] }) > 0 ||
+    queryClient.isFetching({ queryKey: ["tsic-data"] }) > 0;
 
   // Check if current page requires admin access (all pages except Profile)
   const isProtectedPage = currentVisiblePage.id !== "profile";
@@ -76,7 +77,10 @@ function App() {
   };
 
   const handleRefresh = () => {
+    // Refresh Conceptmachine data
     queryClient.refetchQueries({ queryKey: ["temperature-series"] });
+    // Refresh all active TSIC logger data
+    queryClient.refetchQueries({ queryKey: ["tsic-data"] });
   };
 
   const handleNavigateToProfile = () => {

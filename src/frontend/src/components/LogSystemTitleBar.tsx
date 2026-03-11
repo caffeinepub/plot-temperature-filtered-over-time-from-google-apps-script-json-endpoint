@@ -67,6 +67,7 @@ export function LogSystemTitleBar({
 
   // Split subtitle for Conceptmachine to hide retention phrase on mobile
   const isConceptmachine = pageId === "conceptmachine";
+  const isTSICLoggers = pageId === "tsic-loggers";
   const retentionPhrase = "Data older than 19 days is not retained";
 
   let subtitleBeforeRetention = subtitle;
@@ -80,6 +81,12 @@ export function LogSystemTitleBar({
       subtitleBeforeRetention = subtitleBeforeRetention.slice(0, -1).trim();
     }
   }
+
+  // For TSIC loggers: shorten subtitle on mobile
+  // Full: "Select a logger ID to view 72 sensor data streams - sensor data older then 19 days is deleted"
+  // Mobile: "Select a logger ID"
+  const tsicMobileSubtitle = "Select a logger ID";
+  const tsicFullSubtitle = subtitle;
 
   // Show download button if user is admin and downloadUrl is provided (for both Conceptmachine and TSIC Loggers)
   const showDownloadButton = userProfile?.isAdmin && downloadUrl;
@@ -111,6 +118,27 @@ export function LogSystemTitleBar({
     await navigator.clipboard.writeText(principal);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Render the subtitle content for the subtitle row
+  const renderSubtitle = () => {
+    if (isConceptmachine && hasRetentionPhrase) {
+      return (
+        <>
+          {subtitleBeforeRetention}
+          <span className="hidden sm:inline"> • {retentionPhrase}</span>
+        </>
+      );
+    }
+    if (isTSICLoggers) {
+      return (
+        <>
+          <span className="sm:hidden">{tsicMobileSubtitle}</span>
+          <span className="hidden sm:inline">{tsicFullSubtitle}</span>
+        </>
+      );
+    }
+    return subtitle;
   };
 
   return (
@@ -388,14 +416,7 @@ export function LogSystemTitleBar({
         <div className="flex items-center gap-4">
           <Separator className="flex-1 bg-primary h-0.5" />
           <p className="text-sm text-muted-foreground whitespace-nowrap px-2">
-            {isConceptmachine && hasRetentionPhrase ? (
-              <>
-                {subtitleBeforeRetention}
-                <span className="hidden sm:inline"> • {retentionPhrase}</span>
-              </>
-            ) : (
-              subtitle
-            )}
+            {renderSubtitle()}
           </p>
           <Separator className="flex-1 bg-primary h-0.5" />
         </div>

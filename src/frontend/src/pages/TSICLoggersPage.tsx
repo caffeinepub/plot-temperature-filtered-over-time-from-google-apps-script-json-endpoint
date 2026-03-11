@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
-import type { SensorGroup } from "@/hooks/useSensorGroups";
-import { useSensorGroups } from "@/hooks/useSensorGroups";
+import { labelToHue, useSensorGroups } from "@/hooks/useSensorGroups";
 import {
   useResetSensorLabels,
   useSensorLabels,
@@ -36,10 +36,6 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-/**
- * Parse a date string typed as DD/MM/YYYY into a Date object.
- * Returns null if the input is not a valid complete date.
- */
 function parseDDMMYYYY(value: string): Date | null {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -52,20 +48,138 @@ function parseDDMMYYYY(value: string): Date | null {
   return d;
 }
 
-interface TSICSensorLegendProps {
-  groups: SensorGroup[];
-  ungroupedSensors: number[];
-  ungroupedVisible: boolean;
-  activeSensors: number[];
-  getSensorColor: (n: number) => string;
-  sensorLabels?: Map<number, string>;
+// ─── Color helpers (for name group color picker) ───
+function hexToHue(hex: string): number {
+  const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
+  const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
+  const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === min) return 0;
+  const d = max - min;
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return Math.round(h * 360);
 }
 
-/**
- * Purely informative legend rendered below the TSIC chart.
- * Shows each group with its sensors; no click handlers.
- * Uses user-defined sensor labels if available, falls back to "S{n}".
- */
+function hueToHex(hue: number): string {
+  const s = 0.7;
+  const l = 0.5;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (hue < 60) {
+    r = c;
+    g = x;
+  } else if (hue < 120) {
+    r = x;
+    g = c;
+  } else if (hue < 180) {
+    g = c;
+    b = x;
+  } else if (hue < 240) {
+    g = x;
+    b = c;
+  } else if (hue < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  const toHex = (n: number) =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// ─── NameColorPicker ───
+function NameColorPicker({
+  hue,
+  onChange,
+}: { hue: number; onChange: (hue: number) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const color = `hsl(${hue}, 70%, 50%)`;
+  return (
+    <div className="relative flex-shrink-0">
+      <span
+        role="button"
+        tabIndex={0}
+        className="w-3 h-3 rounded-full block ring-1 ring-inset ring-black/10 cursor-pointer"
+        style={{ backgroundColor: color }}
+        onClick={() => ref.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") ref.current?.click();
+        }}
+      />
+      <input
+        ref={ref}
+        type="color"
+        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+        value={hueToHex(hue)}
+        onChange={(e) => onChange(hexToHue(e.target.value))}
+      />
+    </div>
+  );
+}
+
+// ─── NameGroupPanel (admin only, byName mode) ───
+function NameGroupPanel({
+  activeLabels,
+  nameColors,
+  nameVisibility,
+  onToggleVisible,
+  onChangeColor,
+}: {
+  activeLabels: string[];
+  nameColors: Record<string, number>;
+  nameVisibility: Record<string, boolean>;
+  onToggleVisible: (name: string) => void;
+  onChangeColor: (name: string, hue: number) => void;
+}) {
+  if (activeLabels.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground italic py-2">
+        No sensors loaded. Select a logger ID first.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {activeLabels.map((label) => {
+        const hue =
+          nameColors[label] !== undefined
+            ? nameColors[label]
+            : labelToHue(label);
+        const isVisible = nameVisibility[label] !== false;
+        return (
+          <div key={label} className="flex items-center gap-2 py-0.5">
+            <NameColorPicker
+              hue={hue}
+              onChange={(h) => onChangeColor(label, h)}
+            />
+            <span className="text-xs flex-1 truncate">{label}</span>
+            <Switch
+              checked={isVisible}
+              onCheckedChange={() => onToggleVisible(label)}
+              className="h-4 w-7 data-[state=checked]:bg-primary"
+              data-ocid="tsic.name_group.toggle"
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── TSIC sensor legend (informative, below chart) ───
 function TSICSensorLegend({
   groups,
   ungroupedSensors,
@@ -73,15 +187,20 @@ function TSICSensorLegend({
   activeSensors,
   getSensorColor,
   sensorLabels,
-}: TSICSensorLegendProps) {
+  boldSensors,
+}: {
+  groups: any[];
+  ungroupedSensors: number[];
+  ungroupedVisible: boolean;
+  activeSensors: number[];
+  getSensorColor: (n: number) => string;
+  sensorLabels?: Map<number, string>;
+  boldSensors?: Set<number>;
+}) {
   const activeSet = new Set(activeSensors);
-
-  // Groups that have at least one active sensor
   const visibleGroups = groups.filter((g) =>
-    g.sensors.some((s) => activeSet.has(s)),
+    g.sensors.some((s: number) => activeSet.has(s)),
   );
-
-  // Ungrouped sensors that are active
   const activeUngrouped = ungroupedSensors.filter((s) => activeSet.has(s));
 
   if (visibleGroups.length === 0 && activeUngrouped.length === 0) return null;
@@ -92,20 +211,18 @@ function TSICSensorLegend({
   };
 
   return (
-    <div
-      className="border-t border-border pt-4 pb-6 px-1"
-      style={{ fontFamily: "Avenir, 'Avenir Next', Nunito, sans-serif" }}
-    >
+    <div className="border-t border-border pt-4 pb-6 px-1">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
         Legend
       </p>
       <div className="flex flex-col gap-4">
         {visibleGroups.map((group) => {
           const groupColor = `hsl(${group.hue}, 70%, 50%)`;
-          const groupSensors = group.sensors.filter((s) => activeSet.has(s));
+          const groupSensors = group.sensors.filter((s: number) =>
+            activeSet.has(s),
+          );
           return (
             <div key={group.id} className="flex flex-wrap items-center gap-2">
-              {/* Group label with colored dot */}
               <div className="flex items-center gap-1.5 min-w-[90px] shrink-0">
                 <span
                   className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
@@ -115,23 +232,22 @@ function TSICSensorLegend({
                   {group.name}
                 </span>
               </div>
-              {/* Sensor chips */}
               <div className="flex flex-wrap gap-1.5">
-                {groupSensors.map((sensorNum) => {
+                {groupSensors.map((sensorNum: number) => {
                   const sensorColor = getSensorColor(sensorNum);
                   const displayLabel = getDisplayLabel(sensorNum);
-                  const originalLabel = `S${sensorNum}`;
+                  const isBold = boldSensors?.has(sensorNum);
                   return (
                     <span
                       key={sensorNum}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-border bg-muted/50"
-                      title={originalLabel}
+                      title={`S${sensorNum}`}
                     >
                       <span
                         className="inline-block w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: sensorColor }}
                       />
-                      <span className="text-foreground font-medium">
+                      <span className={isBold ? "font-bold" : "font-medium"}>
                         {displayLabel}
                       </span>
                     </span>
@@ -141,8 +257,6 @@ function TSICSensorLegend({
             </div>
           );
         })}
-
-        {/* Ungrouped sensors */}
         {ungroupedVisible && activeUngrouped.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 min-w-[90px] shrink-0">
@@ -155,20 +269,17 @@ function TSICSensorLegend({
               {activeUngrouped.map((sensorNum) => {
                 const sensorColor = getSensorColor(sensorNum);
                 const displayLabel = getDisplayLabel(sensorNum);
-                const originalLabel = `S${sensorNum}`;
                 return (
                   <span
                     key={sensorNum}
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-border bg-muted/50"
-                    title={originalLabel}
+                    title={`S${sensorNum}`}
                   >
                     <span
                       className="inline-block w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: sensorColor }}
                     />
-                    <span className="text-foreground font-medium">
-                      {displayLabel}
-                    </span>
+                    <span className="font-medium">{displayLabel}</span>
                   </span>
                 );
               })}
@@ -180,10 +291,7 @@ function TSICSensorLegend({
   );
 }
 
-/**
- * Admin-only inline label editor for a single logger ID button.
- * Renders nothing for non-admins.
- */
+// ─── Admin-only label editor for logger ID buttons ───
 function LoggerIdLabelEditor({
   id,
   currentLabel,
@@ -198,37 +306,9 @@ function LoggerIdLabelEditor({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(currentLabel);
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDraft(currentLabel);
-    setIsEditing(true);
-  };
-
-  const handleSave = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSave(id, draft);
-    setIsEditing(false);
-  };
-
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDraft(currentLabel);
-    setIsEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      onSave(id, draft);
-      setIsEditing(false);
-    } else if (e.key === "Escape") {
-      setDraft(currentLabel);
-      setIsEditing(false);
-    }
-  };
-
   if (isEditing) {
     return (
-      // biome-ignore lint/a11y/useKeyWithClickEvents: presentational wrapper stops event propagation only
+      // biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation
       <div
         className="flex items-center gap-1 mt-1.5 w-full"
         onClick={(e) => e.stopPropagation()}
@@ -236,7 +316,15 @@ function LoggerIdLabelEditor({
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onSave(id, draft);
+              setIsEditing(false);
+            } else if (e.key === "Escape") {
+              setDraft(currentLabel);
+              setIsEditing(false);
+            }
+          }}
           placeholder="Label..."
           className="h-6 text-xs px-1.5 py-0 flex-1 min-w-0"
           autoFocus
@@ -245,10 +333,13 @@ function LoggerIdLabelEditor({
         />
         <button
           type="button"
-          onClick={handleSave}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(id, draft);
+            setIsEditing(false);
+          }}
           disabled={isSaving}
           className="text-primary hover:text-primary/80 disabled:opacity-50 flex-shrink-0"
-          title="Save"
         >
           {isSaving ? (
             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -258,10 +349,13 @@ function LoggerIdLabelEditor({
         </button>
         <button
           type="button"
-          onClick={handleCancel}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDraft(currentLabel);
+            setIsEditing(false);
+          }}
           disabled={isSaving}
           className="text-muted-foreground hover:text-foreground disabled:opacity-50 flex-shrink-0"
-          title="Cancel"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -270,7 +364,7 @@ function LoggerIdLabelEditor({
   }
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: presentational wrapper stops event propagation only
+    // biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation
     <div
       className="flex items-center justify-center gap-1 mt-1.5 w-full group/label"
       onClick={(e) => e.stopPropagation()}
@@ -280,7 +374,11 @@ function LoggerIdLabelEditor({
       </span>
       <button
         type="button"
-        onClick={handleEdit}
+        onClick={(e) => {
+          e.stopPropagation();
+          setDraft(currentLabel);
+          setIsEditing(true);
+        }}
         className="opacity-0 group-hover/label:opacity-100 transition-opacity text-muted-foreground hover:text-foreground flex-shrink-0"
         title="Edit label"
       >
@@ -289,6 +387,8 @@ function LoggerIdLabelEditor({
     </div>
   );
 }
+
+// ─── Main page ───
 
 export function TSICLoggersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -300,34 +400,29 @@ export function TSICLoggersPage() {
 
   const [startDateText, setStartDateText] = useState("");
   const [endDateText, setEndDateText] = useState("");
-
-  // Y-axis controls (reset to null for automatic scaling on page refresh)
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
   const [yAxisMax, setYAxisMax] = useState<number | null>(null);
-
-  // Collapsible state for Sensor Groups — collapsed by default
   const [sensorGroupsOpen, setSensorGroupsOpen] = useState(false);
+  const [colorMode, setColorMode] = useState<"byGroup" | "byName">("byGroup");
 
-  // Track data length to detect when new data is loaded
   const prevDataLengthRef = useRef<number>(0);
 
-  // Admin status and labels — only fetched when admin
   const { isAdmin, isConfirmed } = useIsCallerAdmin();
   const { data: labelsMap } = useTSICLabels();
   const { mutate: saveLabel, isPending: isSavingLabel } = useSetLoggerLabel();
-
-  // Sensor labels (admin only, per logger ID)
   const { data: sensorLabels } = useSensorLabels(selectedId);
   const { mutate: saveSensorLabel, isPending: isSavingSensorLabel } =
     useSetSensorLabel();
   const { mutate: resetSensorLabels } = useResetSensorLabels();
 
-  // Sensor grouping (persistent, ICP backend)
   const {
     groups,
     ungroupedSensors,
     ungroupedVisible,
     sensorVisibilityOverrides,
+    boldSensors,
+    nameColors,
+    nameVisibility,
     createGroup,
     deleteGroup,
     renameGroup,
@@ -338,23 +433,22 @@ export function TSICLoggersPage() {
     toggleSensorVisible,
     toggleUngroupedVisible,
     resetGroups,
+    toggleSensorBold,
+    changeNameGroupColor,
+    toggleNameGroupVisible,
     getSensorColor,
+    getSensorColorByName,
     isSensorVisible,
+    isSensorVisibleByName,
     isLoading: isGroupsLoading,
   } = useSensorGroups(isAdmin, selectedId);
 
-  // Track which ID is currently being saved
   const [savingId, setSavingId] = useState<number | null>(null);
 
   const handleSaveLabel = useCallback(
     (id: number, label: string) => {
       setSavingId(id);
-      saveLabel(
-        { id, label },
-        {
-          onSettled: () => setSavingId(null),
-        },
-      );
+      saveLabel({ id, label }, { onSettled: () => setSavingId(null) });
     },
     [saveLabel],
   );
@@ -367,64 +461,43 @@ export function TSICLoggersPage() {
     [saveSensorLabel, selectedId],
   );
 
-  // Reset groups and sensor labels together
   const handleReset = useCallback(() => {
     resetGroups();
-    if (selectedId !== null) {
-      resetSensorLabels({ loggerId: selectedId });
-    }
+    if (selectedId !== null) resetSensorLabels({ loggerId: selectedId });
   }, [resetGroups, resetSensorLabels, selectedId]);
 
-  // Reset states when new data is loaded
   const handleResetStates = useCallback(() => {
     const currentDataLength = data?.length || 0;
-
-    // Only reset if data length changed (new data loaded)
     if (
       currentDataLength > 0 &&
       currentDataLength !== prevDataLengthRef.current
     ) {
       prevDataLengthRef.current = currentDataLength;
-
-      // Reset Y-axis controls
       setYAxisMin(null);
       setYAxisMax(null);
     }
   }, [data?.length]);
 
-  // Calculate date range indices
   const dateRangeIndices = useMemo(() => {
     const start = parseDDMMYYYY(startDateText);
     const end = parseDDMMYYYY(endDateText);
     if (!data || !start || !end) return null;
     if (start > end) return null;
-
-    // Set end date to end of day for inclusive range
     end.setHours(23, 59, 59, 999);
 
-    // Find indices
     let startIndex = -1;
     let endIndex = -1;
-
     for (let i = 0; i < data.length; i++) {
       const pointTime = data[i].timestamp.getTime();
-      if (startIndex === -1 && pointTime >= start.getTime()) {
-        startIndex = i;
-      }
-      if (pointTime <= end.getTime()) {
-        endIndex = i;
-      }
+      if (startIndex === -1 && pointTime >= start.getTime()) startIndex = i;
+      if (pointTime <= end.getTime()) endIndex = i;
     }
-
-    // Check if we found any data in range
     if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
       return { startIndex: -1, endIndex: -1, isEmpty: true };
     }
-
     return { startIndex, endIndex, isEmpty: false };
   }, [data, startDateText, endDateText]);
 
-  // Apply date range zoom when indices change
   useMemo(() => {
     if (dateRangeIndices && !dateRangeIndices.isEmpty) {
       setRange(dateRangeIndices.startIndex, dateRangeIndices.endIndex);
@@ -439,25 +512,15 @@ export function TSICLoggersPage() {
 
   const handleIdClick = (id: number) => {
     setSelectedId(id);
-    // Reset zoom and date filters when switching IDs
     resetZoom();
     setStartDateText("");
     setEndDateText("");
-    // Reset Y-axis controls
     setYAxisMin(null);
     setYAxisMax(null);
-    // Reset data length tracker
     prevDataLengthRef.current = 0;
   };
 
-  const refreshingIndicator = isRefetching ? (
-    <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
-      <RefreshCw className="h-3 w-3 animate-spin" />
-      Refreshing...
-    </span>
-  ) : null;
-
-  // Derive which sensors actually have data (from the chart's perspective)
+  // Derive active sensors
   const activeSensors = useMemo(() => {
     if (!data || data.length === 0) return [];
     const active: number[] = [];
@@ -477,30 +540,58 @@ export function TSICLoggersPage() {
     return active;
   }, [data]);
 
-  // Build sensorColorMap for the chart
+  // Helper: get display label for a sensor
+  const getLabel = useCallback(
+    (sensorNum: number): string => {
+      const custom = sensorLabels?.get(sensorNum);
+      return custom && custom.trim() !== "" ? custom : `S${sensorNum}`;
+    },
+    [sensorLabels],
+  );
+
+  // Unique labels for active sensors (for NameGroupPanel)
+  const activeLabels = useMemo(() => {
+    const labelSet = new Set<string>();
+    for (const s of activeSensors) labelSet.add(getLabel(s));
+    return Array.from(labelSet).sort();
+  }, [activeSensors, getLabel]);
+
+  // Build sensorColorMap based on colorMode
   const sensorColorMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (let s = 1; s <= 72; s++) {
-      map[s] = getSensorColor(s);
+      map[s] =
+        colorMode === "byName"
+          ? getSensorColorByName(s, getLabel)
+          : getSensorColor(s);
     }
     return map;
-  }, [getSensorColor]);
+  }, [colorMode, getSensorColor, getSensorColorByName, getLabel]);
 
-  // Build sensorVisibility for the chart: merge group-level and individual overrides
+  // Build sensorVisibility based on colorMode
   const sensorVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
     for (let s = 1; s <= 72; s++) {
-      visibility[`S${s}`] = isSensorVisible(s);
+      visibility[`S${s}`] =
+        colorMode === "byName"
+          ? isSensorVisibleByName(s, getLabel)
+          : isSensorVisible(s);
     }
     return visibility;
-  }, [isSensorVisible]);
+  }, [colorMode, isSensorVisible, isSensorVisibleByName, getLabel]);
 
-  // Only show labels and group manager section when admin status is confirmed and user is admin
   const showAdminFeatures = isConfirmed && isAdmin;
+
+  const refreshingIndicator = isRefetching ? (
+    <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
+      <RefreshCw className="h-3 w-3 animate-spin" />
+      Refreshing...
+    </span>
+  ) : null;
 
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
-      {/* ── ID Selector — horizontal scrollable pill bar ── */}
+      {/* ── ID Selector ── */}
       <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3">
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max">
@@ -530,7 +621,6 @@ export function TSICLoggersPage() {
                   >
                     ID {id}
                   </button>
-                  {/* Admin-only label editor — rendered below pill, never shown to non-admins */}
                   {showAdminFeatures && (
                     <LoggerIdLabelEditor
                       id={id}
@@ -546,7 +636,7 @@ export function TSICLoggersPage() {
         </div>
       </div>
 
-      {/* Loading State */}
+      {/* Loading */}
       {isLoading && selectedId !== null && (
         <Card
           className="shadow-lg p-0 overflow-hidden"
@@ -563,7 +653,7 @@ export function TSICLoggersPage() {
         </Card>
       )}
 
-      {/* Error State */}
+      {/* Error */}
       {isError && selectedId !== null && (
         <Alert
           variant="destructive"
@@ -586,42 +676,39 @@ export function TSICLoggersPage() {
         </Alert>
       )}
 
-      {/* No ID Selected */}
+      {/* No ID selected */}
       {selectedId === null && (
         <Card className="shadow-lg" data-ocid="tsic.empty_state">
           <CardContent className="flex items-center justify-center py-16">
-            <div className="text-center text-muted-foreground">
-              <p className="text-lg">
-                Please select a logger ID to view sensor data
-              </p>
-            </div>
+            <p className="text-lg text-muted-foreground">
+              Please select a logger ID to view sensor data
+            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* No Data Available */}
+      {/* No data */}
       {data && data.length === 0 && !isLoading && selectedId !== null && (
         <Alert className="shadow-lg" data-ocid="tsic.empty_state">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
-            No valid data points to display for ID {selectedId}. Please check
-            the data source.
+            No valid data points to display for ID {selectedId}.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Data Display */}
+      {/* Data display */}
       {data && data.length > 0 && selectedId !== null && (
         <>
-          {/* ── Combined Chart Controls card ── */}
+          {/* ── Chart Controls ── */}
           <Card className="shadow-sm" data-ocid="tsic.controls.card">
             <CardContent className="pt-5 pb-5">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
                 Chart Controls
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Left column — Date Range */}
+                {/* Date Range */}
                 <div className="space-y-3">
                   <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -684,14 +771,13 @@ export function TSICLoggersPage() {
                         No Data in Selected Range
                       </AlertTitle>
                       <AlertDescription className="text-xs">
-                        No data points between selected dates. Choose a
-                        different range.
+                        No data points between selected dates.
                       </AlertDescription>
                     </Alert>
                   )}
                 </div>
 
-                {/* Right column — Y-Axis */}
+                {/* Y-Axis */}
                 <div className="space-y-3">
                   <p className="text-sm font-semibold text-foreground">
                     Y-Axis
@@ -761,16 +847,52 @@ export function TSICLoggersPage() {
                   )}
                 </div>
               </div>
+
+              {/* Color mode toggle */}
+              <div className="border-t border-border pt-3 mt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Color Mode
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={colorMode === "byGroup" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorMode("byGroup")}
+                    className="h-7 text-xs"
+                    data-ocid="tsic.color_mode.button"
+                    style={
+                      colorMode === "byGroup"
+                        ? { backgroundColor: "#808A54" }
+                        : undefined
+                    }
+                  >
+                    By Group
+                  </Button>
+                  <Button
+                    variant={colorMode === "byName" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorMode("byName")}
+                    className="h-7 text-xs"
+                    data-ocid="tsic.color_mode.button"
+                    style={
+                      colorMode === "byName"
+                        ? { backgroundColor: "#808A54" }
+                        : undefined
+                    }
+                  >
+                    By Sensor Name
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* ── Sensor Groups — collapsible, admin only ── */}
+          {/* ── Merged: Sensor Groups + Name Groups (admin, collapsible) ── */}
           {showAdminFeatures && !isGroupsLoading && (
             <Collapsible
               open={sensorGroupsOpen}
               onOpenChange={setSensorGroupsOpen}
             >
-              {/* Collapsible header row */}
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <CollapsibleTrigger asChild>
                   <button
@@ -780,7 +902,7 @@ export function TSICLoggersPage() {
                   >
                     <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <Layers className="h-4 w-4 text-muted-foreground" />
-                      Sensor Groups
+                      Sensor &amp; Name Groups
                     </span>
                     {sensorGroupsOpen ? (
                       <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -789,7 +911,6 @@ export function TSICLoggersPage() {
                     )}
                   </button>
                 </CollapsibleTrigger>
-
                 <CollapsibleContent>
                   <div className="border-t border-border">
                     <SensorGroupManager
@@ -798,6 +919,7 @@ export function TSICLoggersPage() {
                       ungroupedSensors={ungroupedSensors}
                       ungroupedVisible={ungroupedVisible}
                       sensorVisibilityOverrides={sensorVisibilityOverrides}
+                      boldSensors={boldSensors}
                       getSensorColor={getSensorColor}
                       isSensorVisible={isSensorVisible}
                       onCreateGroup={createGroup}
@@ -808,19 +930,40 @@ export function TSICLoggersPage() {
                       onToggleGroupVisible={toggleGroupVisible}
                       onToggleSensorVisible={toggleSensorVisible}
                       onToggleUngroupedVisible={toggleUngroupedVisible}
+                      onToggleSensorBold={toggleSensorBold}
                       onReset={handleReset}
                       onChangeGroupColor={changeGroupColor}
                       sensorLabels={sensorLabels}
                       onSaveSensorLabel={handleSaveSensorLabel}
                       isSavingSensorLabel={isSavingSensorLabel}
                     />
+
+                    {/* Name Groups sub-section (only in byName mode) */}
+                    {colorMode === "byName" && (
+                      <div className="border-t border-border px-4 py-3">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                          Name Groups
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Each unique sensor name gets its own color. Click the
+                          dot to change it.
+                        </p>
+                        <NameGroupPanel
+                          activeLabels={activeLabels}
+                          nameColors={nameColors}
+                          nameVisibility={nameVisibility}
+                          onToggleVisible={toggleNameGroupVisible}
+                          onChangeColor={changeNameGroupColor}
+                        />
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </div>
             </Collapsible>
           )}
 
-          {/* Chart + Legend in one card */}
+          {/* ── Chart + Legend ── */}
           <DashboardCard
             title={`TSIC Logger ${selectedId} - All sensor readings over time`}
             headerAction={refreshingIndicator}
@@ -836,16 +979,19 @@ export function TSICLoggersPage() {
               onToggleSensor={undefined}
               onResetStates={handleResetStates}
               sensorColorMap={sensorColorMap}
+              groups={groups}
+              sensorLabels={sensorLabels}
+              boldSensors={boldSensors}
             />
-            {/* Informative legend — inline below chart, same card */}
             <div className="mt-4">
               <TSICSensorLegend
                 groups={groups}
                 ungroupedSensors={ungroupedSensors}
                 ungroupedVisible={ungroupedVisible}
                 activeSensors={activeSensors}
-                getSensorColor={getSensorColor}
+                getSensorColor={(n) => sensorColorMap[n] ?? "#9ca3af"}
                 sensorLabels={sensorLabels}
+                boldSensors={boldSensors}
               />
             </div>
           </DashboardCard>

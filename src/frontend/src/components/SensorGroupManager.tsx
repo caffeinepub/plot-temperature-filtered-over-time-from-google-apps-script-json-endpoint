@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { SensorGroup } from "@/hooks/useSensorGroups";
 import {
+  Bold,
   Check,
   Eye,
   EyeOff,
@@ -28,6 +29,7 @@ interface SensorGroupManagerProps {
   ungroupedSensors: number[];
   ungroupedVisible: boolean;
   sensorVisibilityOverrides: Record<number, boolean>;
+  boldSensors?: Set<number>;
   getSensorColor: (n: number) => string;
   isSensorVisible: (n: number) => boolean;
   onCreateGroup: (name: string) => void;
@@ -38,6 +40,7 @@ interface SensorGroupManagerProps {
   onToggleGroupVisible: (id: string) => void;
   onToggleSensorVisible: (sensorNum: number) => void;
   onToggleUngroupedVisible: () => void;
+  onToggleSensorBold?: (sensorNum: number) => void;
   onReset: () => void;
   onChangeGroupColor: (id: string, hue: number) => void;
   // Sensor label props (admin only)
@@ -52,9 +55,10 @@ interface SensorChipProps {
   sensorNum: number;
   color: string;
   isVisible: boolean;
+  isBold?: boolean;
   onToggleVisible: () => void;
+  onToggleBold?: () => void;
   chipIndex: number;
-  // Label editing (admin only)
   label?: string;
   isAdmin?: boolean;
   onSaveLabel?: (sensorNum: number, label: string) => void;
@@ -65,7 +69,9 @@ function SensorChip({
   sensorNum,
   color,
   isVisible,
+  isBold,
   onToggleVisible,
+  onToggleBold,
   chipIndex,
   label,
   isAdmin,
@@ -94,9 +100,7 @@ function SensorChip({
   };
 
   const handleSave = () => {
-    if (onSaveLabel) {
-      onSaveLabel(sensorNum, draft.trim());
-    }
+    if (onSaveLabel) onSaveLabel(sensorNum, draft.trim());
     setIsEditing(false);
   };
 
@@ -107,16 +111,13 @@ function SensorChip({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    if (e.key === "Enter") {
-      handleSave();
-    } else if (e.key === "Escape") {
-      handleCancel();
-    }
+    if (e.key === "Enter") handleSave();
+    else if (e.key === "Escape") handleCancel();
   };
 
   if (isEditing) {
     return (
-      // biome-ignore lint/a11y/useKeyWithClickEvents: presentational stop propagation
+      // biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation only
       <div
         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs border border-primary bg-primary/10"
         style={{ minWidth: 80 }}
@@ -170,14 +171,14 @@ function SensorChip({
       onDragStart={handleDragStart}
       onDoubleClick={handleDoubleClick}
       data-ocid={`tsic.sensor.drag_handle.${chipIndex}`}
-      className={`
-        inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono
-        cursor-grab active:cursor-grabbing select-none
-        border transition-all duration-150
-        ${isVisible ? "opacity-100" : "opacity-40"}
-        hover:shadow-sm hover:scale-105
-        ${isAdmin && onSaveLabel ? "cursor-grab" : ""}
-      `}
+      className={[
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs",
+        "cursor-grab active:cursor-grabbing select-none",
+        "border transition-all duration-150",
+        isVisible ? "opacity-100" : "opacity-40",
+        isBold ? "font-bold" : "font-mono",
+        "hover:shadow-sm hover:scale-105",
+      ].join(" ")}
       style={{
         backgroundColor: `${color}22`,
         borderColor: color,
@@ -190,13 +191,14 @@ function SensorChip({
         style={{ backgroundColor: color }}
       />
       <span>{displayLabel}</span>
+      {/* Visibility toggle */}
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           onToggleVisible();
         }}
-        className="text-muted-foreground hover:text-foreground transition-colors ml-0.5"
+        className="text-muted-foreground hover:text-foreground transition-colors"
         title={isVisible ? "Hide" : "Show"}
       >
         {isVisible ? (
@@ -205,54 +207,68 @@ function SensorChip({
           <EyeOff className="w-2.5 h-2.5" />
         )}
       </button>
+      {/* Bold toggle (admin only) */}
+      {isAdmin && onToggleBold && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleBold();
+          }}
+          className={[
+            "transition-colors",
+            isBold
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          ].join(" ")}
+          title={isBold ? "Remove bold" : "Make bold (foreground)"}
+        >
+          <Bold className="w-2.5 h-2.5" />
+        </button>
+      )}
     </div>
   );
 }
 
 // ─── Drop zone ────────────────────────────────────────────────────────────────
 
-interface DropZoneProps {
+function DropZone({
+  label,
+  onDrop,
+  children,
+  isEmpty,
+}: {
   label: string;
   onDrop: (sensorNum: number) => void;
   children: React.ReactNode;
   isEmpty?: boolean;
-}
-
-function DropZone({ label, onDrop, children, isEmpty }: DropZoneProps) {
+}) {
   const [isDragOver, setIsDragOver] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = () => setIsDragOver(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const raw = e.dataTransfer.getData("text/plain");
-    const sensorNum = Number.parseInt(raw, 10);
-    if (!Number.isNaN(sensorNum)) {
-      onDrop(sensorNum);
-    }
-  };
 
   return (
     <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`
-        min-h-[40px] rounded-md p-2 flex flex-wrap gap-1.5 items-start content-start
-        border-2 border-dashed transition-all duration-150
-        ${
-          isDragOver
-            ? "border-primary bg-primary/5"
-            : "border-border/40 bg-muted/20"
-        }
-      `}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const sensorNum = Number.parseInt(
+          e.dataTransfer.getData("text/plain"),
+          10,
+        );
+        if (!Number.isNaN(sensorNum)) onDrop(sensorNum);
+      }}
+      className={[
+        "min-h-[32px] rounded-md p-1.5 flex flex-wrap gap-1 items-start content-start",
+        "border-2 border-dashed transition-all duration-150",
+        isDragOver
+          ? "border-primary bg-primary/5"
+          : "border-border/40 bg-muted/20",
+      ].join(" ")}
     >
       {isEmpty ? (
         <span className="text-xs text-muted-foreground/60 italic self-center px-1">
@@ -264,8 +280,6 @@ function DropZone({ label, onDrop, children, isEmpty }: DropZoneProps) {
     </div>
   );
 }
-
-// ─── Group card ───────────────────────────────────────────────────────────────
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
@@ -319,30 +333,12 @@ function hueToHex(hue: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-interface GroupCardProps {
-  group: SensorGroup;
-  groupIndex: number;
-  activeSensors: number[];
-  sensorVisibilityOverrides: Record<number, boolean>;
-  getSensorColor: (n: number) => string;
-  isSensorVisible: (n: number) => boolean;
-  onRename: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
-  onToggleVisible: (id: string) => void;
-  onAddSensor: (groupId: string, sensorNum: number) => void;
-  onRemoveSensor: (groupId: string, sensorNum: number) => void;
-  onToggleSensorVisible: (sensorNum: number) => void;
-  onChangeColor: (id: string, hue: number) => void;
-  // Label props
-  sensorLabels?: Map<number, string>;
-  isAdmin?: boolean;
-  onSaveSensorLabel?: (sensorNum: number, label: string) => void;
-  isSavingSensorLabel?: boolean;
-}
+// ─── Group card (compact block) ───────────────────────────────────────────────
 
 function GroupCard({
   group,
   groupIndex,
+  boldSensors,
   getSensorColor,
   isSensorVisible,
   onRename,
@@ -351,44 +347,52 @@ function GroupCard({
   onAddSensor,
   onRemoveSensor,
   onToggleSensorVisible,
+  onToggleSensorBold,
   onChangeColor,
   sensorLabels,
   isAdmin,
   onSaveSensorLabel,
   isSavingSensorLabel,
-}: GroupCardProps) {
+}: {
+  group: SensorGroup;
+  groupIndex: number;
+  boldSensors?: Set<number>;
+  getSensorColor: (n: number) => string;
+  isSensorVisible: (n: number) => boolean;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onToggleVisible: (id: string) => void;
+  onAddSensor: (groupId: string, sensorNum: number) => void;
+  onRemoveSensor: (groupId: string, sensorNum: number) => void;
+  onToggleSensorVisible: (sensorNum: number) => void;
+  onToggleSensorBold?: (sensorNum: number) => void;
+  onChangeColor: (id: string, hue: number) => void;
+  sensorLabels?: Map<number, string>;
+  isAdmin?: boolean;
+  onSaveSensorLabel?: (sensorNum: number, label: string) => void;
+  isSavingSensorLabel?: boolean;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(group.name);
   const inputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   const hslDot = `hsl(${group.hue}, 70%, 50%)`;
-  const hslBorder = `hsl(${group.hue}, 60%, 75%)`;
-
-  const startEdit = () => {
-    setDraftName(group.name);
-    setIsEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  };
+  const hslBorder = `hsl(${group.hue}, 50%, 70%)`;
 
   const commitEdit = () => {
     if (draftName.trim()) onRename(group.id, draftName);
     setIsEditing(false);
   };
 
-  const cancelEdit = () => {
-    setDraftName(group.name);
-    setIsEditing(false);
-  };
-
   return (
     <div
-      className="border rounded-lg p-3 space-y-2 transition-all duration-150"
+      className="border rounded-lg p-2 space-y-1.5 transition-all duration-150 bg-card"
       style={{ borderColor: hslBorder }}
     >
-      {/* Group header */}
-      <div className="flex items-center gap-2">
-        {/* Color picker dot */}
+      {/* Group header row */}
+      <div className="flex items-center gap-1.5">
+        {/* Color dot */}
         <div className="relative flex-shrink-0" title="Change color">
           <span
             role="button"
@@ -412,64 +416,71 @@ function GroupCard({
 
         {/* Name / inline editor */}
         {isEditing ? (
-          <div className="flex-1 flex items-center gap-1">
+          <div className="flex-1 flex items-center gap-1 min-w-0">
             <Input
               ref={inputRef}
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") commitEdit();
-                if (e.key === "Escape") cancelEdit();
+                if (e.key === "Escape") {
+                  setDraftName(group.name);
+                  setIsEditing(false);
+                }
               }}
-              className="h-6 text-xs px-1.5 py-0 flex-1"
+              className="h-5 text-xs px-1.5 py-0 flex-1 min-w-0"
               maxLength={40}
+              autoFocus
             />
             <button
               type="button"
               onClick={commitEdit}
-              className="text-primary hover:text-primary/80"
-              title="Save"
+              className="text-primary hover:text-primary/80 flex-shrink-0"
             >
-              <Check className="w-3.5 h-3.5" />
+              <Check className="w-3 h-3" />
             </button>
             <button
               type="button"
-              onClick={cancelEdit}
-              className="text-muted-foreground hover:text-foreground"
-              title="Cancel"
+              onClick={() => {
+                setDraftName(group.name);
+                setIsEditing(false);
+              }}
+              className="text-muted-foreground hover:text-foreground flex-shrink-0"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3 h-3" />
             </button>
           </div>
         ) : (
           <button
             type="button"
-            onClick={startEdit}
-            className="flex-1 text-left text-sm font-medium hover:text-primary transition-colors flex items-center gap-1 group"
-            title="Edit name"
+            onClick={() => {
+              setDraftName(group.name);
+              setIsEditing(true);
+              setTimeout(() => inputRef.current?.focus(), 0);
+            }}
+            className="flex-1 min-w-0 text-left text-xs font-semibold hover:text-primary transition-colors flex items-center gap-1 group"
           >
             <span className="truncate">{group.name}</span>
-            <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
+            <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity flex-shrink-0" />
           </button>
         )}
 
-        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
-          {/* Group visibility toggle */}
+        {/* Controls */}
+        <div className="flex items-center gap-1 ml-auto flex-shrink-0">
           <Switch
             checked={group.visible}
             onCheckedChange={() => onToggleVisible(group.id)}
             data-ocid={`tsic.group.toggle.${groupIndex}`}
-            className="h-4 w-7 data-[state=checked]:bg-primary"
+            className="h-3.5 w-6 data-[state=checked]:bg-primary"
           />
-          {/* Delete button */}
           <button
             type="button"
             onClick={() => onDelete(group.id)}
             data-ocid={`tsic.group.delete_button.${groupIndex}`}
-            className="text-muted-foreground hover:text-destructive transition-colors p-0.5"
+            className="text-muted-foreground hover:text-destructive transition-colors"
             title="Delete group"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3 h-3" />
           </button>
         </div>
       </div>
@@ -486,14 +497,19 @@ function GroupCard({
               sensorNum={sensorNum}
               color={getSensorColor(sensorNum)}
               isVisible={isSensorVisible(sensorNum)}
+              isBold={boldSensors?.has(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
+              onToggleBold={
+                onToggleSensorBold
+                  ? () => onToggleSensorBold(sensorNum)
+                  : undefined
+              }
               chipIndex={chipIdx + 1}
               label={sensorLabels?.get(sensorNum)}
               isAdmin={isAdmin}
               onSaveLabel={onSaveSensorLabel}
               isSavingLabel={isSavingSensorLabel}
             />
-            {/* Remove from group button */}
             <button
               type="button"
               onClick={() => onRemoveSensor(group.id, sensorNum)}
@@ -519,7 +535,8 @@ export function SensorGroupManager({
   groups,
   ungroupedSensors,
   ungroupedVisible,
-  sensorVisibilityOverrides,
+  sensorVisibilityOverrides: _svo,
+  boldSensors,
   getSensorColor,
   isSensorVisible,
   onCreateGroup,
@@ -530,6 +547,7 @@ export function SensorGroupManager({
   onToggleGroupVisible,
   onToggleSensorVisible,
   onToggleUngroupedVisible,
+  onToggleSensorBold,
   onReset,
   onChangeGroupColor,
   sensorLabels,
@@ -538,119 +556,114 @@ export function SensorGroupManager({
 }: SensorGroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [columns, setColumns] = useState(2);
 
   const isAdmin = !!onSaveSensorLabel;
 
-  const handleCreateGroup = () => {
-    const name = newGroupName.trim();
-    if (name) {
-      onCreateGroup(name);
-      setNewGroupName("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleCreateGroup();
-  };
-
-  // For ungrouped drop zone: if sensor is already in a group, remove it first,
-  // then it becomes ungrouped. If already ungrouped, do nothing.
   const handleDropOnUngrouped = (sensorNum: number) => {
-    // Find if it's in any group and remove it
     for (const group of groups) {
       if (group.sensors.includes(sensorNum)) {
         onRemoveSensorFromGroup(group.id, sensorNum);
         return;
       }
     }
-    // Already ungrouped — do nothing
   };
 
-  // Only show ungrouped sensors that actually have data (are in activeSensors)
   const visibleUngrouped = ungroupedSensors.filter((s) =>
     activeSensors.includes(s),
   );
 
   return (
-    <div
-      data-ocid="tsic.group_manager.panel"
-      className="border border-border rounded-xl p-4 bg-card shadow-sm space-y-4"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-semibold text-foreground">
-            Sensor Groups
-          </h3>
-          {isAdmin && (
-            <p className="text-xs text-muted-foreground">
-              Double-click a sensor to edit its label
-            </p>
-          )}
+    <div data-ocid="tsic.group_manager.panel" className="p-3 space-y-3">
+      {/* ── Toolbar ── */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {/* Column selector */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Columns:</span>
+          {[1, 2, 3, 4].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setColumns(n)}
+              className={[
+                "w-6 h-6 rounded text-xs font-medium transition-colors",
+                columns === n
+                  ? "text-white"
+                  : "text-muted-foreground border border-border hover:border-foreground/40 hover:text-foreground bg-transparent",
+              ].join(" ")}
+              style={columns === n ? { backgroundColor: "#808A54" } : undefined}
+            >
+              {n}
+            </button>
+          ))}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowResetConfirm(true)}
-          data-ocid="tsic.reset_groups.button"
-          className="h-7 gap-1.5 text-xs text-destructive border-destructive/30
-            hover:bg-destructive/10 hover:text-destructive hover:border-destructive/60"
-        >
-          <RotateCcw className="w-3 h-3" />
-          Reset
-        </Button>
 
-        {/* Reset confirmation dialog */}
-        <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-          <DialogContent
-            className="max-w-sm"
-            data-ocid="tsic.reset_confirm.dialog"
+        {/* Add group + Reset */}
+        <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+          <Input
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newGroupName.trim()) {
+                onCreateGroup(newGroupName.trim());
+                setNewGroupName("");
+              }
+            }}
+            placeholder="New group name…"
+            className="h-7 text-xs min-w-0 max-w-[160px]"
+            maxLength={40}
+            data-ocid="tsic.add_group.input"
+          />
+          <Button
+            onClick={() => {
+              if (newGroupName.trim()) {
+                onCreateGroup(newGroupName.trim());
+                setNewGroupName("");
+              }
+            }}
+            disabled={!newGroupName.trim()}
+            size="sm"
+            className="h-7 gap-1 text-xs flex-shrink-0 px-2"
+            data-ocid="tsic.add_group.button"
           >
-            <DialogHeader>
-              <DialogTitle>Reset groups</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to reset all sensor groups and labels?
-                This cannot be undone.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex gap-2 sm:justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setShowResetConfirm(false)}
-                data-ocid="tsic.reset_confirm.cancel_button"
-              >
-                No
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  onReset();
-                  setShowResetConfirm(false);
-                }}
-                data-ocid="tsic.reset_confirm.confirm_button"
-              >
-                Yes, reset
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            <Plus className="w-3 h-3" />
+            Add
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResetConfirm(true)}
+            data-ocid="tsic.reset_groups.button"
+            className="h-7 gap-1 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive flex-shrink-0 px-2"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </Button>
+        </div>
       </div>
 
-      {/* Ungrouped sensors */}
-      <div className="space-y-1.5">
+      {isAdmin && (
+        <p className="text-xs text-muted-foreground">
+          Double-click a sensor chip to edit its label. Click B to
+          bold/foreground.
+        </p>
+      )}
+
+      {/* ── Ungrouped (full width) ── */}
+      <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">
-            Ungrouped:
+            Ungrouped
           </span>
           <Switch
             checked={ungroupedVisible}
             onCheckedChange={onToggleUngroupedVisible}
             data-ocid="tsic.ungrouped.toggle"
-            className="h-4 w-7 data-[state=checked]:bg-primary"
+            className="h-3.5 w-6 data-[state=checked]:bg-primary"
           />
         </div>
         <DropZone
-          label="All sensors are assigned to groups"
+          label="All sensors are in groups"
           onDrop={handleDropOnUngrouped}
           isEmpty={visibleUngrouped.length === 0}
         >
@@ -660,7 +673,13 @@ export function SensorGroupManager({
               sensorNum={sensorNum}
               color={getSensorColor(sensorNum)}
               isVisible={isSensorVisible(sensorNum)}
+              isBold={boldSensors?.has(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
+              onToggleBold={
+                onToggleSensorBold
+                  ? () => onToggleSensorBold(sensorNum)
+                  : undefined
+              }
               chipIndex={idx + 1}
               label={sensorLabels?.get(sensorNum)}
               isAdmin={isAdmin}
@@ -671,16 +690,18 @@ export function SensorGroupManager({
         </DropZone>
       </div>
 
-      {/* Groups */}
+      {/* ── Groups grid ── */}
       {groups.length > 0 && (
-        <div className="space-y-2">
+        <div
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        >
           {groups.map((group, idx) => (
             <GroupCard
               key={group.id}
               group={group}
               groupIndex={idx + 1}
-              activeSensors={activeSensors}
-              sensorVisibilityOverrides={sensorVisibilityOverrides}
+              boldSensors={boldSensors}
               getSensorColor={getSensorColor}
               isSensorVisible={isSensorVisible}
               onRename={onRenameGroup}
@@ -689,6 +710,7 @@ export function SensorGroupManager({
               onAddSensor={onAddSensorToGroup}
               onRemoveSensor={onRemoveSensorFromGroup}
               onToggleSensorVisible={onToggleSensorVisible}
+              onToggleSensorBold={onToggleSensorBold}
               onChangeColor={onChangeGroupColor}
               sensorLabels={sensorLabels}
               isAdmin={isAdmin}
@@ -699,28 +721,40 @@ export function SensorGroupManager({
         </div>
       )}
 
-      {/* Add group */}
-      <div className="flex gap-2">
-        <Input
-          value={newGroupName}
-          onChange={(e) => setNewGroupName(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Group name…"
-          className="h-8 text-xs flex-1"
-          maxLength={40}
-          data-ocid="tsic.add_group.input"
-        />
-        <Button
-          onClick={handleCreateGroup}
-          disabled={!newGroupName.trim()}
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          data-ocid="tsic.add_group.button"
+      {/* Reset confirm dialog */}
+      <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <DialogContent
+          className="max-w-sm"
+          data-ocid="tsic.reset_confirm.dialog"
         >
-          <Plus className="w-3.5 h-3.5" />
-          Add group
-        </Button>
-      </div>
+          <DialogHeader>
+            <DialogTitle>Reset groups</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to reset all sensor groups and labels? This
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowResetConfirm(false)}
+              data-ocid="tsic.reset_confirm.cancel_button"
+            >
+              No
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                onReset();
+                setShowResetConfirm(false);
+              }}
+              data-ocid="tsic.reset_confirm.confirm_button"
+            >
+              Yes, reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

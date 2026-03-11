@@ -2,6 +2,9 @@ import type { TSICDataPoint } from "@/lib/tsicDataParsing";
 import { fetchTSICData } from "@/lib/tsicDataSource";
 import { useQuery } from "@tanstack/react-query";
 
+// Auto-refresh interval: 10 minutes
+const AUTO_REFRESH_INTERVAL = 10 * 60 * 1000;
+
 export function useTSICData(id: number | null) {
   const query = useQuery<TSICDataPoint[], Error>({
     queryKey: ["tsic-data", id],
@@ -15,7 +18,8 @@ export function useTSICData(id: number | null) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: false,
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: AUTO_REFRESH_INTERVAL,
+    refetchInterval: AUTO_REFRESH_INTERVAL,
   });
 
   return {

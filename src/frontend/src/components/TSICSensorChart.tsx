@@ -1,3 +1,4 @@
+import type { SensorGroup } from "@/hooks/useSensorGroups";
 import {
   CustomXTick,
   MONTH_NAMES,
@@ -32,11 +33,15 @@ interface TSICSensorChartProps {
   onResetStates?: () => void;
   /** Maps sensor number (1-72) → CSS color string */
   sensorColorMap?: Record<number, string>;
+  /** Groups for tooltip grouping */
+  groups?: SensorGroup[];
+  /** Sensor labels for tooltip display */
+  sensorLabels?: Map<number, string>;
+  /** Set of bold sensor numbers (rendered on top with thicker stroke) */
+  boldSensors?: Set<number>;
 }
 
 const SENSOR_COUNT = 72;
-
-/** Fallback color for sensors not in the map — never black or white */
 const FALLBACK_COLOR = "#9ca3af";
 
 const formatYTick = (value: number) => {
@@ -55,6 +60,9 @@ export function TSICSensorChart({
   onToggleSensor: externalToggleSensor,
   onResetStates,
   sensorColorMap = {},
+  groups,
+  sensorLabels,
+  boldSensors,
 }: TSICSensorChartProps) {
   // Determine which sensors have any data
   const activeSensors = useMemo(() => {
@@ -75,19 +83,15 @@ export function TSICSensorChart({
     return active;
   }, [data]);
 
-  // Internal visibility state (used when no external state is provided)
   const [internalVisibleSensors, setInternalVisibleSensors] = useState<
     Set<number>
   >(() => new Set(activeSensors));
 
-  // Update internal visible sensors when active sensors change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — use joined string as stable dep key
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional stable dep key
   useEffect(() => {
     setInternalVisibleSensors(new Set(activeSensors));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSensors.join(",")]);
 
-  // Derive visible sensors: prefer external sensorVisibility prop if provided
   const visibleSensors = useMemo(() => {
     if (externalSensorVisibility) {
       return new Set(
@@ -114,13 +118,13 @@ export function TSICSensorChart({
     });
   }, [data]);
 
-  // Build X-axis tick entries for the visible window
   const xTickEntries = useMemo((): XTickEntry[] => {
     const slice = chartData.slice(startIndex, endIndex + 1);
     if (slice.length === 0) return [];
-    const firstTs = slice[0].timestamp as number;
-    const lastTs = slice[slice.length - 1].timestamp as number;
-    return buildXTicks(firstTs, lastTs);
+    return buildXTicks(
+      slice[0].timestamp as number,
+      slice[slice.length - 1].timestamp as number,
+    );
   }, [chartData, startIndex, endIndex]);
 
   const xTickValues = useMemo(
@@ -128,25 +132,24 @@ export function TSICSensorChart({
     [xTickEntries],
   );
 
-  // X-axis domain: extend to include virtual midnight ticks before first data point
   const xDomain = useMemo((): [number, number] | [string, string] => {
     const slice = chartData.slice(startIndex, endIndex + 1);
     if (slice.length === 0) return ["dataMin", "dataMax"];
-    const firstTs = slice[0].timestamp as number;
-    const lastTs = slice[slice.length - 1].timestamp as number;
-    return computeXDomain(firstTs, lastTs);
+    return computeXDomain(
+      slice[0].timestamp as number,
+      slice[slice.length - 1].timestamp as number,
+    );
   }, [chartData, startIndex, endIndex]);
 
   // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only run once when data length changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional once-on-load
   useEffect(() => {
     if (data.length > 1 && !initializedRef.current) {
       initializedRef.current = true;
       const lastIndex = data.length - 1;
       const lastTs = data[lastIndex].timestamp.getTime();
-      const oneDayMs = 24 * 60 * 60 * 1000;
-      const startTs = lastTs - oneDayMs;
+      const startTs = lastTs - 24 * 60 * 60 * 1000;
       let autoStartIndex = 0;
       for (let i = 0; i < data.length; i++) {
         if (data[i].timestamp.getTime() >= startTs) {
@@ -157,7 +160,6 @@ export function TSICSensorChart({
       onRangeChange(autoStartIndex, lastIndex);
       onResetStates?.();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
   // Drag-zoom state
@@ -178,7 +180,7 @@ export function TSICSensorChart({
   );
 
   const handleMouseDown = useCallback((e: any) => {
-    if (!e || !e.activeLabel) return;
+    if (!e?.activeLabel) return;
     setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     setIsSelecting(true);
@@ -186,7 +188,7 @@ export function TSICSensorChart({
   }, []);
 
   const handleMouseMove = useCallback((e: any) => {
-    if (!selectingRef.current || !e || !e.activeLabel) return;
+    if (!selectingRef.current || !e?.activeLabel) return;
     setRefAreaRight(String(e.activeLabel));
   }, []);
 
@@ -217,7 +219,6 @@ export function TSICSensorChart({
 
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
-
     const slice = visibleData.slice(lo, hi + 1);
     const allYValues: number[] = [];
     for (const sensorNum of visibleSensors) {
@@ -267,9 +268,7 @@ export function TSICSensorChart({
     }
   }
 
-  // Dynamic Y domain: external overrides > drag-zoom > auto from visible sensors
   const yDomain: [number | string, number | string] = useMemo(() => {
-    // External Y-axis min/max take priority
     if (yAxisMin !== null || yAxisMax !== null) {
       return [
         yAxisMin !== null ? yAxisMin : "auto",
@@ -309,12 +308,159 @@ export function TSICSensorChart({
     visibleSensors,
   ]);
 
-  // Resolve color for a sensor number — never black or white
-  const getColor = (sensorNum: number): string => {
-    return sensorColorMap[sensorNum] ?? FALLBACK_COLOR;
-  };
+  const getColor = (sensorNum: number): string =>
+    sensorColorMap[sensorNum] ?? FALLBACK_COLOR;
 
-  // Suppress unused variable warnings
+  // ─── Custom grouped tooltip ───
+  const renderTooltip = useCallback(
+    (props: { active?: boolean; payload?: any[]; label?: any }) => {
+      const { active, payload } = props;
+      if (!active || !payload || !payload.length) return null;
+
+      const dataPoint = payload[0]?.payload;
+      const timestamp: string = dataPoint?.fullTimestamp || "";
+
+      // Build map: sensorNum -> value (only visible sensors with real values)
+      const sensorValues: Record<number, number> = {};
+      for (const entry of payload) {
+        const match = String(entry.dataKey).match(/^S(\d+)$/);
+        if (!match) continue;
+        const sNum = Number.parseInt(match[1]);
+        if (!visibleSensors.has(sNum)) continue;
+        const val = entry.value as number;
+        if (val === null || val === undefined || Number.isNaN(val) || val === 0)
+          continue;
+        sensorValues[sNum] = val;
+      }
+
+      if (Object.keys(sensorValues).length === 0) return null;
+
+      const sections: React.ReactNode[] = [];
+      const assignedSensors = new Set<number>();
+
+      // Grouped sensors
+      for (const group of groups ?? []) {
+        const entries = group.sensors
+          .filter((s) => sensorValues[s] !== undefined)
+          .map((s) => {
+            assignedSensors.add(s);
+            return { sensorNum: s, value: sensorValues[s] };
+          });
+
+        if (entries.length === 0) continue;
+
+        const groupColor = `hsl(${group.hue}, 70%, 50%)`;
+        sections.push(
+          <div key={group.id} style={{ marginBottom: 5 }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: groupColor,
+                marginBottom: 2,
+              }}
+            >
+              {group.name}
+            </div>
+            {entries.map((e) => {
+              const label = sensorLabels?.get(e.sensorNum) || `S${e.sensorNum}`;
+              const isBold = boldSensors?.has(e.sensorNum);
+              return (
+                <div
+                  key={e.sensorNum}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 20,
+                    fontSize: 10,
+                    fontWeight: isBold ? 700 : 400,
+                  }}
+                >
+                  <span style={{ color: "oklch(var(--muted-foreground))" }}>
+                    {label}
+                  </span>
+                  <span>{e.value.toFixed(2)}</span>
+                </div>
+              );
+            })}
+          </div>,
+        );
+      }
+
+      // Ungrouped sensors only shown if no groups are defined
+      if ((groups?.length ?? 0) === 0) {
+        const allEntries = Object.entries(sensorValues).map(([s, v]) => ({
+          sensorNum: Number.parseInt(s),
+          value: v,
+        }));
+        sections.push(
+          <div key="all">
+            {allEntries.map((e) => {
+              const label = sensorLabels?.get(e.sensorNum) || `S${e.sensorNum}`;
+              const isBold = boldSensors?.has(e.sensorNum);
+              return (
+                <div
+                  key={e.sensorNum}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 20,
+                    fontSize: 10,
+                    fontWeight: isBold ? 700 : 400,
+                  }}
+                >
+                  <span style={{ color: "oklch(var(--muted-foreground))" }}>
+                    {label}
+                  </span>
+                  <span>{e.value.toFixed(2)}</span>
+                </div>
+              );
+            })}
+          </div>,
+        );
+      }
+
+      if (sections.length === 0) return null;
+
+      return (
+        <div
+          style={{
+            backgroundColor: "oklch(var(--popover))",
+            border: "1px solid oklch(var(--border))",
+            borderRadius: 8,
+            padding: "8px 12px",
+            color: "oklch(var(--popover-foreground))",
+            maxHeight: 320,
+            overflowY: "auto",
+            minWidth: 180,
+            maxWidth: 260,
+            fontSize: 11,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              color: "oklch(var(--muted-foreground))",
+              marginBottom: 6,
+              fontWeight: 500,
+              borderBottom: "1px solid oklch(var(--border))",
+              paddingBottom: 4,
+            }}
+          >
+            {timestamp}
+          </div>
+          {sections}
+        </div>
+      );
+    },
+    [visibleSensors, groups, sensorLabels, boldSensors],
+  );
+
+  // Render normal sensors first, bold sensors last (so they appear on top)
+  const normalSensors = activeSensors.filter((s) => !boldSensors?.has(s));
+  const boldSensorList = activeSensors.filter((s) => boldSensors?.has(s));
+  const orderedSensors = [...normalSensors, ...boldSensorList];
+
   void isSelecting;
   void externalToggleSensor;
 
@@ -368,35 +514,10 @@ export function TSICSensorChart({
                 style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
               }}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "oklch(var(--popover))",
-                border: "1px solid oklch(var(--border))",
-                borderRadius: "8px",
-                color: "oklch(var(--popover-foreground))",
-              }}
-              labelStyle={{ color: "oklch(var(--popover-foreground))" }}
-              formatter={(value: number, name: string) => {
-                const formattedValue =
-                  typeof value === "number" && !Number.isNaN(value)
-                    ? value.toFixed(2)
-                    : "—";
-                return [formattedValue, name];
-              }}
-              labelFormatter={
-                ((label: any, payload: any) => {
-                  if (payload && payload.length > 0) {
-                    const dataPoint = payload[0].payload;
-                    if (dataPoint?.fullTimestamp) {
-                      return dataPoint.fullTimestamp;
-                    }
-                  }
-                  return label;
-                }) as any
-              }
-            />
-            {activeSensors.map((sensorNum) => {
+            <Tooltip content={renderTooltip} />
+            {orderedSensors.map((sensorNum) => {
               const color = getColor(sensorNum);
+              const isBold = boldSensors?.has(sensorNum);
               return (
                 <Line
                   key={sensorNum}
@@ -404,10 +525,10 @@ export function TSICSensorChart({
                   dataKey={`S${sensorNum}`}
                   name={`S${sensorNum}`}
                   stroke={color}
-                  strokeWidth={1.5}
+                  strokeWidth={isBold ? 2.5 : 1.5}
                   dot={false}
                   hide={!visibleSensors.has(sensorNum)}
-                  activeDot={{ r: 4, fill: color }}
+                  activeDot={{ r: isBold ? 5 : 4, fill: color }}
                   isAnimationActive={false}
                 />
               );
