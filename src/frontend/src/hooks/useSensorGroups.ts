@@ -4,9 +4,15 @@ import { useActor } from "./useActor";
 export interface SensorGroup {
   id: string;
   name: string;
-  hue: number; // 0-360
+  hue: number; // 0-360 (kept for backward compat)
+  color?: string; // hex color (takes priority over hue)
   sensors: number[]; // sensor numbers 1-72
   visible: boolean;
+}
+
+/** Get the display color for a group (hex or hsl fallback) */
+export function getGroupColor(group: SensorGroup): string {
+  return group.color ?? `hsl(${group.hue}, 70%, 50%)`;
 }
 
 interface SensorGroupsState {
@@ -14,7 +20,8 @@ interface SensorGroupsState {
   sensorVisibilityOverrides: Record<number, boolean>;
   ungroupedVisible: boolean;
   boldSensors: number[];
-  nameColors: Record<string, number>; // label -> hue 0-360
+  dottedSensors: number[];
+  nameColors: Record<string, string>; // label -> hex color
   nameVisibility: Record<string, boolean>; // label -> visible
 }
 
@@ -23,14 +30,66 @@ const DEFAULT_STATE: SensorGroupsState = {
   sensorVisibilityOverrides: {},
   ungroupedVisible: true,
   boldSensors: [],
+  dottedSensors: [],
   nameColors: {},
   nameVisibility: {},
 };
+
+/** Convert hue (0-360) to hex string for migration */
+function hueToHexMigrate(hue: number): string {
+  const s = 0.7;
+  const l = 0.5;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (hue < 60) {
+    r = c;
+    g = x;
+  } else if (hue < 120) {
+    r = x;
+    g = c;
+  } else if (hue < 180) {
+    g = c;
+    b = x;
+  } else if (hue < 240) {
+    g = x;
+    b = c;
+  } else if (hue < 300) {
+    r = x;
+    b = c;
+  } else {
+    r = c;
+    b = x;
+  }
+  const toHex = (n: number) =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 function parseState(raw: string): SensorGroupsState {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return DEFAULT_STATE;
+
+    // Migrate nameColors: old format stores hue as number, new format stores hex string
+    const rawNameColors =
+      parsed.nameColors && typeof parsed.nameColors === "object"
+        ? parsed.nameColors
+        : {};
+    const migratedNameColors: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rawNameColors)) {
+      if (typeof v === "number") {
+        migratedNameColors[k] = hueToHexMigrate(v);
+      } else if (typeof v === "string") {
+        migratedNameColors[k] = v;
+      }
+    }
+
     return {
       groups: Array.isArray(parsed.groups) ? parsed.groups : [],
       sensorVisibilityOverrides:
@@ -43,10 +102,10 @@ function parseState(raw: string): SensorGroupsState {
           ? parsed.ungroupedVisible
           : true,
       boldSensors: Array.isArray(parsed.boldSensors) ? parsed.boldSensors : [],
-      nameColors:
-        parsed.nameColors && typeof parsed.nameColors === "object"
-          ? parsed.nameColors
-          : {},
+      dottedSensors: Array.isArray(parsed.dottedSensors)
+        ? parsed.dottedSensors
+        : [],
+      nameColors: migratedNameColors,
       nameVisibility:
         parsed.nameVisibility && typeof parsed.nameVisibility === "object"
           ? parsed.nameVisibility
@@ -170,10 +229,10 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     }));
   }, []);
 
-  const changeGroupColor = useCallback((id: string, hue: number) => {
+  const changeGroupColor = useCallback((id: string, color: string) => {
     setState((prev) => ({
       ...prev,
-      groups: prev.groups.map((g) => (g.id === id ? { ...g, hue } : g)),
+      groups: prev.groups.map((g) => (g.id === id ? { ...g, color } : g)),
     }));
   }, []);
 
@@ -248,10 +307,22 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     });
   }, []);
 
-  const changeNameGroupColor = useCallback((name: string, hue: number) => {
+  const toggleSensorDotted = useCallback((sensorNum: number) => {
+    setState((prev) => {
+      const isDotted = prev.dottedSensors.includes(sensorNum);
+      return {
+        ...prev,
+        dottedSensors: isDotted
+          ? prev.dottedSensors.filter((s) => s !== sensorNum)
+          : [...prev.dottedSensors, sensorNum],
+      };
+    });
+  }, []);
+
+  const changeNameGroupColor = useCallback((name: string, color: string) => {
     setState((prev) => ({
       ...prev,
-      nameColors: { ...prev.nameColors, [name]: hue },
+      nameColors: { ...prev.nameColors, [name]: color },
     }));
   }, []);
 
@@ -283,7 +354,7 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     (sensorNum: number): string => {
       for (const group of state.groups) {
         if (group.sensors.includes(sensorNum)) {
-          return `hsl(${group.hue}, 70%, 50%)`;
+          return getGroupColor(group);
         }
       }
       return "#9ca3af";
@@ -297,8 +368,9 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
   const getSensorColorByName = useCallback(
     (sensorNum: number, getLabel: (n: number) => string): string => {
       const label = getLabel(sensorNum) || `S${sensorNum}`;
-      const storedHue = state.nameColors[label];
-      const hue = storedHue !== undefined ? storedHue : labelToHue(label);
+      const storedColor = state.nameColors[label];
+      if (storedColor) return storedColor;
+      const hue = labelToHue(label);
       return `hsl(${hue}, 70%, 50%)`;
     },
     [state.nameColors],
@@ -335,12 +407,18 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     [state.boldSensors],
   );
 
+  const dottedSensorsSet = useMemo(
+    () => new Set(state.dottedSensors),
+    [state.dottedSensors],
+  );
+
   return {
     groups: state.groups,
     ungroupedSensors,
     ungroupedVisible: state.ungroupedVisible,
     sensorVisibilityOverrides: state.sensorVisibilityOverrides,
     boldSensors: boldSensorsSet,
+    dottedSensors: dottedSensorsSet,
     nameColors: state.nameColors,
     nameVisibility: state.nameVisibility,
     isLoading,
@@ -355,6 +433,7 @@ export function useSensorGroups(isAdmin: boolean, selectedId: number | null) {
     toggleUngroupedVisible,
     resetGroups,
     toggleSensorBold,
+    toggleSensorDotted,
     changeNameGroupColor,
     toggleNameGroupVisible,
     reorderGroups,

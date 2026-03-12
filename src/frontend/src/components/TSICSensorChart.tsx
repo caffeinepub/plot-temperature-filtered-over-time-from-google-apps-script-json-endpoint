@@ -1,4 +1,4 @@
-import type { SensorGroup } from "@/hooks/useSensorGroups";
+import { type SensorGroup, getGroupColor } from "@/hooks/useSensorGroups";
 import {
   CustomXTick,
   MONTH_NAMES,
@@ -15,11 +15,17 @@ import {
   Line,
   LineChart,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+
+export interface HoveredGroup {
+  groupName: string;
+  groupColor: string;
+  sensors: { label: string; value: number; isBold: boolean }[];
+}
 
 interface TSICSensorChartProps {
   data: TSICDataPoint[];
@@ -33,12 +39,19 @@ interface TSICSensorChartProps {
   onResetStates?: () => void;
   /** Maps sensor number (1-72) → CSS color string */
   sensorColorMap?: Record<number, string>;
-  /** Groups for tooltip grouping */
+  /** Groups for hover panel grouping */
   groups?: SensorGroup[];
-  /** Sensor labels for tooltip display */
+  /** Sensor labels for display */
   sensorLabels?: Map<number, string>;
   /** Set of bold sensor numbers (rendered on top with thicker stroke) */
   boldSensors?: Set<number>;
+  /** Set of dotted sensor numbers (rendered with dash pattern) */
+  dottedSensors?: Set<number>;
+  /** Callback when hover data changes */
+  onHoverChange?: (
+    groups: HoveredGroup[] | null,
+    timestamp: string | null,
+  ) => void;
 }
 
 const SENSOR_COUNT = 72;
@@ -63,6 +76,8 @@ export function TSICSensorChart({
   groups,
   sensorLabels,
   boldSensors,
+  dottedSensors,
+  onHoverChange,
 }: TSICSensorChartProps) {
   // Determine which sensors have any data
   const activeSensors = useMemo(() => {
@@ -166,6 +181,7 @@ export function TSICSensorChart({
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [hoverX, setHoverX] = useState<number | null>(null);
   const [zoomedYBottom, setZoomedYBottom] = useState<number | null>(null);
   const [zoomedYTop, setZoomedYTop] = useState<number | null>(null);
   const selectingRef = useRef(false);
@@ -187,10 +203,72 @@ export function TSICSensorChart({
     selectingRef.current = true;
   }, []);
 
-  const handleMouseMove = useCallback((e: any) => {
-    if (!selectingRef.current || !e?.activeLabel) return;
-    setRefAreaRight(String(e.activeLabel));
-  }, []);
+  // Build hover groups from active payload
+  const buildHoverGroups = useCallback(
+    (payload: any[], fullTimestamp: string): HoveredGroup[] => {
+      const sensorValues: Record<number, number> = {};
+      for (const entry of payload) {
+        const match = String(entry.dataKey).match(/^S(\d+)$/);
+        if (!match) continue;
+        const sNum = Number.parseInt(match[1]);
+        if (!visibleSensors.has(sNum)) continue;
+        const val = entry.value as number;
+        if (val === null || val === undefined || Number.isNaN(val) || val === 0)
+          continue;
+        sensorValues[sNum] = val;
+      }
+
+      if (Object.keys(sensorValues).length === 0) return [];
+
+      const result: HoveredGroup[] = [];
+      const assignedSensors = new Set<number>();
+
+      const sortedGroups = [...(groups ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
+      for (const group of sortedGroups) {
+        const entries = group.sensors
+          .filter((s) => sensorValues[s] !== undefined)
+          .map((s) => {
+            assignedSensors.add(s);
+            const label = sensorLabels?.get(s) || `S${s}`;
+            const isBold = boldSensors?.has(s) ?? false;
+            return { label, value: sensorValues[s], isBold };
+          });
+        if (entries.length === 0) continue;
+        result.push({
+          groupName: group.name,
+          groupColor: getGroupColor(group),
+          sensors: entries,
+        });
+      }
+
+      void assignedSensors;
+      void fullTimestamp;
+      return result;
+    },
+    [groups, sensorLabels, boldSensors, visibleSensors],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: any) => {
+      // Update hover data
+      if (e?.activePayload?.length) {
+        const timestamp = e.activePayload[0]?.payload?.fullTimestamp || null;
+        const hoverGroups = buildHoverGroups(e.activePayload, timestamp ?? "");
+        onHoverChange?.(hoverGroups.length > 0 ? hoverGroups : null, timestamp);
+        if (e.activeLabel) setHoverX(Number(e.activeLabel));
+      } else {
+        onHoverChange?.(null, null);
+        setHoverX(null);
+      }
+
+      // Zoom selection
+      if (!selectingRef.current || !e?.activeLabel) return;
+      setRefAreaRight(String(e.activeLabel));
+    },
+    [buildHoverGroups, onHoverChange],
+  );
 
   const handleMouseUp = useCallback(() => {
     if (!selectingRef.current) return;
@@ -254,6 +332,16 @@ export function TSICSensorChart({
     visibleSensors,
   ]);
 
+  const handleMouseLeave = useCallback(() => {
+    onHoverChange?.(null, null);
+    setHoverX(null);
+    if (!selectingRef.current) return;
+    selectingRef.current = false;
+    setIsSelecting(false);
+    setRefAreaLeft(null);
+    setRefAreaRight(null);
+  }, [onHoverChange]);
+
   const prevStartIndex = useRef(startIndex);
   const prevEndIndex = useRef(endIndex);
   if (
@@ -311,151 +399,6 @@ export function TSICSensorChart({
   const getColor = (sensorNum: number): string =>
     sensorColorMap[sensorNum] ?? FALLBACK_COLOR;
 
-  // ─── Custom grouped tooltip ───
-  const renderTooltip = useCallback(
-    (props: { active?: boolean; payload?: any[]; label?: any }) => {
-      const { active, payload } = props;
-      if (!active || !payload || !payload.length) return null;
-
-      const dataPoint = payload[0]?.payload;
-      const timestamp: string = dataPoint?.fullTimestamp || "";
-
-      // Build map: sensorNum -> value (only visible sensors with real values)
-      const sensorValues: Record<number, number> = {};
-      for (const entry of payload) {
-        const match = String(entry.dataKey).match(/^S(\d+)$/);
-        if (!match) continue;
-        const sNum = Number.parseInt(match[1]);
-        if (!visibleSensors.has(sNum)) continue;
-        const val = entry.value as number;
-        if (val === null || val === undefined || Number.isNaN(val) || val === 0)
-          continue;
-        sensorValues[sNum] = val;
-      }
-
-      if (Object.keys(sensorValues).length === 0) return null;
-
-      const sections: React.ReactNode[] = [];
-      const assignedSensors = new Set<number>();
-
-      // Grouped sensors
-      for (const group of groups ?? []) {
-        const entries = group.sensors
-          .filter((s) => sensorValues[s] !== undefined)
-          .map((s) => {
-            assignedSensors.add(s);
-            return { sensorNum: s, value: sensorValues[s] };
-          });
-
-        if (entries.length === 0) continue;
-
-        const groupColor = `hsl(${group.hue}, 70%, 50%)`;
-        sections.push(
-          <div key={group.id} style={{ marginBottom: 5 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: groupColor,
-                marginBottom: 2,
-              }}
-            >
-              {group.name}
-            </div>
-            {entries.map((e) => {
-              const label = sensorLabels?.get(e.sensorNum) || `S${e.sensorNum}`;
-              const isBold = boldSensors?.has(e.sensorNum);
-              return (
-                <div
-                  key={e.sensorNum}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 20,
-                    fontSize: 10,
-                    fontWeight: isBold ? 700 : 400,
-                  }}
-                >
-                  <span style={{ color: "oklch(var(--muted-foreground))" }}>
-                    {label}
-                  </span>
-                  <span>{e.value.toFixed(2)}</span>
-                </div>
-              );
-            })}
-          </div>,
-        );
-      }
-
-      // Ungrouped sensors only shown if no groups are defined
-      if ((groups?.length ?? 0) === 0) {
-        const allEntries = Object.entries(sensorValues).map(([s, v]) => ({
-          sensorNum: Number.parseInt(s),
-          value: v,
-        }));
-        sections.push(
-          <div key="all">
-            {allEntries.map((e) => {
-              const label = sensorLabels?.get(e.sensorNum) || `S${e.sensorNum}`;
-              const isBold = boldSensors?.has(e.sensorNum);
-              return (
-                <div
-                  key={e.sensorNum}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 20,
-                    fontSize: 10,
-                    fontWeight: isBold ? 700 : 400,
-                  }}
-                >
-                  <span style={{ color: "oklch(var(--muted-foreground))" }}>
-                    {label}
-                  </span>
-                  <span>{e.value.toFixed(2)}</span>
-                </div>
-              );
-            })}
-          </div>,
-        );
-      }
-
-      if (sections.length === 0) return null;
-
-      return (
-        <div
-          style={{
-            backgroundColor: "oklch(var(--popover))",
-            border: "1px solid oklch(var(--border))",
-            borderRadius: 8,
-            padding: "8px 12px",
-            color: "oklch(var(--popover-foreground))",
-            maxHeight: 320,
-            overflowY: "auto",
-            minWidth: 180,
-            maxWidth: 260,
-            fontSize: 11,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              color: "oklch(var(--muted-foreground))",
-              marginBottom: 6,
-              fontWeight: 500,
-              borderBottom: "1px solid oklch(var(--border))",
-              paddingBottom: 4,
-            }}
-          >
-            {timestamp}
-          </div>
-          {sections}
-        </div>
-      );
-    },
-    [visibleSensors, groups, sensorLabels, boldSensors],
-  );
-
   // Render normal sensors first, bold sensors last (so they appear on top)
   const normalSensors = activeSensors.filter((s) => !boldSensors?.has(s));
   const boldSensorList = activeSensors.filter((s) => boldSensors?.has(s));
@@ -466,7 +409,7 @@ export function TSICSensorChart({
 
   return (
     <div className="w-full" style={{ userSelect: "none" }}>
-      <div className="w-full h-[450px]">
+      <div className="w-full h-[900px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
@@ -474,7 +417,7 @@ export function TSICSensorChart({
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -508,16 +451,16 @@ export function TSICSensorChart({
               tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
               tickLine={{ stroke: "oklch(var(--border))" }}
               label={{
-                value: "Temperature (°C)",
+                value: "Temperature (°F)",
                 angle: -90,
                 position: "insideLeft",
                 style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
               }}
             />
-            <Tooltip content={renderTooltip} />
             {orderedSensors.map((sensorNum) => {
               const color = getColor(sensorNum);
               const isBold = boldSensors?.has(sensorNum);
+              const isDotted = dottedSensors?.has(sensorNum);
               return (
                 <Line
                   key={sensorNum}
@@ -525,7 +468,8 @@ export function TSICSensorChart({
                   dataKey={`S${sensorNum}`}
                   name={`S${sensorNum}`}
                   stroke={color}
-                  strokeWidth={isBold ? 2.5 : 1.5}
+                  strokeWidth={isBold ? 2 : 0.8}
+                  strokeDasharray={isDotted ? "5 3" : undefined}
                   dot={false}
                   hide={!visibleSensors.has(sensorNum)}
                   activeDot={{ r: isBold ? 5 : 4, fill: color }}
@@ -533,6 +477,14 @@ export function TSICSensorChart({
                 />
               );
             })}
+            {hoverX !== null && !isSelecting && (
+              <ReferenceLine
+                x={hoverX}
+                stroke="#888888"
+                strokeWidth={1}
+                strokeDasharray="4 2"
+              />
+            )}
             {refAreaLeft && refAreaRight && (
               <ReferenceArea
                 x1={Number(refAreaLeft)}

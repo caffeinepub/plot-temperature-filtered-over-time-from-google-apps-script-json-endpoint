@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import type { SensorGroup } from "@/hooks/useSensorGroups";
+import { type SensorGroup, getGroupColor } from "@/hooks/useSensorGroups";
 import {
   Bold,
   Check,
@@ -31,6 +31,7 @@ interface SensorGroupManagerProps {
   ungroupedVisible: boolean;
   sensorVisibilityOverrides: Record<number, boolean>;
   boldSensors?: Set<number>;
+  dottedSensors?: Set<number>;
   getSensorColor: (n: number) => string;
   isSensorVisible: (n: number) => boolean;
   onCreateGroup: (name: string) => void;
@@ -42,8 +43,9 @@ interface SensorGroupManagerProps {
   onToggleSensorVisible: (sensorNum: number) => void;
   onToggleUngroupedVisible: () => void;
   onToggleSensorBold?: (sensorNum: number) => void;
+  onToggleSensorDotted?: (sensorNum: number) => void;
   onReset: () => void;
-  onChangeGroupColor: (id: string, hue: number) => void;
+  onChangeGroupColor: (id: string, color: string) => void;
   onReorderGroups: (fromIndex: number, toIndex: number) => void;
   // Sensor label props (admin only)
   sensorLabels?: Map<number, string>;
@@ -58,8 +60,10 @@ interface SensorChipProps {
   color: string;
   isVisible: boolean;
   isBold?: boolean;
+  isDotted?: boolean;
   onToggleVisible: () => void;
   onToggleBold?: () => void;
+  onToggleDotted?: () => void;
   chipIndex: number;
   label?: string;
   isAdmin?: boolean;
@@ -72,8 +76,10 @@ function SensorChip({
   color,
   isVisible,
   isBold,
+  isDotted,
   onToggleVisible,
   onToggleBold,
+  onToggleDotted,
   chipIndex,
   label,
   isAdmin,
@@ -218,14 +224,33 @@ function SensorChip({
             onToggleBold();
           }}
           className={[
-            "transition-colors",
+            "transition-colors text-[10px] font-bold leading-none w-3 h-3 flex items-center justify-center rounded-sm",
             isBold
               ? "text-primary"
               : "text-muted-foreground/50 hover:text-muted-foreground",
           ].join(" ")}
           title={isBold ? "Remove bold" : "Make bold (foreground)"}
         >
-          <Bold className="w-2.5 h-2.5" />
+          B
+        </button>
+      )}
+      {/* Dotted toggle (admin only) */}
+      {isAdmin && onToggleDotted && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleDotted();
+          }}
+          className={[
+            "transition-colors text-[10px] font-bold leading-none w-3 h-3 flex items-center justify-center rounded-sm",
+            isDotted
+              ? "text-primary"
+              : "text-muted-foreground/50 hover:text-muted-foreground",
+          ].join(" ")}
+          title={isDotted ? "Remove dotted" : "Make dotted (dashed line)"}
+        >
+          D
         </button>
       )}
     </div>
@@ -286,64 +311,13 @@ function DropZone({
   );
 }
 
-// ─── Color helpers ────────────────────────────────────────────────────────────
-
-function hexToHue(hex: string): number {
-  const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
-  const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
-  const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  if (max === min) return 0;
-  const d = max - min;
-  let h = 0;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return Math.round(h * 360);
-}
-
-function hueToHex(hue: number): string {
-  const s = 0.7;
-  const l = 0.5;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = l - c / 2;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  if (hue < 60) {
-    r = c;
-    g = x;
-  } else if (hue < 120) {
-    r = x;
-    g = c;
-  } else if (hue < 180) {
-    g = c;
-    b = x;
-  } else if (hue < 240) {
-    g = x;
-    b = c;
-  } else if (hue < 300) {
-    r = x;
-    b = c;
-  } else {
-    r = c;
-    b = x;
-  }
-  const toHex = (n: number) =>
-    Math.round((n + m) * 255)
-      .toString(16)
-      .padStart(2, "0");
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
 // ─── Group card (compact block) ───────────────────────────────────────────────
 
 function GroupCard({
   group,
   groupIndex,
   boldSensors,
+  dottedSensors,
   getSensorColor,
   isSensorVisible,
   onRename,
@@ -353,6 +327,7 @@ function GroupCard({
   onRemoveSensor,
   onToggleSensorVisible,
   onToggleSensorBold,
+  onToggleSensorDotted,
   onChangeColor,
   sensorLabels,
   isAdmin,
@@ -366,6 +341,7 @@ function GroupCard({
   group: SensorGroup;
   groupIndex: number;
   boldSensors?: Set<number>;
+  dottedSensors?: Set<number>;
   getSensorColor: (n: number) => string;
   isSensorVisible: (n: number) => boolean;
   onRename: (id: string, name: string) => void;
@@ -375,7 +351,8 @@ function GroupCard({
   onRemoveSensor: (groupId: string, sensorNum: number) => void;
   onToggleSensorVisible: (sensorNum: number) => void;
   onToggleSensorBold?: (sensorNum: number) => void;
-  onChangeColor: (id: string, hue: number) => void;
+  onToggleSensorDotted?: (sensorNum: number) => void;
+  onChangeColor: (id: string, color: string) => void;
   sensorLabels?: Map<number, string>;
   isAdmin?: boolean;
   onSaveSensorLabel?: (sensorNum: number, label: string) => void;
@@ -390,10 +367,8 @@ function GroupCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
-  const hslDot = `hsl(${group.hue}, 70%, 50%)`;
-  const hslBorder = isDragOverGroup
-    ? `hsl(${group.hue}, 70%, 50%)`
-    : `hsl(${group.hue}, 50%, 70%)`;
+  const displayColor = getGroupColor(group);
+  const borderColor = isDragOverGroup ? displayColor : `${displayColor}99`;
 
   const commitEdit = () => {
     if (draftName.trim()) onRename(group.id, draftName);
@@ -417,7 +392,7 @@ function GroupCard({
         "border rounded-lg p-2 space-y-1.5 transition-all duration-150 bg-card",
         isDragOverGroup ? "ring-2 ring-primary/60 scale-[1.02]" : "",
       ].join(" ")}
-      style={{ borderColor: hslBorder }}
+      style={{ borderColor }}
     >
       {/* Group header row */}
       <div className="flex items-center gap-1.5">
@@ -445,7 +420,7 @@ function GroupCard({
             role="button"
             tabIndex={0}
             className="w-3 h-3 rounded-full block ring-1 ring-inset ring-black/10 cursor-pointer"
-            style={{ backgroundColor: hslDot }}
+            style={{ backgroundColor: displayColor }}
             onClick={() => colorInputRef.current?.click()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ")
@@ -456,8 +431,13 @@ function GroupCard({
             ref={colorInputRef}
             type="color"
             className="absolute opacity-0 w-0 h-0 pointer-events-none"
-            value={hueToHex(group.hue)}
-            onChange={(e) => onChangeColor(group.id, hexToHue(e.target.value))}
+            value={
+              group.color ??
+              (group.hue !== undefined
+                ? `hsl(${group.hue},70%,50%)`
+                : "#808a54")
+            }
+            onChange={(e) => onChangeColor(group.id, e.target.value)}
           />
         </div>
 
@@ -545,10 +525,16 @@ function GroupCard({
               color={getSensorColor(sensorNum)}
               isVisible={isSensorVisible(sensorNum)}
               isBold={boldSensors?.has(sensorNum)}
+              isDotted={dottedSensors?.has(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
               onToggleBold={
                 onToggleSensorBold
                   ? () => onToggleSensorBold(sensorNum)
+                  : undefined
+              }
+              onToggleDotted={
+                onToggleSensorDotted
+                  ? () => onToggleSensorDotted(sensorNum)
                   : undefined
               }
               chipIndex={chipIdx + 1}
@@ -584,6 +570,7 @@ export function SensorGroupManager({
   ungroupedVisible,
   sensorVisibilityOverrides: _svo,
   boldSensors,
+  dottedSensors,
   getSensorColor,
   isSensorVisible,
   onCreateGroup,
@@ -595,6 +582,7 @@ export function SensorGroupManager({
   onToggleSensorVisible,
   onToggleUngroupedVisible,
   onToggleSensorBold,
+  onToggleSensorDotted,
   onReset,
   onChangeGroupColor,
   onReorderGroups,
@@ -604,7 +592,11 @@ export function SensorGroupManager({
 }: SensorGroupManagerProps) {
   const [newGroupName, setNewGroupName] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [columns, setColumns] = useState(2);
+  const [columns, setColumns] = useState<number>(() => {
+    const saved = localStorage.getItem("tsic-group-columns");
+    const parsed = saved ? Number.parseInt(saved, 10) : 2;
+    return [1, 2, 3, 4].includes(parsed) ? parsed : 2;
+  });
 
   // Group drag-and-drop state
   const [draggingGroupIndex, setDraggingGroupIndex] = useState<number | null>(
@@ -648,7 +640,10 @@ export function SensorGroupManager({
             <button
               key={n}
               type="button"
-              onClick={() => setColumns(n)}
+              onClick={() => {
+                setColumns(n);
+                localStorage.setItem("tsic-group-columns", String(n));
+              }}
               className={[
                 "w-6 h-6 rounded text-xs font-medium transition-colors",
                 columns === n
@@ -708,9 +703,10 @@ export function SensorGroupManager({
 
       {isAdmin && (
         <p className="text-xs text-muted-foreground">
-          Double-click a sensor chip to edit its label. Click B to
-          bold/foreground. Drag the <GripVertical className="inline w-3 h-3" />{" "}
-          handle to reorder groups.
+          Double-click a sensor chip to edit its label. Click{" "}
+          <span className="font-bold">B</span> to bold/foreground,{" "}
+          <span className="font-bold">D</span> for a dotted line. Drag the{" "}
+          <GripVertical className="inline w-3 h-3" /> handle to reorder groups.
         </p>
       )}
 
@@ -739,10 +735,16 @@ export function SensorGroupManager({
               color={getSensorColor(sensorNum)}
               isVisible={isSensorVisible(sensorNum)}
               isBold={boldSensors?.has(sensorNum)}
+              isDotted={dottedSensors?.has(sensorNum)}
               onToggleVisible={() => onToggleSensorVisible(sensorNum)}
               onToggleBold={
                 onToggleSensorBold
                   ? () => onToggleSensorBold(sensorNum)
+                  : undefined
+              }
+              onToggleDotted={
+                onToggleSensorDotted
+                  ? () => onToggleSensorDotted(sensorNum)
                   : undefined
               }
               chipIndex={idx + 1}
@@ -760,7 +762,11 @@ export function SensorGroupManager({
         // biome-ignore lint/a11y/useKeyWithClickEvents: drag container
         <div
           className="grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${Math.ceil(groups.length / columns)}, auto)`,
+            gridAutoFlow: "column",
+          }}
           onDragEnd={() => {
             setDraggingGroupIndex(null);
             setDragOverGroupIndex(null);
@@ -772,6 +778,7 @@ export function SensorGroupManager({
               group={group}
               groupIndex={idx + 1}
               boldSensors={boldSensors}
+              dottedSensors={dottedSensors}
               getSensorColor={getSensorColor}
               isSensorVisible={isSensorVisible}
               onRename={onRenameGroup}
@@ -781,6 +788,7 @@ export function SensorGroupManager({
               onRemoveSensor={onRemoveSensorFromGroup}
               onToggleSensorVisible={onToggleSensorVisible}
               onToggleSensorBold={onToggleSensorBold}
+              onToggleSensorDotted={onToggleSensorDotted}
               onChangeColor={onChangeGroupColor}
               sensorLabels={sensorLabels}
               isAdmin={isAdmin}

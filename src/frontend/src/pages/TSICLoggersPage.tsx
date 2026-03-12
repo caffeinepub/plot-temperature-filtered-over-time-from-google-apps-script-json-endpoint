@@ -1,6 +1,9 @@
 import { DashboardCard } from "@/components/DashboardCard";
 import { SensorGroupManager } from "@/components/SensorGroupManager";
-import { TSICSensorChart } from "@/components/TSICSensorChart";
+import {
+  type HoveredGroup,
+  TSICSensorChart,
+} from "@/components/TSICSensorChart";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
-import { labelToHue, useSensorGroups } from "@/hooks/useSensorGroups";
+import {
+  getGroupColor,
+  labelToHue,
+  useSensorGroups,
+} from "@/hooks/useSensorGroups";
 import {
   useResetSensorLabels,
   useSensorLabels,
@@ -49,21 +56,6 @@ function parseDDMMYYYY(value: string): Date | null {
 }
 
 // ─── Color helpers (for name group color picker) ───
-function hexToHue(hex: string): number {
-  const r = Number.parseInt(hex.slice(1, 3), 16) / 255;
-  const g = Number.parseInt(hex.slice(3, 5), 16) / 255;
-  const b = Number.parseInt(hex.slice(5, 7), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  if (max === min) return 0;
-  const d = max - min;
-  let h = 0;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return Math.round(h * 360);
-}
-
 function hueToHex(hue: number): string {
   const s = 0.7;
   const l = 0.5;
@@ -99,13 +91,12 @@ function hueToHex(hue: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-// ─── NameColorPicker ───
+// ─── NameColorPicker (hex-based) ───
 function NameColorPicker({
-  hue,
+  color,
   onChange,
-}: { hue: number; onChange: (hue: number) => void }) {
+}: { color: string; onChange: (color: string) => void }) {
   const ref = useRef<HTMLInputElement>(null);
-  const color = `hsl(${hue}, 70%, 50%)`;
   return (
     <div className="relative flex-shrink-0">
       <span
@@ -122,8 +113,8 @@ function NameColorPicker({
         ref={ref}
         type="color"
         className="absolute opacity-0 w-0 h-0 pointer-events-none"
-        value={hueToHex(hue)}
-        onChange={(e) => onChange(hexToHue(e.target.value))}
+        value={color}
+        onChange={(e) => onChange(e.target.value)}
       />
     </div>
   );
@@ -138,10 +129,10 @@ function NameGroupPanel({
   onChangeColor,
 }: {
   activeLabels: string[];
-  nameColors: Record<string, number>;
+  nameColors: Record<string, string>;
   nameVisibility: Record<string, boolean>;
   onToggleVisible: (name: string) => void;
-  onChangeColor: (name: string, hue: number) => void;
+  onChangeColor: (name: string, color: string) => void;
 }) {
   if (activeLabels.length === 0) {
     return (
@@ -154,16 +145,16 @@ function NameGroupPanel({
   return (
     <div className="space-y-1">
       {activeLabels.map((label) => {
-        const hue =
+        const color =
           nameColors[label] !== undefined
             ? nameColors[label]
-            : labelToHue(label);
+            : `hsl(${labelToHue(label)}, 70%, 50%)`;
         const isVisible = nameVisibility[label] !== false;
         return (
           <div key={label} className="flex items-center gap-2 py-0.5">
             <NameColorPicker
-              hue={hue}
-              onChange={(h) => onChangeColor(label, h)}
+              color={color}
+              onChange={(c) => onChangeColor(label, c)}
             />
             <span className="text-xs flex-1 truncate">{label}</span>
             <Switch
@@ -217,7 +208,7 @@ function TSICSensorLegend({
       </p>
       <div className="flex flex-col gap-4">
         {visibleGroups.map((group) => {
-          const groupColor = `hsl(${group.hue}, 70%, 50%)`;
+          const groupColor = getGroupColor(group);
           const groupSensors = group.sensors.filter((s: number) =>
             activeSet.has(s),
           );
@@ -286,6 +277,59 @@ function TSICSensorLegend({
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Hover side panel ───
+function HoverSidePanel({
+  groups,
+  timestamp,
+}: {
+  groups: HoveredGroup[] | null;
+  timestamp: string | null;
+}) {
+  if (!groups || groups.length === 0) return null;
+
+  return (
+    <div className="text-xs">
+      {timestamp && (
+        <div className="text-[10px] text-muted-foreground pb-1 mb-1.5 border-b border-border">
+          {timestamp}
+        </div>
+      )}
+      <div className="space-y-2">
+        {[...groups]
+          .sort((a, b) => a.groupName.localeCompare(b.groupName))
+          .map((group) => (
+            <div key={group.groupName}>
+              <div
+                className="text-[10px] font-semibold mb-0.5 leading-tight"
+                style={{ color: group.groupColor }}
+              >
+                {group.groupName}
+              </div>
+              {group.sensors.map((s) => (
+                <div
+                  key={s.label}
+                  className="flex justify-between gap-2 leading-tight py-px"
+                >
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                    {s.label}
+                  </span>
+                  <span
+                    className={[
+                      "text-[10px] tabular-nums flex-shrink-0",
+                      s.isBold ? "font-bold" : "",
+                    ].join(" ")}
+                  >
+                    {s.value.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   );
@@ -405,6 +449,12 @@ export function TSICLoggersPage() {
   const [sensorGroupsOpen, setSensorGroupsOpen] = useState(false);
   const [colorMode, setColorMode] = useState<"byGroup" | "byName">("byGroup");
 
+  // Hover state for side panel
+  const [hoveredGroups, setHoveredGroups] = useState<HoveredGroup[] | null>(
+    null,
+  );
+  const [hoveredTimestamp, setHoveredTimestamp] = useState<string | null>(null);
+
   const prevDataLengthRef = useRef<number>(0);
 
   const { isAdmin, isConfirmed } = useIsCallerAdmin();
@@ -421,6 +471,7 @@ export function TSICLoggersPage() {
     ungroupedVisible,
     sensorVisibilityOverrides,
     boldSensors,
+    dottedSensors,
     nameColors,
     nameVisibility,
     createGroup,
@@ -434,6 +485,7 @@ export function TSICLoggersPage() {
     toggleUngroupedVisible,
     resetGroups,
     toggleSensorBold,
+    toggleSensorDotted,
     changeNameGroupColor,
     toggleNameGroupVisible,
     reorderGroups,
@@ -479,6 +531,14 @@ export function TSICLoggersPage() {
     }
   }, [data?.length]);
 
+  const handleHoverChange = useCallback(
+    (groups: HoveredGroup[] | null, timestamp: string | null) => {
+      setHoveredGroups(groups);
+      setHoveredTimestamp(timestamp);
+    },
+    [],
+  );
+
   const dateRangeIndices = useMemo(() => {
     const start = parseDDMMYYYY(startDateText);
     const end = parseDDMMYYYY(endDateText);
@@ -518,6 +578,8 @@ export function TSICLoggersPage() {
     setEndDateText("");
     setYAxisMin(null);
     setYAxisMax(null);
+    setHoveredGroups(null);
+    setHoveredTimestamp(null);
     prevDataLengthRef.current = 0;
   };
 
@@ -589,6 +651,8 @@ export function TSICLoggersPage() {
       Refreshing...
     </span>
   ) : null;
+
+  void hueToHex;
 
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
@@ -921,6 +985,7 @@ export function TSICLoggersPage() {
                       ungroupedVisible={ungroupedVisible}
                       sensorVisibilityOverrides={sensorVisibilityOverrides}
                       boldSensors={boldSensors}
+                      dottedSensors={dottedSensors}
                       getSensorColor={getSensorColor}
                       isSensorVisible={isSensorVisible}
                       onCreateGroup={createGroup}
@@ -932,6 +997,7 @@ export function TSICLoggersPage() {
                       onToggleSensorVisible={toggleSensorVisible}
                       onToggleUngroupedVisible={toggleUngroupedVisible}
                       onToggleSensorBold={toggleSensorBold}
+                      onToggleSensorDotted={toggleSensorDotted}
                       onReset={handleReset}
                       onChangeGroupColor={changeGroupColor}
                       onReorderGroups={reorderGroups}
@@ -965,26 +1031,40 @@ export function TSICLoggersPage() {
             </Collapsible>
           )}
 
-          {/* ── Chart + Legend ── */}
+          {/* ── Chart + Side panel + Legend ── */}
           <DashboardCard
             title={`TSIC Logger ${selectedId} - All sensor readings over time`}
             headerAction={refreshingIndicator}
           >
-            <TSICSensorChart
-              data={data}
-              startIndex={visibleRange.startIndex}
-              endIndex={visibleRange.endIndex}
-              onRangeChange={setRange}
-              yAxisMin={yAxisMin}
-              yAxisMax={yAxisMax}
-              sensorVisibility={sensorVisibility}
-              onToggleSensor={undefined}
-              onResetStates={handleResetStates}
-              sensorColorMap={sensorColorMap}
-              groups={groups}
-              sensorLabels={sensorLabels}
-              boldSensors={boldSensors}
-            />
+            {/* Chart + hover side panel */}
+            <div className="flex gap-4 items-start">
+              <div className="flex-1 min-w-0">
+                <TSICSensorChart
+                  data={data}
+                  startIndex={visibleRange.startIndex}
+                  endIndex={visibleRange.endIndex}
+                  onRangeChange={setRange}
+                  yAxisMin={yAxisMin}
+                  yAxisMax={yAxisMax}
+                  sensorVisibility={sensorVisibility}
+                  onToggleSensor={undefined}
+                  onResetStates={handleResetStates}
+                  sensorColorMap={sensorColorMap}
+                  groups={groups}
+                  sensorLabels={sensorLabels}
+                  boldSensors={boldSensors}
+                  dottedSensors={dottedSensors}
+                  onHoverChange={handleHoverChange}
+                />
+              </div>
+              {/* Side panel: hover data */}
+              <div className="w-44 flex-shrink-0 pt-2">
+                <HoverSidePanel
+                  groups={hoveredGroups}
+                  timestamp={hoveredTimestamp}
+                />
+              </div>
+            </div>
             <div className="mt-4">
               <TSICSensorLegend
                 groups={groups}
