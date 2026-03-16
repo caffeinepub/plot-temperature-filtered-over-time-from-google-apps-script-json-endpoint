@@ -17,9 +17,9 @@ import React, {
 } from "react";
 import {
   Area,
-  AreaChart,
-  Brush,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
@@ -240,7 +240,7 @@ function randomColor(index: number): string {
   return PRESET_COLORS[index % PRESET_COLORS.length];
 }
 
-// ─── Parse sensor list (supports "1, 2, 3" and "S1, S2, S3") ─────────────────
+// ─── Parse sensor list ────────────────────────────────────────────────────────
 function parseSensorList(s: string): number[] {
   return s
     .split(/[,;\s]+/)
@@ -298,9 +298,7 @@ function AdvancedHoverPanel({
   }));
   const bandEntries = visibleBands.map((b) => {
     const minVal = byKey[`band_min_${b.id}`] ?? null;
-    const rangeVal = byKey[`band_range_${b.id}`] ?? null;
-    const maxVal =
-      minVal !== null && rangeVal !== null ? minVal + rangeVal : null;
+    const maxVal = byKey[`band_max_${b.id}`] ?? null;
     return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
   });
   const hasAny =
@@ -364,7 +362,7 @@ function AdvancedHoverPanel({
   );
 }
 
-// ─── FormulaRow (stable outer component — avoids remount bug) ─────────────────
+// ─── FormulaRow (stable outer component) ─────────────────────────────────────
 interface FormulaRowProps {
   f: FormulaLine;
   index: number;
@@ -375,8 +373,6 @@ function FormulaRow({ f, index, onUpdate, onDelete }: FormulaRowProps) {
   const [localName, setLocalName] = useState(f.name);
   const [localExpr, setLocalExpr] = useState(f.expression);
   const exprValid = localExpr === "" || validateExpression(localExpr);
-
-  // Sync if parent changes (e.g. load from backend)
   const prevId = useRef(f.id);
   useEffect(() => {
     if (prevId.current !== f.id) {
@@ -385,7 +381,6 @@ function FormulaRow({ f, index, onUpdate, onDelete }: FormulaRowProps) {
       setLocalExpr(f.expression);
     }
   }, [f.id, f.name, f.expression]);
-
   return (
     <div className="flex items-start gap-2 py-2 border-b border-border/30 last:border-0">
       <input
@@ -424,11 +419,7 @@ function FormulaRow({ f, index, onUpdate, onDelete }: FormulaRowProps) {
         <button
           type="button"
           onClick={() => onUpdate({ ...f, visible: !f.visible })}
-          className={`w-6 h-6 rounded text-xs border ${
-            f.visible
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground"
-          }`}
+          className={`w-6 h-6 rounded text-xs border ${f.visible ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
           title={f.visible ? "Hide" : "Show"}
           data-ocid="tsic.advanced.formula.toggle"
         >
@@ -460,7 +451,6 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
   const [localSensors, setLocalSensors] = useState(
     b.sensors.length > 0 ? b.sensors.join(", ") : "",
   );
-
   const prevId = useRef(b.id);
   useEffect(() => {
     if (prevId.current !== b.id) {
@@ -469,7 +459,6 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
       setLocalSensors(b.sensors.length > 0 ? b.sensors.join(", ") : "");
     }
   }, [b.id, b.name, b.sensors]);
-
   return (
     <div className="flex items-start gap-2 py-2 border-b border-border/30 last:border-0">
       <input
@@ -506,11 +495,7 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
         <button
           type="button"
           onClick={() => onUpdate({ ...b, visible: !b.visible })}
-          className={`w-6 h-6 rounded text-xs border ${
-            b.visible
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-border text-muted-foreground"
-          }`}
+          className={`w-6 h-6 rounded text-xs border ${b.visible ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
           title={b.visible ? "Hide" : "Show"}
           data-ocid="tsic.advanced.band.toggle"
         >
@@ -607,23 +592,6 @@ export function AdvancedChartSection({
     [actor, isAdmin, loaded, selectedId],
   );
 
-  const updateFormulas = useCallback(
-    (updated: FormulaLine[]) => {
-      setFormulas(updated);
-      saveConfig(updated, bands);
-    },
-    [bands, saveConfig],
-  );
-
-  const updateBands = useCallback(
-    (updated: BandConfig[]) => {
-      setBands(updated);
-      saveConfig(formulas, updated);
-    },
-    [formulas, saveConfig],
-  );
-
-  // Single formula/band update handlers (stable callbacks for row components)
   const handleFormulaUpdate = useCallback(
     (updated: FormulaLine) => {
       setFormulas((prev) => {
@@ -668,7 +636,23 @@ export function AdvancedChartSection({
     [formulas, saveConfig],
   );
 
-  // ── Chart data ──
+  const updateFormulas = useCallback(
+    (updated: FormulaLine[]) => {
+      setFormulas(updated);
+      saveConfig(updated, bands);
+    },
+    [bands, saveConfig],
+  );
+
+  const updateBands = useCallback(
+    (updated: BandConfig[]) => {
+      setBands(updated);
+      saveConfig(formulas, updated);
+    },
+    [formulas, saveConfig],
+  );
+
+  // ── Chart data — uses FULL data, sliced by startIndex/endIndex ──
   const visibleData = useMemo(
     () => data.slice(startIndex, endIndex + 1),
     [data, startIndex, endIndex],
@@ -679,14 +663,17 @@ export function AdvancedChartSection({
       const row: Record<string, number | null | undefined> = {
         timestamp: point.timestamp.getTime(),
       };
+      // Formula lines
       for (const f of formulas) {
-        if (f.visible) {
+        if (f.visible && f.expression) {
           row[`formula_${f.id}`] = evaluateFormula(
             f.expression,
             point.sensors as Record<string, number>,
           );
         }
       }
+      // Bands: store base (min) and size (max-min) for stacked Area rendering,
+      // plus keep min/max for the hover panel display
       for (const b of bands) {
         if (b.visible && b.sensors.length > 0) {
           const values = b.sensors
@@ -701,24 +688,25 @@ export function AdvancedChartSection({
                 v !== undefined && v !== null && !Number.isNaN(v),
             );
           if (values.length > 0) {
-            const minV = Math.min(...values);
-            const maxV = Math.max(...values);
-            row[`band_min_${b.id}`] = minV;
-            row[`band_range_${b.id}`] = maxV - minV;
+            const minVal = Math.min(...values);
+            const maxVal = Math.max(...values);
+            row[`band_min_${b.id}`] = minVal;
+            row[`band_max_${b.id}`] = maxVal;
+            // base = min value (invisible stacked area pushes band up)
+            row[`band_base_${b.id}`] = minVal;
+            // size = height of the band (visible colored area)
+            row[`band_size_${b.id}`] = maxVal - minVal;
           } else {
             row[`band_min_${b.id}`] = undefined;
-            row[`band_range_${b.id}`] = undefined;
+            row[`band_max_${b.id}`] = undefined;
+            row[`band_base_${b.id}`] = undefined;
+            row[`band_size_${b.id}`] = undefined;
           }
         }
       }
       return row;
     });
   }, [visibleData, formulas, bands]);
-
-  // Full dataset for brush (same as main chart)
-  const _fullChartData = useMemo(() => {
-    return data.map((point) => ({ timestamp: point.timestamp.getTime() }));
-  }, [data]);
 
   // ── X-axis ──
   const { xTicks, xDomain } = useMemo(() => {
@@ -733,10 +721,40 @@ export function AdvancedChartSection({
   }, [visibleData]);
 
   // ── Y-axis domain ──
-  const yDomain: [number | string, number | string] = [
-    yMin !== undefined ? yMin : "auto",
-    yMax !== undefined ? yMax : "auto",
-  ];
+  // Include band values in auto-domain so they're always visible
+  const yDomain = useMemo((): [number | string, number | string] => {
+    if (yMin !== undefined && yMax !== undefined) return [yMin, yMax];
+    if (yMin !== undefined) return [yMin, "auto"];
+    if (yMax !== undefined) return ["auto", yMax];
+
+    // Auto: compute from formulas + bands
+    if (chartData.length === 0) return ["auto", "auto"];
+    let globalMin = Number.POSITIVE_INFINITY;
+    let globalMax = Number.NEGATIVE_INFINITY;
+    const visibleFormulas = formulas.filter((f) => f.visible && f.expression);
+    const visibleBands = bands.filter((b) => b.visible && b.sensors.length > 0);
+    for (const row of chartData) {
+      for (const f of visibleFormulas) {
+        const v = row[`formula_${f.id}`];
+        if (v != null && !Number.isNaN(v)) {
+          globalMin = Math.min(globalMin, v);
+          globalMax = Math.max(globalMax, v);
+        }
+      }
+      for (const b of visibleBands) {
+        const vMin = row[`band_min_${b.id}`];
+        const vMax = row[`band_max_${b.id}`];
+        if (vMin != null && !Number.isNaN(vMin))
+          globalMin = Math.min(globalMin, vMin);
+        if (vMax != null && !Number.isNaN(vMax))
+          globalMax = Math.max(globalMax, vMax);
+      }
+    }
+    if (!Number.isFinite(globalMin) || !Number.isFinite(globalMax))
+      return ["auto", "auto"];
+    const padding = (globalMax - globalMin) * 0.05 || 1;
+    return [globalMin - padding, globalMax + padding];
+  }, [yMin, yMax, chartData, formulas, bands]);
 
   // ── Zoom drag ──
   const handleMouseDown = useCallback((e: any) => {
@@ -766,6 +784,7 @@ export function AdvancedChartSection({
     }
     const l = Math.min(Number(refAreaLeft), Number(refAreaRight));
     const r = Math.max(Number(refAreaLeft), Number(refAreaRight));
+    // Search in the FULL data array for absolute indices
     let foundStart = -1;
     let foundEnd = -1;
     for (let i = 0; i < data.length; i++) {
@@ -791,18 +810,14 @@ export function AdvancedChartSection({
     }
   }, []);
 
-  const handleBrushChange = useCallback(
-    (range: { startIndex?: number; endIndex?: number }) => {
-      if (range.startIndex !== undefined && range.endIndex !== undefined) {
-        onRangeChange(range.startIndex, range.endIndex);
-      }
-    },
-    [onRangeChange],
-  );
-
-  const hasContent = formulas.length > 0 || bands.length > 0;
   const visibleFormulas = formulas.filter((f) => f.visible && f.expression);
   const visibleBands = bands.filter((b) => b.visible && b.sensors.length > 0);
+  const hasContent = formulas.length > 0 || bands.length > 0;
+  const hasVisibleContent =
+    visibleFormulas.length > 0 || visibleBands.length > 0;
+
+  // suppress unused import warning — MONTH_NAMES is used by chartXAxis helpers
+  void MONTH_NAMES;
 
   return (
     <div
@@ -836,220 +851,230 @@ export function AdvancedChartSection({
         </div>
       ) : (
         <>
-          {/* Chart */}
-          {hasContent && visibleData.length > 0 && (
-            <div className="p-4 pb-2">
-              {/* Y-axis controls */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs text-muted-foreground">Y-axis:</span>
-                <Input
-                  type="number"
-                  placeholder="Min (auto)"
-                  value={yMin !== undefined ? yMin : ""}
-                  onChange={(e) =>
-                    setYMin(
-                      e.target.value === ""
-                        ? undefined
-                        : Number(e.target.value),
-                    )
-                  }
-                  className="h-7 w-24 text-xs"
-                  data-ocid="tsic.advanced.input"
-                />
-                <Input
-                  type="number"
-                  placeholder="Max (auto)"
-                  value={yMax !== undefined ? yMax : ""}
-                  onChange={(e) =>
-                    setYMax(
-                      e.target.value === ""
-                        ? undefined
-                        : Number(e.target.value),
-                    )
-                  }
-                  className="h-7 w-24 text-xs"
-                  data-ocid="tsic.advanced.input"
-                />
-                {(yMin !== undefined || yMax !== undefined) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setYMin(undefined);
-                      setYMax(undefined);
-                    }}
-                    className="h-7 px-2 text-xs rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                    data-ocid="tsic.advanced.secondary_button"
+          {/* Chart — only shown when there's content AND visible data */}
+          {hasContent &&
+            hasVisibleContent &&
+            visibleData.length > 0 &&
+            chartData.length > 0 && (
+              <div className="p-4 pb-2">
+                {/* Y-axis controls */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs text-muted-foreground">Y-axis:</span>
+                  <Input
+                    type="number"
+                    placeholder="Min (auto)"
+                    value={yMin !== undefined ? yMin : ""}
+                    onChange={(e) =>
+                      setYMin(
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                      )
+                    }
+                    className="h-7 w-24 text-xs"
+                    data-ocid="tsic.advanced.input"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max (auto)"
+                    value={yMax !== undefined ? yMax : ""}
+                    onChange={(e) =>
+                      setYMax(
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                      )
+                    }
+                    className="h-7 w-24 text-xs"
+                    data-ocid="tsic.advanced.input"
+                  />
+                  {(yMin !== undefined || yMax !== undefined) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYMin(undefined);
+                        setYMax(undefined);
+                      }}
+                      className="h-7 px-2 text-xs rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                      data-ocid="tsic.advanced.secondary_button"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
+                {/* Chart + hover panel side by side */}
+                <div className="flex gap-4 items-start">
+                  <div
+                    className="flex-1 min-w-0"
+                    style={{ userSelect: "none" }}
                   >
-                    Reset
-                  </button>
+                    <ResponsiveContainer width="100%" height={450}>
+                      <ComposedChart
+                        data={chartData}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseLeave}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          strokeOpacity={0.2}
+                        />
+                        <XAxis
+                          dataKey="timestamp"
+                          type="number"
+                          scale="time"
+                          domain={xDomain}
+                          ticks={xTicks.map((t) => t.timestamp)}
+                          tick={
+                            <CustomXTick allTicks={xTicks as XTickEntry[]} />
+                          }
+                          tickLine={false}
+                          axisLine={{ strokeOpacity: 0.3 }}
+                          interval={0}
+                          allowDataOverflow
+                          height={45}
+                        />
+                        <YAxis
+                          tickFormatter={(v) =>
+                            Number.parseFloat(v.toFixed(2)).toString()
+                          }
+                          tick={{ fontSize: 11 }}
+                          axisLine={{ strokeOpacity: 0.3 }}
+                          tickLine={false}
+                          width={50}
+                          domain={yDomain}
+                          allowDataOverflow
+                        />
+
+                        {/*
+                         * Bands: rendered using two stacked <Area> components per band.
+                         * - band_base: invisible area that "lifts" the visible area to the min value
+                         * - band_size: the visible colored area (max - min height)
+                         * Both share the same stackId so Recharts stacks them correctly.
+                         * Invisible <Line> components for band_min/band_max capture hover payload
+                         * for the AdvancedHoverPanel.
+                         */}
+                        {visibleBands.map((b) => (
+                          <React.Fragment key={`band_${b.id}`}>
+                            {/* Invisible base — pushes the colored band up to the min value */}
+                            <Area
+                              type="monotone"
+                              dataKey={`band_base_${b.id}`}
+                              stroke="none"
+                              fill="none"
+                              stackId={`band_${b.id}`}
+                              dot={false}
+                              isAnimationActive={false}
+                              legendType="none"
+                              connectNulls={false}
+                            />
+                            {/* Visible colored band (min → max range) */}
+                            <Area
+                              type="monotone"
+                              dataKey={`band_size_${b.id}`}
+                              stroke={b.color}
+                              fill={b.color}
+                              fillOpacity={0.25}
+                              strokeOpacity={0.5}
+                              strokeWidth={1}
+                              stackId={`band_${b.id}`}
+                              dot={false}
+                              isAnimationActive={false}
+                              legendType="none"
+                              connectNulls={false}
+                            />
+                            {/* Invisible lines so hover payload captures band_min/band_max */}
+                            <Line
+                              type="monotone"
+                              dataKey={`band_min_${b.id}`}
+                              stroke="transparent"
+                              strokeWidth={0}
+                              dot={false}
+                              isAnimationActive={false}
+                              legendType="none"
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={`band_max_${b.id}`}
+                              stroke="transparent"
+                              strokeWidth={0}
+                              dot={false}
+                              isAnimationActive={false}
+                              legendType="none"
+                            />
+                          </React.Fragment>
+                        ))}
+
+                        {/* Formula lines */}
+                        {visibleFormulas.map((f) => (
+                          <Line
+                            key={`formula_${f.id}`}
+                            type="monotone"
+                            dataKey={`formula_${f.id}`}
+                            stroke={f.color}
+                            strokeWidth={1.5}
+                            dot={false}
+                            isAnimationActive={false}
+                            connectNulls={false}
+                            legendType="none"
+                            name={f.name}
+                          />
+                        ))}
+
+                        {/* Hover cursor line */}
+                        {hoverX !== null && (
+                          <ReferenceLine
+                            x={hoverX}
+                            stroke="#888888"
+                            strokeWidth={1}
+                            strokeDasharray="4 2"
+                          />
+                        )}
+
+                        {/* Drag selection area */}
+                        {refAreaLeft && refAreaRight && (
+                          <ReferenceArea
+                            x1={Number(refAreaLeft)}
+                            x2={Number(refAreaRight)}
+                            strokeOpacity={0.3}
+                            fill="oklch(var(--primary))"
+                            fillOpacity={0.2}
+                            stroke="oklch(var(--primary))"
+                          />
+                        )}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Hover side panel */}
+                  <AdvancedHoverPanel
+                    payload={hoverPayload}
+                    activeTimestamp={hoverTimestamp}
+                    visibleFormulas={visibleFormulas}
+                    visibleBands={visibleBands}
+                  />
+                </div>
+
+                {/* Legend */}
+                {(visibleFormulas.length > 0 || visibleBands.length > 0) && (
+                  <div className="flex flex-wrap gap-3 px-2 pt-1 pb-2">
+                    {visibleFormulas.map((f) => (
+                      <LegendLine
+                        key={f.id}
+                        color={f.color}
+                        name={f.name || f.expression}
+                      />
+                    ))}
+                    {visibleBands.map((b) => (
+                      <LegendBand key={b.id} color={b.color} name={b.name} />
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {/* Chart + hover panel side by side */}
-              <div className="flex gap-4 items-start">
-                <div className="flex-1 min-w-0" style={{ userSelect: "none" }}>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <AreaChart
-                      data={chartData}
-                      margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      onMouseLeave={handleMouseLeave}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        strokeOpacity={0.2}
-                      />
-                      <XAxis
-                        dataKey="timestamp"
-                        type="number"
-                        scale="time"
-                        domain={xDomain}
-                        ticks={xTicks.map((t) => t.timestamp)}
-                        tick={<CustomXTick allTicks={xTicks as XTickEntry[]} />}
-                        tickLine={false}
-                        axisLine={{ strokeOpacity: 0.3 }}
-                        interval={0}
-                        allowDataOverflow
-                        height={45}
-                      />
-                      <YAxis
-                        tickFormatter={(v) =>
-                          Number.parseFloat(v.toFixed(2)).toString()
-                        }
-                        tick={{ fontSize: 11 }}
-                        axisLine={{ strokeOpacity: 0.3 }}
-                        tickLine={false}
-                        width={50}
-                        domain={yDomain}
-                        allowDataOverflow
-                      />
-
-                      {/* Bands using stacked areas */}
-                      {visibleBands.map((b) => (
-                        <React.Fragment key={b.id}>
-                          <Area
-                            type="monotone"
-                            dataKey={`band_min_${b.id}`}
-                            stackId={`band_${b.id}`}
-                            stroke="none"
-                            fill="transparent"
-                            fillOpacity={0}
-                            dot={false}
-                            isAnimationActive={false}
-                            connectNulls={false}
-                            legendType="none"
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey={`band_range_${b.id}`}
-                            stackId={`band_${b.id}`}
-                            stroke={b.color}
-                            strokeOpacity={0.5}
-                            strokeWidth={1}
-                            fill={b.color}
-                            fillOpacity={0.25}
-                            dot={false}
-                            isAnimationActive={false}
-                            connectNulls={false}
-                            legendType="none"
-                            name={b.name}
-                          />
-                        </React.Fragment>
-                      ))}
-
-                      {/* Formula lines */}
-                      {visibleFormulas.map((f) => (
-                        <Area
-                          key={`formula_${f.id}`}
-                          type="monotone"
-                          dataKey={`formula_${f.id}`}
-                          stroke={f.color}
-                          strokeWidth={1.5}
-                          fill="none"
-                          fillOpacity={0}
-                          dot={false}
-                          isAnimationActive={false}
-                          connectNulls={false}
-                          legendType="none"
-                          name={f.name}
-                        />
-                      ))}
-
-                      {/* Hover cursor line */}
-                      {hoverX !== null && (
-                        <ReferenceLine
-                          x={hoverX}
-                          stroke="#888888"
-                          strokeWidth={1}
-                          strokeDasharray="4 2"
-                        />
-                      )}
-
-                      {/* Drag selection area */}
-                      {refAreaLeft && refAreaRight && (
-                        <ReferenceArea
-                          x1={Number(refAreaLeft)}
-                          x2={Number(refAreaRight)}
-                          strokeOpacity={0.3}
-                          fill="oklch(var(--primary))"
-                          fillOpacity={0.2}
-                          stroke="oklch(var(--primary))"
-                        />
-                      )}
-
-                      {/* Brush — synced with main chart */}
-                      <Brush
-                        dataKey="timestamp"
-                        height={32}
-                        stroke="oklch(var(--primary))"
-                        fill="oklch(var(--muted))"
-                        startIndex={startIndex}
-                        endIndex={endIndex}
-                        onChange={handleBrushChange}
-                        travellerWidth={10}
-                        tickFormatter={(ts: number) => {
-                          const d = new Date(ts);
-                          return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
-                        }}
-                        gap={
-                          chartData.length > 0 &&
-                          data.length !== chartData.length
-                            ? Math.floor(data.length / chartData.length)
-                            : undefined
-                        }
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Hover side panel */}
-                <AdvancedHoverPanel
-                  payload={hoverPayload}
-                  activeTimestamp={hoverTimestamp}
-                  visibleFormulas={visibleFormulas}
-                  visibleBands={visibleBands}
-                />
-              </div>
-
-              {/* Legend */}
-              {(visibleFormulas.length > 0 || visibleBands.length > 0) && (
-                <div className="flex flex-wrap gap-3 px-2 pt-1 pb-2">
-                  {visibleFormulas.map((f) => (
-                    <LegendLine
-                      key={f.id}
-                      color={f.color}
-                      name={f.name || f.expression}
-                    />
-                  ))}
-                  {visibleBands.map((b) => (
-                    <LegendBand key={b.id} color={b.color} name={b.name} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            )}
 
           {/* Editor */}
           <div className="p-4 space-y-4">
