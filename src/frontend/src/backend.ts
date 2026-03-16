@@ -109,6 +109,7 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    getAdvancedChartConfigForId(id: bigint): Promise<string>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getAllSensorLabelsForId(loggerId: bigint): Promise<Array<[bigint, string]>>;
@@ -124,6 +125,7 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     isConceptMachineVisible(): Promise<boolean>;
     resetSensorLabelsForId(loggerId: bigint): Promise<void>;
+    saveAdvancedChartConfigForId(id: bigint, json: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
@@ -158,6 +160,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n1(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async getAdvancedChartConfigForId(arg0: bigint): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAdvancedChartConfigForId(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAdvancedChartConfigForId(arg0);
             return result;
         }
     }
@@ -368,6 +384,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.resetSensorLabelsForId(arg0);
+            return result;
+        }
+    }
+    async saveAdvancedChartConfigForId(arg0: bigint, arg1: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveAdvancedChartConfigForId(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveAdvancedChartConfigForId(arg0, arg1);
             return result;
         }
     }

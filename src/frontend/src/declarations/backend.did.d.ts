@@ -23,6 +23,7 @@ export type UserRole = { 'admin' : null } |
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'getAdvancedChartConfigForId' : ActorMethod<[bigint], string>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
   'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
   'getAllSensorLabelsForId' : ActorMethod<[bigint], Array<[bigint, string]>>,
@@ -38,6 +39,7 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isConceptMachineVisible' : ActorMethod<[], boolean>,
   'resetSensorLabelsForId' : ActorMethod<[bigint], undefined>,
+  'saveAdvancedChartConfigForId' : ActorMethod<[bigint, string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveSensorGroupsForId' : ActorMethod<[bigint, string], undefined>,
   'setConceptMachineVisible' : ActorMethod<[boolean], undefined>,

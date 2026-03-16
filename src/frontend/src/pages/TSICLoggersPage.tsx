@@ -1,3 +1,4 @@
+import { AdvancedChartSection } from "@/components/AdvancedChartSection";
 import { DashboardCard } from "@/components/DashboardCard";
 import { SensorGroupManager } from "@/components/SensorGroupManager";
 import {
@@ -436,6 +437,7 @@ function LoggerIdLabelEditor({
 
 export function TSICLoggersPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const { data, isLoading, isError, error, isRefetching, refetch } =
     useTSICData(selectedId);
   const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(
@@ -1077,6 +1079,35 @@ export function TSICLoggersPage() {
               />
             </div>
           </DashboardCard>
+          {/* Advanced Chart Toggle */}
+          <div className="flex justify-center mt-2">
+            <button
+              type="button"
+              data-ocid="tsic.advanced.toggle"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-border/50 hover:border-border transition-colors bg-card"
+            >
+              <span>{showAdvanced ? "Hide Advanced" : "Advanced"}</span>
+              <ChevronDown
+                className={
+                  showAdvanced
+                    ? "w-3 h-3 rotate-180 transition-transform"
+                    : "w-3 h-3 transition-transform"
+                }
+              />
+            </button>
+          </div>
+          {showAdvanced && (
+            <AdvancedChartSection
+              data={data}
+              startIndex={visibleRange.startIndex}
+              endIndex={visibleRange.endIndex}
+              onRangeChange={setRange}
+              selectedId={selectedId}
+              isAdmin={showAdminFeatures}
+              sensorLabels={sensorLabels}
+            />
+          )}
         </>
       )}
     </main>

@@ -8,7 +8,6 @@ import Iter "mo:core/Iter";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
-
 // Apply migration on upgrade.
 
 actor {
@@ -33,6 +32,7 @@ actor {
   var conceptMachineVisible = true;
   var loggerIdLoggerLabels = Map.empty<Nat, Text>();
   var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
+  var advancedChartConfigPerIdJson = Map.empty<Nat, Text>();
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
 
   // key: "loggerId:sensorNum" (e.g. "2:5" for logger 2 sensor 5)
@@ -312,5 +312,23 @@ actor {
       Runtime.trap("Unauthorized: Only admins can save sensor groups");
     };
     sensorGroupsPerIdJson.add(id, json);
+  };
+
+  // ========= ADVANCED CHART CONFIG =========
+  public query ({ caller }) func getAdvancedChartConfigForId(id : Nat) : async Text {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can query advanced chart config");
+    };
+    switch (advancedChartConfigPerIdJson.get(id)) {
+      case (null) { "" };
+      case (?json) { json };
+    };
+  };
+
+  public shared ({ caller }) func saveAdvancedChartConfigForId(id : Nat, json : Text) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can save advanced chart config");
+    };
+    advancedChartConfigPerIdJson.add(id, json);
   };
 };

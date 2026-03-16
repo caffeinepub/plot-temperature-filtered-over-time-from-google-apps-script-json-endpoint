@@ -27,6 +27,7 @@ export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
   'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
   'getAllLoggerLabels' : IDL.Func(
       [],
@@ -50,6 +51,7 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
   'resetSensorLabelsForId' : IDL.Func([IDL.Nat], [], []),
+  'saveAdvancedChartConfigForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
@@ -79,6 +81,7 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
     'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
     'getAllLoggerLabels' : IDL.Func(
         [],
@@ -106,6 +109,7 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
     'resetSensorLabelsForId' : IDL.Func([IDL.Nat], [], []),
+    'saveAdvancedChartConfigForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
