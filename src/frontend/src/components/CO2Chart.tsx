@@ -21,13 +21,15 @@ import {
   YAxis,
 } from "recharts";
 
-// CO2 chart colors - hardcoded for reliable SVG rendering
-// CO2 Right (%): light green (#C2CF85)
 const CO2_RIGHT_COLOR = "#C2CF85";
-// CO2 Left (%): dark green (#808A54)
 const CO2_LEFT_COLOR = "#808A54";
-// CO2 CSV (%): dark green dashed (same as CO2 Left)
 const CO2_CSV_COLOR = "#808A54";
+
+const LINE_NAME_MAP: Record<string, string> = {
+  co2Right: "CO2 Right (%)",
+  co2Left: "CO2 Left (%)",
+  co2CSV: "CO2 CSV (%)",
+};
 
 interface CO2ChartProps {
   data: TemperatureDataPoint[];
@@ -47,6 +49,11 @@ export function CO2Chart({
   endIndex,
   onRangeChange,
 }: CO2ChartProps) {
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [nearestLineName, setNearestLineName] = useState<string | null>(null);
+
   const chartData = useMemo(() => {
     return data.map((point) => ({
       timestamp: point.timestamp.getTime(),
@@ -57,7 +64,6 @@ export function CO2Chart({
     }));
   }, [data]);
 
-  // X-axis ticks
   const xTickEntries = useMemo((): XTickEntry[] => {
     const slice = chartData.slice(startIndex, endIndex + 1);
     if (slice.length === 0) return [];
@@ -78,9 +84,8 @@ export function CO2Chart({
     );
   }, [chartData, startIndex, endIndex]);
 
-  // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only run once when data length changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (data.length > 1 && !initializedRef.current) {
       initializedRef.current = true;
@@ -97,10 +102,8 @@ export function CO2Chart({
       }
       onRangeChange(autoStartIndex, lastIndex);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
-  // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [_isSelecting, setIsSelecting] = useState(false);
@@ -123,9 +126,30 @@ export function CO2Chart({
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
+    setNearestLineName(null);
   }, []);
 
   const handleMouseMove = useCallback((e: any) => {
+    if (
+      !selectingRef.current &&
+      e?.activePayload?.length &&
+      (e as any).chartY != null
+    ) {
+      let minDist = Number.POSITIVE_INFINITY;
+      let nearestName: string | null = null;
+      for (const entry of e.activePayload) {
+        if (entry.y != null && entry.value != null && entry.value !== 0) {
+          const dist = Math.abs(entry.y - (e as any).chartY);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestName = String(entry.name ?? entry.dataKey ?? "");
+          }
+        }
+      }
+      setNearestLineName(nearestName);
+    } else if (selectingRef.current) {
+      setNearestLineName(null);
+    }
     if (!selectingRef.current || !e || !e.activeLabel) return;
     setRefAreaRight(String(e.activeLabel));
   }, []);
@@ -201,8 +225,20 @@ export function CO2Chart({
       ? [zoomedYBottom, zoomedYTop]
       : ["auto", "auto"];
 
+  const displayName = nearestLineName
+    ? (LINE_NAME_MAP[nearestLineName] ?? nearestLineName)
+    : null;
+
   return (
-    <div className="w-full h-[450px]" style={{ userSelect: "none" }}>
+    <div
+      className="w-full h-[450px] relative"
+      style={{ userSelect: "none" }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => {
+        setCursorPos(null);
+        setNearestLineName(null);
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -244,7 +280,7 @@ export function CO2Chart({
             tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
             tickLine={{ stroke: "oklch(var(--border))" }}
             label={{
-              value: "CO₂ Level (%)",
+              value: "CO\u2082 Level (%)",
               angle: -90,
               position: "insideLeft",
               style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
@@ -263,7 +299,6 @@ export function CO2Chart({
               if (name === "co2Right") label = "CO2 Right (%)";
               else if (name === "co2Left") label = "CO2 Left (%)";
               else if (name === "co2CSV") label = "CO2 CSV (%) - dashed";
-
               const formattedValue =
                 typeof value === "number" && !Number.isNaN(value)
                   ? value.toFixed(2)
@@ -352,6 +387,20 @@ export function CO2Chart({
           />
         </LineChart>
       </ResponsiveContainer>
+      {cursorPos && displayName && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {displayName}
+        </div>
+      )}
     </div>
   );
 }

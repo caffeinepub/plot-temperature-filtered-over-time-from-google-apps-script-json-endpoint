@@ -22,12 +22,17 @@ import {
   YAxis,
 } from "recharts";
 
-// Fan voltage colors - light grey shades
-const FAN1_COLOR = "#C8C8C8"; // lichtgrijs
-const FAN2_COLOR = "#A0A0A0"; // grijs
-const FAN3_COLOR = "#787878"; // donkergrijs
-// Flow control - zwart (light mode)
+const FAN1_COLOR = "#C8C8C8";
+const FAN2_COLOR = "#A0A0A0";
+const FAN3_COLOR = "#787878";
 const FLOW_CONTROL_COLOR = "#222222";
+
+const LINE_NAME_MAP: Record<string, string> = {
+  fan1V: "Fan 1 Voltage (V)",
+  fan2V: "Fan 2 Voltage (V)",
+  fan3V: "Fan 3 Voltage (V)",
+  flowControlPa: "Flow Control (Pa)",
+};
 
 interface FanVoltageFlowControlChartProps {
   data: TemperatureDataPoint[];
@@ -51,8 +56,12 @@ export function FanVoltageFlowControlChart({
   const fan1Color = FAN1_COLOR;
   const fan2Color = FAN2_COLOR;
   const fan3Color = FAN3_COLOR;
-  // Flow Control: wit in dark mode, zwart in light mode
   const flowControlColor = isDarkMode ? "#ffffff" : FLOW_CONTROL_COLOR;
+
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [nearestLineName, setNearestLineName] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
     return data.map((point) => ({
@@ -65,7 +74,6 @@ export function FanVoltageFlowControlChart({
     }));
   }, [data]);
 
-  // X-axis ticks
   const xTickEntries = useMemo((): XTickEntry[] => {
     const slice = chartData.slice(startIndex, endIndex + 1);
     if (slice.length === 0) return [];
@@ -86,9 +94,8 @@ export function FanVoltageFlowControlChart({
     );
   }, [chartData, startIndex, endIndex]);
 
-  // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only run once when data length changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (data.length > 1 && !initializedRef.current) {
       initializedRef.current = true;
@@ -105,10 +112,8 @@ export function FanVoltageFlowControlChart({
       }
       onRangeChange(autoStartIndex, lastIndex);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
-  // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [_isSelecting, setIsSelecting] = useState(false);
@@ -133,9 +138,30 @@ export function FanVoltageFlowControlChart({
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
+    setNearestLineName(null);
   }, []);
 
   const handleMouseMove = useCallback((e: any) => {
+    if (
+      !selectingRef.current &&
+      e?.activePayload?.length &&
+      (e as any).chartY != null
+    ) {
+      let minDist = Number.POSITIVE_INFINITY;
+      let nearestName: string | null = null;
+      for (const entry of e.activePayload) {
+        if (entry.y != null && entry.value != null && entry.value !== 0) {
+          const dist = Math.abs(entry.y - (e as any).chartY);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestName = String(entry.name ?? entry.dataKey ?? "");
+          }
+        }
+      }
+      setNearestLineName(nearestName);
+    } else if (selectingRef.current) {
+      setNearestLineName(null);
+    }
     if (!selectingRef.current || !e || !e.activeLabel) return;
     setRefAreaRight(String(e.activeLabel));
   }, []);
@@ -230,8 +256,20 @@ export function FanVoltageFlowControlChart({
       ? [zoomedY2Bottom, zoomedY2Top]
       : ["auto", "auto"];
 
+  const displayName = nearestLineName
+    ? (LINE_NAME_MAP[nearestLineName] ?? nearestLineName)
+    : null;
+
   return (
-    <div className="w-full h-[450px]" style={{ userSelect: "none" }}>
+    <div
+      className="w-full h-[450px] relative"
+      style={{ userSelect: "none" }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => {
+        setCursorPos(null);
+        setNearestLineName(null);
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -413,6 +451,20 @@ export function FanVoltageFlowControlChart({
           />
         </LineChart>
       </ResponsiveContainer>
+      {cursorPos && displayName && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {displayName}
+        </div>
+      )}
     </div>
   );
 }

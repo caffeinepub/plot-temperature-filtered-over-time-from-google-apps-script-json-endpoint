@@ -22,6 +22,11 @@ import {
   YAxis,
 } from "recharts";
 
+const LINE_NAME_MAP: Record<string, string> = {
+  temperatureFiltered: "Temperature Filtered (\u00b0F)",
+  temperatureCSV: "Temperature Setpoint (\u00b0F)",
+};
+
 interface TemperatureChartProps {
   data: TemperatureDataPoint[];
   startIndex: number;
@@ -41,8 +46,12 @@ export function TemperatureChart({
   onRangeChange,
 }: TemperatureChartProps) {
   const isDarkMode = useIsDarkMode();
-  // Temperature filtered: rood in dark mode, standaard chart-1 kleur in light mode
   const tempFilteredColor = isDarkMode ? "#e53e3e" : "oklch(var(--chart-1))";
+
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [nearestLineName, setNearestLineName] = useState<string | null>(null);
 
   const chartData = useMemo(() => {
     return data.map((point) => ({
@@ -53,7 +62,6 @@ export function TemperatureChart({
     }));
   }, [data]);
 
-  // X-axis ticks
   const xTickEntries = useMemo((): XTickEntry[] => {
     const slice = chartData.slice(startIndex, endIndex + 1);
     if (slice.length === 0) return [];
@@ -74,9 +82,8 @@ export function TemperatureChart({
     );
   }, [chartData, startIndex, endIndex]);
 
-  // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional — only run once when data length changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (data.length > 1 && !initializedRef.current) {
       initializedRef.current = true;
@@ -93,10 +100,8 @@ export function TemperatureChart({
       }
       onRangeChange(autoStartIndex, lastIndex);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
 
-  // Drag-zoom state — use timestamp as label
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [_isSelecting, setIsSelecting] = useState(false);
@@ -119,9 +124,30 @@ export function TemperatureChart({
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
+    setNearestLineName(null);
   }, []);
 
   const handleMouseMove = useCallback((e: any) => {
+    if (
+      !selectingRef.current &&
+      e?.activePayload?.length &&
+      (e as any).chartY != null
+    ) {
+      let minDist = Number.POSITIVE_INFINITY;
+      let nearestName: string | null = null;
+      for (const entry of e.activePayload) {
+        if (entry.y != null && entry.value != null && entry.value !== 0) {
+          const dist = Math.abs(entry.y - (e as any).chartY);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestName = String(entry.name ?? entry.dataKey ?? "");
+          }
+        }
+      }
+      setNearestLineName(nearestName);
+    } else if (selectingRef.current) {
+      setNearestLineName(null);
+    }
     if (!selectingRef.current || !e || !e.activeLabel) return;
     setRefAreaRight(String(e.activeLabel));
   }, []);
@@ -178,7 +204,6 @@ export function TemperatureChart({
     onRangeChange,
   ]);
 
-  // Reset Y zoom when the brush range resets to full data
   const prevStartIndex = useRef(startIndex);
   const prevEndIndex = useRef(endIndex);
   if (
@@ -198,8 +223,20 @@ export function TemperatureChart({
       ? [zoomedYBottom, zoomedYTop]
       : [70, 102];
 
+  const displayName = nearestLineName
+    ? (LINE_NAME_MAP[nearestLineName] ?? nearestLineName)
+    : null;
+
   return (
-    <div className="w-full h-[450px]" style={{ userSelect: "none" }}>
+    <div
+      className="w-full h-[450px] relative"
+      style={{ userSelect: "none" }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => {
+        setCursorPos(null);
+        setNearestLineName(null);
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData}
@@ -241,7 +278,7 @@ export function TemperatureChart({
             tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
             tickLine={{ stroke: "oklch(var(--border))" }}
             label={{
-              value: "Temperature (°F)",
+              value: "Temperature (\u00b0F)",
               angle: -90,
               position: "insideLeft",
               style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
@@ -258,9 +295,9 @@ export function TemperatureChart({
             formatter={(value: number, name: string) => {
               const label =
                 name === "temperatureFiltered"
-                  ? "Temperature Filtered (°F)"
-                  : "Temperature setpoint (°F) - dashed";
-              return [`${value.toFixed(2)}°F`, label];
+                  ? "Temperature Filtered (\u00b0F)"
+                  : "Temperature setpoint (\u00b0F) - dashed";
+              return [`${value.toFixed(2)}\u00b0F`, label];
             }}
             labelFormatter={
               ((label: any, payload: any) => {
@@ -282,9 +319,9 @@ export function TemperatureChart({
             iconType="line"
             formatter={(value) => {
               if (value === "temperatureFiltered")
-                return "Temperature Filtered (°F)";
+                return "Temperature Filtered (\u00b0F)";
               if (value === "temperatureCSV")
-                return "Temperature setpoint (°F) - dashed";
+                return "Temperature setpoint (\u00b0F) - dashed";
               return value;
             }}
           />
@@ -335,6 +372,20 @@ export function TemperatureChart({
           />
         </LineChart>
       </ResponsiveContainer>
+      {cursorPos && displayName && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {displayName}
+        </div>
+      )}
     </div>
   );
 }

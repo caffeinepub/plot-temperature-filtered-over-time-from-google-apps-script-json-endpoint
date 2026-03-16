@@ -16,9 +16,9 @@ import React, {
   useState,
 } from "react";
 import {
-  Area,
   CartesianGrid,
   ComposedChart,
+  Customized,
   Line,
   ReferenceArea,
   ReferenceLine,
@@ -38,7 +38,7 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────────────────
 
 export interface FormulaLine {
   id: string;
@@ -46,6 +46,8 @@ export interface FormulaLine {
   expression: string;
   color: string;
   visible: boolean;
+  bold?: boolean;
+  dotted?: boolean;
 }
 
 export interface BandConfig {
@@ -71,7 +73,7 @@ interface AdvancedChartSectionProps {
   sensorLabels?: Map<number, string>;
 }
 
-// ─── Safe formula evaluator ───────────────────────────────────────────────────
+// ─── Safe formula evaluator ───────────────────────────────────────────────────────────────────
 
 type Token =
   | { type: "number"; value: number }
@@ -222,7 +224,7 @@ function validateExpression(expression: string): boolean {
   }
 }
 
-// ─── Color utilities ──────────────────────────────────────────────────────────
+// ─── Color utilities ───────────────────────────────────────────────────────────────────────────
 
 const PRESET_COLORS = [
   "#e74c3c",
@@ -240,7 +242,6 @@ function randomColor(index: number): string {
   return PRESET_COLORS[index % PRESET_COLORS.length];
 }
 
-// ─── Parse sensor list ────────────────────────────────────────────────────────
 function parseSensorList(s: string): number[] {
   return s
     .split(/[,;\s]+/)
@@ -251,43 +252,142 @@ function parseSensorList(s: string): number[] {
     .filter((n) => !Number.isNaN(n) && n >= 1 && n <= 72);
 }
 
-// ─── Legend items ─────────────────────────────────────────────────────────────
-function LegendLine({ color, name }: { color: string; name: string }) {
+// ─── Legend items ─────────────────────────────────────────────────────────────────────────────
+function LegendLine({
+  color,
+  name,
+  hoverValue,
+}: { color: string; name: string; hoverValue?: number | null }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="w-5 h-0.5 rounded" style={{ backgroundColor: color }} />
       <span className="text-xs text-muted-foreground">{name}</span>
+      {hoverValue != null && (
+        <span className="text-xs font-mono tabular-nums text-foreground ml-1">
+          {hoverValue.toFixed(2)}
+        </span>
+      )}
     </div>
   );
 }
-function LegendBand({ color, name }: { color: string; name: string }) {
+function LegendBand({
+  color,
+  name,
+  hoverMin,
+  hoverMax,
+}: {
+  color: string;
+  name: string;
+  hoverMin?: number | null;
+  hoverMax?: number | null;
+}) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 flex-wrap">
       <div
         className="w-4 h-3 rounded-sm border"
         style={{ backgroundColor: color, opacity: 0.35, borderColor: color }}
       />
       <span className="text-xs text-muted-foreground">{name}</span>
+      {hoverMin != null && hoverMax != null && (
+        <span className="text-xs font-mono tabular-nums text-foreground ml-1">
+          min: {hoverMin.toFixed(2)} / max: {hoverMax.toFixed(2)}
+        </span>
+      )}
     </div>
   );
 }
 
-// ─── Hover panel (right of chart) ─────────────────────────────────────────────
+// ─── BandPolygon ────────────────────────────────────────────────────────────────────────────────
+
+interface BandPolygonProps {
+  xAxisMap?: Record<string, { scale: (v: number) => number }>;
+  yAxisMap?: Record<string, { scale: (v: number) => number }>;
+  offset?: { top: number; left: number; width: number; height: number };
+  chartData: Record<string, unknown>[];
+  band: BandConfig;
+  fillOpacity?: number;
+}
+
+function BandPolygon({
+  xAxisMap,
+  yAxisMap,
+  offset,
+  chartData,
+  band,
+  fillOpacity = 0.3,
+}: BandPolygonProps) {
+  if (!xAxisMap || !yAxisMap || !offset) return null;
+  const xAxis = Object.values(xAxisMap)[0];
+  const yAxis = Object.values(yAxisMap)[0];
+  if (!xAxis?.scale || !yAxis?.scale) return null;
+  const xScale = xAxis.scale;
+  const yScale = yAxis.scale;
+  const topPoints: [number, number][] = [];
+  const bottomPoints: [number, number][] = [];
+  for (const point of chartData) {
+    const bandData = point[`band_area_${band.id}`];
+    if (!Array.isArray(bandData)) continue;
+    const [minV, maxV] = bandData as [number, number];
+    if (
+      minV == null ||
+      maxV == null ||
+      Number.isNaN(minV) ||
+      Number.isNaN(maxV)
+    )
+      continue;
+    const x = xScale(point.timestamp as number);
+    const yTop = yScale(maxV);
+    const yBottom = yScale(minV);
+    topPoints.push([x, yTop]);
+    bottomPoints.unshift([x, yBottom]);
+  }
+  if (topPoints.length < 2) return null;
+  const allPoints = [...topPoints, ...bottomPoints];
+  const d = `M ${allPoints.map(([x, y]) => `${x},${y}`).join(" L ")} Z`;
+  const clipId = `band-clip-${band.id}`;
+  return (
+    <g>
+      <defs>
+        <clipPath id={clipId}>
+          <rect
+            x={offset.left}
+            y={offset.top}
+            width={offset.width}
+            height={offset.height}
+          />
+        </clipPath>
+      </defs>
+      <path
+        d={d}
+        fill={band.color}
+        fillOpacity={fillOpacity}
+        stroke="none"
+        clipPath={`url(#${clipId})`}
+      />
+    </g>
+  );
+}
+
+// ─── Hover panel ──────────────────────────────────────────────────────────────────────────────
 function AdvancedHoverPanel({
   payload,
   activeTimestamp,
   visibleFormulas,
   visibleBands,
+  chartData,
 }: {
   payload: any[];
   activeTimestamp: number | null;
   visibleFormulas: FormulaLine[];
   visibleBands: BandConfig[];
+  chartData: Record<string, unknown>[];
 }) {
   if (!activeTimestamp || payload.length === 0) return null;
   const byKey: Record<string, number | null> = {};
   for (const p of payload)
     byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
+  // Look up band min/max directly from chartData to avoid invisible-line payload issues
+  const dataRow = chartData.find((d) => d.timestamp === activeTimestamp);
   const date = new Date(activeTimestamp);
   const timeStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
   const formulaEntries = visibleFormulas.map((f) => ({
@@ -297,8 +397,10 @@ function AdvancedHoverPanel({
     value: byKey[`formula_${f.id}`] ?? null,
   }));
   const bandEntries = visibleBands.map((b) => {
-    const minVal = byKey[`band_min_${b.id}`] ?? null;
-    const maxVal = byKey[`band_max_${b.id}`] ?? null;
+    const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
+    const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
+    const minVal = minRaw != null ? Number(minRaw) : null;
+    const maxVal = maxRaw != null ? Number(maxRaw) : null;
     return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
   });
   const hasAny =
@@ -362,7 +464,7 @@ function AdvancedHoverPanel({
   );
 }
 
-// ─── FormulaRow (stable outer component) ─────────────────────────────────────
+// ─── FormulaRow ──────────────────────────────────────────────────────────────────────────────
 interface FormulaRowProps {
   f: FormulaLine;
   index: number;
@@ -423,7 +525,25 @@ function FormulaRow({ f, index, onUpdate, onDelete }: FormulaRowProps) {
           title={f.visible ? "Hide" : "Show"}
           data-ocid="tsic.advanced.formula.toggle"
         >
-          {f.visible ? "👁" : "—"}
+          {f.visible ? "\ud83d\udc41" : "—"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onUpdate({ ...f, bold: !f.bold })}
+          className={`w-6 h-6 rounded text-xs border font-bold ${f.bold ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
+          title={f.bold ? "Remove bold" : "Make bold"}
+          data-ocid={`tsic.advanced.formula.toggle.${index + 1}`}
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onClick={() => onUpdate({ ...f, dotted: !f.dotted })}
+          className={`w-6 h-6 rounded text-xs border ${f.dotted ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}
+          title={f.dotted ? "Remove dotted" : "Make dotted"}
+          data-ocid={`tsic.advanced.formula.toggle.${index + 1}`}
+        >
+          D
         </button>
         <button
           type="button"
@@ -439,7 +559,7 @@ function FormulaRow({ f, index, onUpdate, onDelete }: FormulaRowProps) {
   );
 }
 
-// ─── BandRow (stable outer component) ────────────────────────────────────────
+// ─── BandRow ───────────────────────────────────────────────────────────────────────────────
 interface BandRowProps {
   b: BandConfig;
   index: number;
@@ -499,7 +619,7 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
           title={b.visible ? "Hide" : "Show"}
           data-ocid="tsic.advanced.band.toggle"
         >
-          {b.visible ? "👁" : "—"}
+          {b.visible ? "\ud83d\udc41" : "—"}
         </button>
         <button
           type="button"
@@ -515,7 +635,12 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+const ALL_SENSOR_KEYS = Array.from(
+  { length: 72 },
+  (_, i) => `sensor_S${i + 1}`,
+);
+
+// ─── Main component ──────────────────────────────────────────────────────────────────────────────
 
 export function AdvancedChartSection({
   data,
@@ -535,15 +660,25 @@ export function AdvancedChartSection({
   const [yMin, setYMin] = useState<number | undefined>(undefined);
   const [yMax, setYMax] = useState<number | undefined>(undefined);
 
-  // Drag-zoom
+  const [showAllSensors, setShowAllSensors] = useState(false);
+  const [allSensorsOpacity, setAllSensorsOpacity] = useState(0.5);
+  const [bandFillOpacity, setBandFillOpacity] = useState(0.3);
+
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const selectingRef = useRef(false);
   const [hoverX, setHoverX] = useState<number | null>(null);
 
-  // Hover panel
   const [hoverPayload, setHoverPayload] = useState<any[]>([]);
   const [hoverTimestamp, setHoverTimestamp] = useState<number | null>(null);
+
+  // Cursor tooltip
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [nearestFormulaName, setNearestFormulaName] = useState<string | null>(
+    null,
+  );
 
   const savedRef = useRef<string>("");
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -643,7 +778,6 @@ export function AdvancedChartSection({
     },
     [bands, saveConfig],
   );
-
   const updateBands = useCallback(
     (updated: BandConfig[]) => {
       setBands(updated);
@@ -652,7 +786,6 @@ export function AdvancedChartSection({
     [formulas, saveConfig],
   );
 
-  // ── Chart data — uses FULL data, sliced by startIndex/endIndex ──
   const visibleData = useMemo(
     () => data.slice(startIndex, endIndex + 1),
     [data, startIndex, endIndex],
@@ -660,10 +793,18 @@ export function AdvancedChartSection({
 
   const chartData = useMemo(() => {
     return visibleData.map((point) => {
-      const row: Record<string, number | null | undefined> = {
-        timestamp: point.timestamp.getTime(),
-      };
-      // Formula lines
+      const row: Record<string, number | null | undefined | [number, number]> =
+        { timestamp: point.timestamp.getTime() };
+
+      if (showAllSensors) {
+        const sensorMap = point.sensors as Record<string, number | undefined>;
+        for (let i = 1; i <= 72; i++) {
+          const key = `S${i}`;
+          const v = sensorMap[key];
+          row[`sensor_${key}`] = v !== undefined ? v : null;
+        }
+      }
+
       for (const f of formulas) {
         if (f.visible && f.expression) {
           row[`formula_${f.id}`] = evaluateFormula(
@@ -672,10 +813,7 @@ export function AdvancedChartSection({
           );
         }
       }
-      // Bands: stacked area approach
-      // band_base = minVal (bottom of colored region)
-      // band_range = maxVal - minVal (height of colored region)
-      // band_min / band_max kept for hover panel
+
       for (const b of bands) {
         if (b.visible && b.sensors.length > 0) {
           const values = b.sensors
@@ -692,23 +830,20 @@ export function AdvancedChartSection({
           if (values.length > 0) {
             const minVal = Math.min(...values);
             const maxVal = Math.max(...values);
+            row[`band_area_${b.id}`] = [minVal, maxVal];
             row[`band_min_${b.id}`] = minVal;
             row[`band_max_${b.id}`] = maxVal;
-            row[`band_base_${b.id}`] = minVal;
-            row[`band_range_${b.id}`] = maxVal - minVal;
           } else {
+            row[`band_area_${b.id}`] = undefined;
             row[`band_min_${b.id}`] = undefined;
             row[`band_max_${b.id}`] = undefined;
-            row[`band_base_${b.id}`] = undefined;
-            row[`band_range_${b.id}`] = undefined;
           }
         }
       }
       return row;
     });
-  }, [visibleData, formulas, bands]);
+  }, [visibleData, formulas, bands, showAllSensors]);
 
-  // ── X-axis ──
   const { xTicks, xDomain } = useMemo(() => {
     if (visibleData.length === 0)
       return { xTicks: [], xDomain: [0, 1] as [number, number] };
@@ -720,12 +855,10 @@ export function AdvancedChartSection({
     };
   }, [visibleData]);
 
-  // ── Y-axis domain ──
   const yDomain = useMemo((): [number | string, number | string] => {
     if (yMin !== undefined && yMax !== undefined) return [yMin, yMax];
     if (yMin !== undefined) return [yMin, "auto"];
     if (yMax !== undefined) return ["auto", yMax];
-
     if (chartData.length === 0) return ["auto", "auto"];
     let globalMin = Number.POSITIVE_INFINITY;
     let globalMax = Number.NEGATIVE_INFINITY;
@@ -736,7 +869,7 @@ export function AdvancedChartSection({
     for (const row of chartData) {
       for (const f of visibleFormulas) {
         const v = row[`formula_${f.id}`];
-        if (v != null && !Number.isNaN(v)) {
+        if (v != null && typeof v === "number" && !Number.isNaN(v) && v !== 0) {
           globalMin = Math.min(globalMin, v);
           globalMax = Math.max(globalMax, v);
         }
@@ -744,9 +877,19 @@ export function AdvancedChartSection({
       for (const b of visibleBandsCfg) {
         const vMin = row[`band_min_${b.id}`];
         const vMax = row[`band_max_${b.id}`];
-        if (vMin != null && !Number.isNaN(vMin))
+        if (
+          vMin != null &&
+          typeof vMin === "number" &&
+          !Number.isNaN(vMin) &&
+          vMin !== 0
+        )
           globalMin = Math.min(globalMin, vMin);
-        if (vMax != null && !Number.isNaN(vMax))
+        if (
+          vMax != null &&
+          typeof vMax === "number" &&
+          !Number.isNaN(vMax) &&
+          vMax !== 0
+        )
           globalMax = Math.max(globalMax, vMax);
       }
     }
@@ -756,23 +899,51 @@ export function AdvancedChartSection({
     return [globalMin - padding, globalMax + padding];
   }, [yMin, yMax, chartData, formulas, bands]);
 
-  // ── Zoom drag ──
   const handleMouseDown = useCallback((e: any) => {
     if (!e?.activeLabel) return;
     setRefAreaLeft(String(e.activeLabel));
     setRefAreaRight(null);
     selectingRef.current = true;
+    setNearestFormulaName(null);
   }, []);
 
-  const handleMouseMove = useCallback((e: any) => {
-    if (e?.activeLabel) setHoverX(Number(e.activeLabel));
-    if (e?.activePayload?.length) {
-      setHoverPayload(e.activePayload);
-      setHoverTimestamp(e.activeLabel ?? null);
-    }
-    if (selectingRef.current && e?.activeLabel)
-      setRefAreaRight(String(e.activeLabel));
-  }, []);
+  const handleMouseMove = useCallback(
+    (e: any) => {
+      if (e?.activeLabel) setHoverX(Number(e.activeLabel));
+      if (e?.activePayload?.length) {
+        setHoverPayload(e.activePayload);
+        setHoverTimestamp(e.activeLabel ?? null);
+      }
+      // Find nearest formula line for cursor tooltip
+      if (
+        !selectingRef.current &&
+        e?.activePayload?.length &&
+        (e as any).chartY != null
+      ) {
+        let minDist = Number.POSITIVE_INFINITY;
+        let nearestName: string | null = null;
+        for (const entry of e.activePayload) {
+          const dk = String(entry.dataKey ?? "");
+          if (!dk.startsWith("formula_")) continue;
+          if (entry.y != null && entry.value != null && entry.value !== 0) {
+            const dist = Math.abs(entry.y - (e as any).chartY);
+            if (dist < minDist) {
+              minDist = dist;
+              const fId = dk.replace("formula_", "");
+              const formula = formulas.find((f) => f.id === fId);
+              nearestName = formula ? formula.name || formula.expression : null;
+            }
+          }
+        }
+        setNearestFormulaName(nearestName);
+      } else if (selectingRef.current) {
+        setNearestFormulaName(null);
+      }
+      if (selectingRef.current && e?.activeLabel)
+        setRefAreaRight(String(e.activeLabel));
+    },
+    [formulas],
+  );
 
   const handleMouseUp = useCallback(() => {
     if (!selectingRef.current) return;
@@ -791,9 +962,8 @@ export function AdvancedChartSection({
       if (foundStart === -1 && ts >= l) foundStart = i;
       if (ts <= r) foundEnd = i;
     }
-    if (foundStart !== -1 && foundEnd !== -1 && foundStart <= foundEnd) {
+    if (foundStart !== -1 && foundEnd !== -1 && foundStart <= foundEnd)
       onRangeChange(foundStart, foundEnd);
-    }
     setRefAreaLeft(null);
     setRefAreaRight(null);
   }, [refAreaLeft, refAreaRight, data, onRangeChange]);
@@ -802,6 +972,8 @@ export function AdvancedChartSection({
     setHoverX(null);
     setHoverPayload([]);
     setHoverTimestamp(null);
+    setCursorPos(null);
+    setNearestFormulaName(null);
     if (selectingRef.current) {
       selectingRef.current = false;
       setRefAreaLeft(null);
@@ -815,7 +987,27 @@ export function AdvancedChartSection({
   const hasVisibleContent =
     visibleFormulas.length > 0 || visibleBands.length > 0;
 
-  // suppress unused import warning — MONTH_NAMES is used by chartXAxis helpers
+  const hoverByKey = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    for (const p of hoverPayload)
+      map[p.dataKey] = p.value != null ? Number(p.value) : null;
+    // Also populate band min/max directly from chartData for reliability
+    if (hoverTimestamp != null) {
+      const row = chartData.find(
+        (d) => (d as any).timestamp === hoverTimestamp,
+      );
+      if (row) {
+        for (const b of bands) {
+          const minRaw = (row as any)[`band_min_${b.id}`];
+          const maxRaw = (row as any)[`band_max_${b.id}`];
+          if (minRaw != null) map[`band_min_${b.id}`] = Number(minRaw);
+          if (maxRaw != null) map[`band_max_${b.id}`] = Number(maxRaw);
+        }
+      }
+    }
+    return map;
+  }, [hoverPayload, hoverTimestamp, chartData, bands]);
+
   void MONTH_NAMES;
 
   return (
@@ -824,24 +1016,78 @@ export function AdvancedChartSection({
       data-ocid="tsic.advanced.panel"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 flex-wrap gap-2">
         <div>
           <h3 className="font-semibold text-sm">Advanced Chart</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Formula lines and sensor bands — shared zoom with main chart
           </p>
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setShowReset(true)}
-            className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 px-2 py-1 rounded border border-border/50 hover:border-destructive/50 transition-colors"
-            data-ocid="tsic.advanced.delete_button"
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Show all sensors toggle + opacity */}
+          <label
+            className="flex items-center gap-1.5 cursor-pointer select-none"
+            data-ocid="tsic.advanced.toggle"
           >
-            <RefreshCw className="w-3 h-3" />
-            Reset
-          </button>
-        )}
+            <input
+              type="checkbox"
+              checked={showAllSensors}
+              onChange={(e) => setShowAllSensors(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-border accent-primary cursor-pointer"
+            />
+            <span className="text-xs text-muted-foreground">
+              Show all sensors
+            </span>
+          </label>
+          {showAllSensors && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">Opacity:</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={allSensorsOpacity}
+                onChange={(e) => setAllSensorsOpacity(Number(e.target.value))}
+                className="w-20 h-1 accent-primary cursor-pointer"
+                title={`Sensor lines opacity: ${Math.round(allSensorsOpacity * 100)}%`}
+              />
+              <span className="text-xs text-muted-foreground w-7">
+                {Math.round(allSensorsOpacity * 100)}%
+              </span>
+            </div>
+          )}
+          {/* Band fill opacity */}
+          {bands.length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground">Band fill:</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={bandFillOpacity}
+                onChange={(e) => setBandFillOpacity(Number(e.target.value))}
+                className="w-20 h-1 accent-primary cursor-pointer"
+                title={`Band fill opacity: ${Math.round(bandFillOpacity * 100)}%`}
+              />
+              <span className="text-xs text-muted-foreground w-7">
+                {Math.round(bandFillOpacity * 100)}%
+              </span>
+            </div>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowReset(true)}
+              className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 px-2 py-1 rounded border border-border/50 hover:border-destructive/50 transition-colors"
+              data-ocid="tsic.advanced.delete_button"
+            >
+              <RefreshCw className="w-3 h-3" />
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {!isAdmin ? (
@@ -850,9 +1096,7 @@ export function AdvancedChartSection({
         </div>
       ) : (
         <>
-          {/* Chart — only shown when there's content AND visible data */}
-          {hasContent &&
-            hasVisibleContent &&
+          {((hasContent && hasVisibleContent) || showAllSensors) &&
             visibleData.length > 0 &&
             chartData.length > 0 && (
               <div className="p-4 pb-2">
@@ -903,7 +1147,16 @@ export function AdvancedChartSection({
                 </div>
 
                 {/* Chart + hover panel side by side */}
-                <div className="flex gap-4 items-start">
+                <div
+                  className="flex gap-4 items-start"
+                  onMouseMove={(e) =>
+                    setCursorPos({ x: e.clientX, y: e.clientY })
+                  }
+                  onMouseLeave={() => {
+                    setCursorPos(null);
+                    setNearestFormulaName(null);
+                  }}
+                >
                   <div
                     className="flex-1 min-w-0"
                     style={{ userSelect: "none" }}
@@ -948,38 +1201,44 @@ export function AdvancedChartSection({
                           allowDataOverflow
                         />
 
-                        {/* Bands: stacked Area approach — base (transparent) + range (colored) */}
+                        {/* All-sensors grey lines */}
+                        {showAllSensors &&
+                          ALL_SENSOR_KEYS.map((key) => (
+                            <Line
+                              key={key}
+                              type="monotone"
+                              dataKey={key}
+                              stroke={`rgba(200,200,200,${allSensorsOpacity})`}
+                              strokeWidth={0.8}
+                              dot={false}
+                              isAnimationActive={false}
+                              legendType="none"
+                              connectNulls={false}
+                            />
+                          ))}
+
+                        {/* Bands: custom SVG polygon */}
                         {visibleBands.map((b) => (
-                          <React.Fragment key={`band_${b.id}`}>
-                            {/* Transparent base: fills from 0 up to minVal */}
-                            <Area
-                              type="monotone"
-                              dataKey={`band_base_${b.id}`}
-                              stackId={`band_${b.id}`}
-                              fill="transparent"
-                              stroke="none"
-                              strokeWidth={0}
-                              dot={false}
-                              isAnimationActive={false}
-                              legendType="none"
-                              connectNulls={false}
-                            />
-                            {/* Colored range: fills from minVal to maxVal */}
-                            <Area
-                              type="monotone"
-                              dataKey={`band_range_${b.id}`}
-                              stackId={`band_${b.id}`}
-                              fill={b.color}
-                              fillOpacity={0.25}
-                              stroke={b.color}
-                              strokeOpacity={0.5}
-                              strokeWidth={0.5}
-                              dot={false}
-                              isAnimationActive={false}
-                              legendType="none"
-                              connectNulls={false}
-                            />
-                            {/* Invisible lines so hover payload captures band_min/band_max */}
+                          <Customized
+                            key={`band_custom_${b.id}`}
+                            component={(props: any) => (
+                              <BandPolygon
+                                xAxisMap={props.xAxisMap}
+                                yAxisMap={props.yAxisMap}
+                                offset={props.offset}
+                                chartData={
+                                  chartData as Record<string, unknown>[]
+                                }
+                                band={b}
+                                fillOpacity={bandFillOpacity}
+                              />
+                            )}
+                          />
+                        ))}
+
+                        {/* Invisible lines to capture band_min/band_max in hover payload */}
+                        {visibleBands.map((b) => (
+                          <React.Fragment key={`band_hover_${b.id}`}>
                             <Line
                               type="monotone"
                               dataKey={`band_min_${b.id}`}
@@ -1008,12 +1267,13 @@ export function AdvancedChartSection({
                             type="monotone"
                             dataKey={`formula_${f.id}`}
                             stroke={f.color}
-                            strokeWidth={1.5}
+                            strokeWidth={f.bold ? 3 : 1.5}
+                            strokeDasharray={f.dotted ? "5 3" : undefined}
                             dot={false}
                             isAnimationActive={false}
                             connectNulls={false}
                             legendType="none"
-                            name={f.name}
+                            name={f.name || f.expression}
                           />
                         ))}
 
@@ -1048,6 +1308,7 @@ export function AdvancedChartSection({
                     activeTimestamp={hoverTimestamp}
                     visibleFormulas={visibleFormulas}
                     visibleBands={visibleBands}
+                    chartData={chartData as Record<string, unknown>[]}
                   />
                 </div>
 
@@ -1059,10 +1320,29 @@ export function AdvancedChartSection({
                         key={f.id}
                         color={f.color}
                         name={f.name || f.expression}
+                        hoverValue={
+                          hoverTimestamp != null
+                            ? (hoverByKey[`formula_${f.id}`] ?? null)
+                            : null
+                        }
                       />
                     ))}
                     {visibleBands.map((b) => (
-                      <LegendBand key={b.id} color={b.color} name={b.name} />
+                      <LegendBand
+                        key={b.id}
+                        color={b.color}
+                        name={b.name}
+                        hoverMin={
+                          hoverTimestamp != null
+                            ? (hoverByKey[`band_min_${b.id}`] ?? null)
+                            : null
+                        }
+                        hoverMax={
+                          hoverTimestamp != null
+                            ? (hoverByKey[`band_max_${b.id}`] ?? null)
+                            : null
+                        }
+                      />
                     ))}
                   </div>
                 )}
@@ -1071,7 +1351,6 @@ export function AdvancedChartSection({
 
           {/* Editor */}
           <div className="p-4 space-y-4">
-            {/* Formulas section */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1116,7 +1395,6 @@ export function AdvancedChartSection({
               )}
             </div>
 
-            {/* Bands section */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1163,6 +1441,22 @@ export function AdvancedChartSection({
             </div>
           </div>
         </>
+      )}
+
+      {/* Cursor tooltip for formula lines */}
+      {cursorPos && nearestFormulaName && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {nearestFormulaName}
+        </div>
       )}
 
       {/* Reset confirmation */}

@@ -37,17 +37,11 @@ interface TSICSensorChartProps {
   sensorVisibility?: Record<string, boolean>;
   onToggleSensor?: (sensorKey: string) => void;
   onResetStates?: () => void;
-  /** Maps sensor number (1-72) → CSS color string */
   sensorColorMap?: Record<number, string>;
-  /** Groups for hover panel grouping */
   groups?: SensorGroup[];
-  /** Sensor labels for display */
   sensorLabels?: Map<number, string>;
-  /** Set of bold sensor numbers (rendered on top with thicker stroke) */
   boldSensors?: Set<number>;
-  /** Set of dotted sensor numbers (rendered with dash pattern) */
   dottedSensors?: Set<number>;
-  /** Callback when hover data changes */
   onHoverChange?: (
     groups: HoveredGroup[] | null,
     timestamp: string | null,
@@ -79,7 +73,6 @@ export function TSICSensorChart({
   dottedSensors,
   onHoverChange,
 }: TSICSensorChartProps) {
-  // Determine which sensors have any data
   const activeSensors = useMemo(() => {
     const active: number[] = [];
     for (let s = 1; s <= SENSOR_COUNT; s++) {
@@ -102,7 +95,7 @@ export function TSICSensorChart({
     Set<number>
   >(() => new Set(activeSensors));
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional stable dep key
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     setInternalVisibleSensors(new Set(activeSensors));
   }, [activeSensors.join(",")]);
@@ -156,9 +149,8 @@ export function TSICSensorChart({
     );
   }, [chartData, startIndex, endIndex]);
 
-  // Auto-zoom to last day on first data load
   const initializedRef = useRef(false);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional once-on-load
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   useEffect(() => {
     if (data.length > 1 && !initializedRef.current) {
       initializedRef.current = true;
@@ -177,7 +169,6 @@ export function TSICSensorChart({
     }
   }, [data.length]);
 
-  // Drag-zoom state
   const [refAreaLeft, setRefAreaLeft] = useState<string | null>(null);
   const [refAreaRight, setRefAreaRight] = useState<string | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -185,6 +176,12 @@ export function TSICSensorChart({
   const [zoomedYBottom, setZoomedYBottom] = useState<number | null>(null);
   const [zoomedYTop, setZoomedYTop] = useState<number | null>(null);
   const selectingRef = useRef(false);
+
+  // Cursor tooltip state
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const [nearestSensorNum, setNearestSensorNum] = useState<number | null>(null);
 
   const handleBrushChange = useCallback(
     (range: { startIndex?: number; endIndex?: number }) => {
@@ -201,9 +198,9 @@ export function TSICSensorChart({
     setRefAreaRight(null);
     setIsSelecting(true);
     selectingRef.current = true;
+    setNearestSensorNum(null);
   }, []);
 
-  // Build hover groups from active payload
   const buildHoverGroups = useCallback(
     (payload: any[], fullTimestamp: string): HoveredGroup[] => {
       const sensorValues: Record<number, number> = {};
@@ -252,7 +249,6 @@ export function TSICSensorChart({
 
   const handleMouseMove = useCallback(
     (e: any) => {
-      // Update hover data
       if (e?.activePayload?.length) {
         const timestamp = e.activePayload[0]?.payload?.fullTimestamp || null;
         const hoverGroups = buildHoverGroups(e.activePayload, timestamp ?? "");
@@ -263,7 +259,37 @@ export function TSICSensorChart({
         setHoverX(null);
       }
 
-      // Zoom selection
+      // Find nearest sensor line for cursor tooltip
+      if (
+        !selectingRef.current &&
+        e?.activePayload?.length &&
+        (e as any).chartY != null
+      ) {
+        let minDist = Number.POSITIVE_INFINITY;
+        let nearestNum: number | null = null;
+        for (const entry of e.activePayload) {
+          const match = String(entry.dataKey).match(/^S(\d+)$/);
+          if (!match) continue;
+          if (entry.value != null && !Number.isNaN(entry.value)) {
+            // Use pixel distance if entry.y is available, otherwise use data-unit distance
+            let dist: number;
+            if (entry.y != null) {
+              dist = Math.abs(entry.y - (e as any).chartY);
+            } else {
+              // Fallback: pick the sensor closest to the cursor using value distance
+              dist = Number.POSITIVE_INFINITY;
+            }
+            if (dist < minDist) {
+              minDist = dist;
+              nearestNum = Number.parseInt(match[1]);
+            }
+          }
+        }
+        setNearestSensorNum(nearestNum);
+      } else if (selectingRef.current) {
+        setNearestSensorNum(null);
+      }
+
       if (!selectingRef.current || !e?.activeLabel) return;
       setRefAreaRight(String(e.activeLabel));
     },
@@ -335,6 +361,8 @@ export function TSICSensorChart({
   const handleMouseLeave = useCallback(() => {
     onHoverChange?.(null, null);
     setHoverX(null);
+    setCursorPos(null);
+    setNearestSensorNum(null);
     if (!selectingRef.current) return;
     selectingRef.current = false;
     setIsSelecting(false);
@@ -399,7 +427,6 @@ export function TSICSensorChart({
   const getColor = (sensorNum: number): string =>
     sensorColorMap[sensorNum] ?? FALLBACK_COLOR;
 
-  // Render normal sensors first, bold sensors last (so they appear on top)
   const normalSensors = activeSensors.filter((s) => !boldSensors?.has(s));
   const boldSensorList = activeSensors.filter((s) => boldSensors?.has(s));
   const orderedSensors = [...normalSensors, ...boldSensorList];
@@ -407,8 +434,21 @@ export function TSICSensorChart({
   void isSelecting;
   void externalToggleSensor;
 
+  // Cursor tooltip display
+  let cursorTooltipText: string | null = null;
+  if (nearestSensorNum !== null) {
+    const label = sensorLabels?.get(nearestSensorNum);
+    cursorTooltipText = label
+      ? `${label} (S${nearestSensorNum})`
+      : `S${nearestSensorNum}`;
+  }
+
   return (
-    <div className="w-full" style={{ userSelect: "none" }}>
+    <div
+      className="w-full"
+      style={{ userSelect: "none" }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+    >
       <div className="w-full h-[900px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -451,7 +491,7 @@ export function TSICSensorChart({
               tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
               tickLine={{ stroke: "oklch(var(--border))" }}
               label={{
-                value: "Temperature (°F)",
+                value: "Temperature (\u00b0F)",
                 angle: -90,
                 position: "insideLeft",
                 style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
@@ -512,6 +552,20 @@ export function TSICSensorChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
+      {cursorPos && cursorTooltipText && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {cursorTooltipText}
+        </div>
+      )}
     </div>
   );
 }
