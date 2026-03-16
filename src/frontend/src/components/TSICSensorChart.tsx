@@ -176,6 +176,11 @@ export function TSICSensorChart({
   const [zoomedYBottom, setZoomedYBottom] = useState<number | null>(null);
   const [zoomedYTop, setZoomedYTop] = useState<number | null>(null);
   const selectingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const yDomainRef = useRef<[number | string, number | string]>([
+    "auto",
+    "auto",
+  ]);
 
   // Cursor tooltip state
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
@@ -259,34 +264,8 @@ export function TSICSensorChart({
         setHoverX(null);
       }
 
-      // Find nearest sensor line for cursor tooltip
-      if (
-        !selectingRef.current &&
-        e?.activePayload?.length &&
-        (e as any).chartY != null
-      ) {
-        let minDist = Number.POSITIVE_INFINITY;
-        let nearestNum: number | null = null;
-        for (const entry of e.activePayload) {
-          const match = String(entry.dataKey).match(/^S(\d+)$/);
-          if (!match) continue;
-          if (entry.value != null && !Number.isNaN(entry.value)) {
-            // Use pixel distance if entry.y is available, otherwise use data-unit distance
-            let dist: number;
-            if (entry.y != null) {
-              dist = Math.abs(entry.y - (e as any).chartY);
-            } else {
-              // Fallback: pick the sensor closest to the cursor using value distance
-              dist = Number.POSITIVE_INFINITY;
-            }
-            if (dist < minDist) {
-              minDist = dist;
-              nearestNum = Number.parseInt(match[1]);
-            }
-          }
-        }
-        setNearestSensorNum(nearestNum);
-      } else if (selectingRef.current) {
+      // Clear nearest sensor when selecting (zoom drag)
+      if (selectingRef.current) {
         setNearestSensorNum(null);
       }
 
@@ -423,6 +402,7 @@ export function TSICSensorChart({
     endIndex,
     visibleSensors,
   ]);
+  yDomainRef.current = yDomain;
 
   const getColor = (sensorNum: number): string =>
     sensorColorMap[sensorNum] ?? FALLBACK_COLOR;
@@ -434,17 +414,31 @@ export function TSICSensorChart({
   void isSelecting;
   void externalToggleSensor;
 
-  // Cursor tooltip display
-  let cursorTooltipText: string | null = null;
+  // Build cursor tooltip content using the hovered sensor
+  let cursorTooltipContent: {
+    groupColor: string | null;
+    groupName: string | null;
+    sensorDisplay: string;
+  } | null = null;
+
   if (nearestSensorNum !== null) {
     const label = sensorLabels?.get(nearestSensorNum);
-    cursorTooltipText = label
+    const sensorDisplay = label
       ? `${label} (S${nearestSensorNum})`
       : `S${nearestSensorNum}`;
+    const matchingGroup = groups?.find((g) =>
+      g.sensors.includes(nearestSensorNum),
+    );
+    cursorTooltipContent = {
+      groupColor: matchingGroup ? getGroupColor(matchingGroup) : null,
+      groupName: matchingGroup ? matchingGroup.name : null,
+      sensorDisplay,
+    };
   }
 
   return (
     <div
+      ref={containerRef}
       className="w-full"
       style={{ userSelect: "none" }}
       onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
@@ -501,6 +495,8 @@ export function TSICSensorChart({
               const color = getColor(sensorNum);
               const isBold = boldSensors?.has(sensorNum);
               const isDotted = dottedSensors?.has(sensorNum);
+              // Capture sensorNum in closure for activeDot handler
+              const capturedSensorNum = sensorNum;
               return (
                 <Line
                   key={sensorNum}
@@ -512,7 +508,26 @@ export function TSICSensorChart({
                   strokeDasharray={isDotted ? "5 3" : undefined}
                   dot={false}
                   hide={!visibleSensors.has(sensorNum)}
-                  activeDot={{ r: isBold ? 5 : 4, fill: color }}
+                  activeDot={(dotProps: any) => (
+                    <circle
+                      key={`activedot-${capturedSensorNum}`}
+                      cx={dotProps.cx}
+                      cy={dotProps.cy}
+                      r={isBold ? 5 : 4}
+                      fill={color}
+                      stroke="white"
+                      strokeWidth={1}
+                      style={{ cursor: "crosshair" }}
+                      onMouseEnter={() => {
+                        if (!selectingRef.current) {
+                          setNearestSensorNum(capturedSensorNum);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setNearestSensorNum(null);
+                      }}
+                    />
+                  )}
                   isAnimationActive={false}
                 />
               );
@@ -552,7 +567,9 @@ export function TSICSensorChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      {cursorPos && cursorTooltipText && (
+
+      {/* Cursor tooltip — official activeDot-driven, shows group color + name + sensor */}
+      {cursorPos && cursorTooltipContent && (
         <div
           style={{
             position: "fixed",
@@ -561,9 +578,29 @@ export function TSICSensorChart({
             pointerEvents: "none",
             zIndex: 9999,
           }}
-          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+          className="bg-card border border-border rounded px-2 py-1 text-xs shadow-md text-foreground whitespace-nowrap flex items-center gap-1.5"
         >
-          {cursorTooltipText}
+          {cursorTooltipContent.groupColor && (
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: cursorTooltipContent.groupColor,
+                flexShrink: 0,
+              }}
+            />
+          )}
+          {cursorTooltipContent.groupName && (
+            <span className="font-medium">
+              {cursorTooltipContent.groupName}
+            </span>
+          )}
+          {cursorTooltipContent.groupName && (
+            <span className="text-muted-foreground">—</span>
+          )}
+          <span>{cursorTooltipContent.sensorDisplay}</span>
         </div>
       )}
     </div>

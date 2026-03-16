@@ -1,3 +1,4 @@
+import { AboutDialog } from "@/components/AboutDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import {
   AlertCircle,
   Check,
   Copy,
+  Info,
   RefreshCw,
   Shield,
   User,
@@ -61,6 +63,7 @@ export function ProfilePage() {
     string | null
   >(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const handleSaveName = () => {
     if (name.trim()) {
@@ -270,6 +273,25 @@ export function ProfilePage() {
                 </Button>
               </div>
             </div>
+
+            {/* About button — admins only */}
+            {isAdmin && adminConfirmed && (
+              <>
+                <Separator />
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setAboutOpen(true)}
+                    data-ocid="profile.about.button"
+                  >
+                    <Info className="w-4 h-4" />
+                    About
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -423,6 +445,8 @@ export function ProfilePage() {
           </Card>
         )}
       </div>
+
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </main>
   );
 }

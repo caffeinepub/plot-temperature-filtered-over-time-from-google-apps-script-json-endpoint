@@ -1,4 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Info } from "lucide-react";
+import { useState } from "react";
+import { AboutDialog } from "./components/AboutDialog";
 import { AccessDeniedScreen } from "./components/AccessDeniedScreen";
 import { LogSystemTitleBar } from "./components/LogSystemTitleBar";
 import { ProfileSetupModal } from "./components/ProfileSetupModal";
@@ -36,6 +39,8 @@ function App() {
     isConfirmed: adminConfirmed,
   } = useIsCallerAdmin();
   const { isVisible: conceptMachineVisible } = useConceptMachineVisibility();
+
+  const [footerAboutOpen, setFooterAboutOpen] = useState(false);
 
   // Filter pages based on ConceptMachine visibility
   const visiblePages = logSystemPages.filter((page) => {
@@ -152,7 +157,7 @@ function App() {
           <footer className="border-t border-border bg-card mt-16">
             <div className="container mx-auto px-6 py-6">
               <div className="text-center text-sm text-muted-foreground">
-                V2.1
+                <span>V2.1 · March 2026</span>
               </div>
             </div>
           </footer>
@@ -160,6 +165,8 @@ function App() {
       );
     }
   }
+
+  const isAdminConfirmed = isAdmin && adminConfirmed;
 
   return (
     <div className="min-h-screen bg-background">
@@ -194,9 +201,37 @@ function App() {
       {/* Footer */}
       <footer className="border-t border-border bg-card mt-16">
         <div className="container mx-auto px-6 py-6">
-          <div className="text-center text-sm text-muted-foreground">V2.1</div>
+          <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+            {isAdminConfirmed ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setFooterAboutOpen(true)}
+                  className="hover:text-primary transition-colors cursor-pointer underline-offset-2 hover:underline"
+                  data-ocid="footer.about.button"
+                >
+                  V2.1 · March 2026
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFooterAboutOpen(true)}
+                  className="hover:text-primary transition-colors cursor-pointer rounded p-0.5"
+                  aria-label="About this project"
+                  data-ocid="footer.open_modal_button"
+                >
+                  <Info size={14} />
+                </button>
+              </>
+            ) : (
+              <span>V2.1 · March 2026</span>
+            )}
+          </div>
         </div>
       </footer>
+
+      {isAdminConfirmed && (
+        <AboutDialog open={footerAboutOpen} onOpenChange={setFooterAboutOpen} />
+      )}
     </div>
   );
 }
