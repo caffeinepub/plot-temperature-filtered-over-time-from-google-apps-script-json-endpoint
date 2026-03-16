@@ -672,8 +672,10 @@ export function AdvancedChartSection({
           );
         }
       }
-      // Bands: store base (min) and size (max-min) for stacked Area rendering,
-      // plus keep min/max for the hover panel display
+      // Bands: stacked area approach
+      // band_base = minVal (bottom of colored region)
+      // band_range = maxVal - minVal (height of colored region)
+      // band_min / band_max kept for hover panel
       for (const b of bands) {
         if (b.visible && b.sensors.length > 0) {
           const values = b.sensors
@@ -692,15 +694,13 @@ export function AdvancedChartSection({
             const maxVal = Math.max(...values);
             row[`band_min_${b.id}`] = minVal;
             row[`band_max_${b.id}`] = maxVal;
-            // base = min value (invisible stacked area pushes band up)
             row[`band_base_${b.id}`] = minVal;
-            // size = height of the band (visible colored area)
-            row[`band_size_${b.id}`] = maxVal - minVal;
+            row[`band_range_${b.id}`] = maxVal - minVal;
           } else {
             row[`band_min_${b.id}`] = undefined;
             row[`band_max_${b.id}`] = undefined;
             row[`band_base_${b.id}`] = undefined;
-            row[`band_size_${b.id}`] = undefined;
+            row[`band_range_${b.id}`] = undefined;
           }
         }
       }
@@ -721,18 +721,18 @@ export function AdvancedChartSection({
   }, [visibleData]);
 
   // ── Y-axis domain ──
-  // Include band values in auto-domain so they're always visible
   const yDomain = useMemo((): [number | string, number | string] => {
     if (yMin !== undefined && yMax !== undefined) return [yMin, yMax];
     if (yMin !== undefined) return [yMin, "auto"];
     if (yMax !== undefined) return ["auto", yMax];
 
-    // Auto: compute from formulas + bands
     if (chartData.length === 0) return ["auto", "auto"];
     let globalMin = Number.POSITIVE_INFINITY;
     let globalMax = Number.NEGATIVE_INFINITY;
     const visibleFormulas = formulas.filter((f) => f.visible && f.expression);
-    const visibleBands = bands.filter((b) => b.visible && b.sensors.length > 0);
+    const visibleBandsCfg = bands.filter(
+      (b) => b.visible && b.sensors.length > 0,
+    );
     for (const row of chartData) {
       for (const f of visibleFormulas) {
         const v = row[`formula_${f.id}`];
@@ -741,7 +741,7 @@ export function AdvancedChartSection({
           globalMax = Math.max(globalMax, v);
         }
       }
-      for (const b of visibleBands) {
+      for (const b of visibleBandsCfg) {
         const vMin = row[`band_min_${b.id}`];
         const vMax = row[`band_max_${b.id}`];
         if (vMin != null && !Number.isNaN(vMin))
@@ -784,7 +784,6 @@ export function AdvancedChartSection({
     }
     const l = Math.min(Number(refAreaLeft), Number(refAreaRight));
     const r = Math.max(Number(refAreaLeft), Number(refAreaRight));
-    // Search in the FULL data array for absolute indices
     let foundStart = -1;
     let foundEnd = -1;
     for (let i = 0; i < data.length; i++) {
@@ -949,38 +948,32 @@ export function AdvancedChartSection({
                           allowDataOverflow
                         />
 
-                        {/*
-                         * Bands: rendered using two stacked <Area> components per band.
-                         * - band_base: invisible area that "lifts" the visible area to the min value
-                         * - band_size: the visible colored area (max - min height)
-                         * Both share the same stackId so Recharts stacks them correctly.
-                         * Invisible <Line> components for band_min/band_max capture hover payload
-                         * for the AdvancedHoverPanel.
-                         */}
+                        {/* Bands: stacked Area approach — base (transparent) + range (colored) */}
                         {visibleBands.map((b) => (
                           <React.Fragment key={`band_${b.id}`}>
-                            {/* Invisible base — pushes the colored band up to the min value */}
+                            {/* Transparent base: fills from 0 up to minVal */}
                             <Area
                               type="monotone"
                               dataKey={`band_base_${b.id}`}
-                              stroke="none"
-                              fill="none"
                               stackId={`band_${b.id}`}
+                              fill="transparent"
+                              stroke="none"
+                              strokeWidth={0}
                               dot={false}
                               isAnimationActive={false}
                               legendType="none"
                               connectNulls={false}
                             />
-                            {/* Visible colored band (min → max range) */}
+                            {/* Colored range: fills from minVal to maxVal */}
                             <Area
                               type="monotone"
-                              dataKey={`band_size_${b.id}`}
-                              stroke={b.color}
+                              dataKey={`band_range_${b.id}`}
+                              stackId={`band_${b.id}`}
                               fill={b.color}
                               fillOpacity={0.25}
+                              stroke={b.color}
                               strokeOpacity={0.5}
-                              strokeWidth={1}
-                              stackId={`band_${b.id}`}
+                              strokeWidth={0.5}
                               dot={false}
                               isAnimationActive={false}
                               legendType="none"
