@@ -1039,7 +1039,7 @@ export function TSICLoggersPage() {
             headerAction={refreshingIndicator}
           >
             {/* Chart + hover side panel */}
-            <div className="flex gap-4 items-start">
+            <div className="flex flex-col md:flex-row gap-4 items-start">
               <div className="flex-1 min-w-0">
                 <TSICSensorChart
                   data={data}
@@ -1060,7 +1060,7 @@ export function TSICLoggersPage() {
                 />
               </div>
               {/* Side panel: hover data */}
-              <div className="w-44 flex-shrink-0 pt-2">
+              <div className="w-full md:w-44 md:flex-shrink-0 pt-2">
                 <HoverSidePanel
                   groups={hoveredGroups}
                   timestamp={hoveredTimestamp}

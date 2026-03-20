@@ -409,7 +409,7 @@ function AdvancedHoverPanel({
     bandEntries.some((e) => e.minVal !== null);
   if (!hasAny) return null;
   return (
-    <div className="w-44 flex-shrink-0 pt-2 pl-2">
+    <div className="w-full md:w-44 md:flex-shrink-0 pt-2 pl-2">
       <div
         className="rounded border border-border/40 bg-card/90 backdrop-blur-sm p-2 shadow-sm"
         style={{ fontSize: "10px", lineHeight: "1.4" }}
@@ -1145,7 +1145,7 @@ export function AdvancedChartSection({
 
                 {/* Chart + hover panel side by side */}
                 <div
-                  className="flex gap-4 items-start"
+                  className="flex flex-col md:flex-row gap-4 items-start"
                   onMouseMove={(e) =>
                     setCursorPos({ x: e.clientX, y: e.clientY })
                   }

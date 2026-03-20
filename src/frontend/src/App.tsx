@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AboutDialog } from "./components/AboutDialog";
 import { AccessDeniedScreen } from "./components/AccessDeniedScreen";
 import { LogSystemTitleBar } from "./components/LogSystemTitleBar";
+import { PWAAssets } from "./components/PWAAssets";
 import { ProfileSetupModal } from "./components/ProfileSetupModal";
 import { useConceptMachineVisibility } from "./hooks/useConceptMachineVisibility";
 import { useCurrentUserProfile } from "./hooks/useCurrentUserProfile";
@@ -110,7 +111,12 @@ function App() {
 
   // Show login page while initializing or when not authenticated
   if (isInitializing || !isAuthenticated) {
-    return <LoginPage />;
+    return (
+      <>
+        <PWAAssets />
+        <LoginPage />
+      </>
+    );
   }
 
   // Show profile setup modal if authenticated but no profile yet
@@ -129,6 +135,7 @@ function App() {
     if (isCheckingAccess || isDenied) {
       return (
         <div className="min-h-screen bg-background">
+          <PWAAssets />
           <header className="border-b-4 border-t-4 border-primary bg-card shadow-lg">
             <div className="container mx-auto px-6 py-6">
               <LogSystemTitleBar
@@ -170,6 +177,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PWAAssets />
       {showProfileSetup && <ProfileSetupModal />}
 
       {/* Header with Navigation */}
