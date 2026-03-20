@@ -19,6 +19,7 @@ import {
   useSetConceptMachineVisibility,
 } from "@/hooks/useConceptMachineVisibility";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 import {
   useCurrentUserProfile,
   useGrantAdmin,
@@ -29,9 +30,11 @@ import {
   AlertCircle,
   Check,
   Copy,
+  Download,
   Info,
   RefreshCw,
   Shield,
+  Smartphone,
   User,
 } from "lucide-react";
 import { useState } from "react";
@@ -42,6 +45,7 @@ export function ProfilePage() {
   const { isAdmin, isConfirmed: adminConfirmed } = useIsCallerAdmin();
   const { mutate: saveProfile, isPending: isSaving } = useSaveUserProfile();
   const { mutate: grantAdmin, isPending: isGranting } = useGrantAdmin();
+  const { canInstall, install, isInstalled, isInstalling } = usePWAInstall();
 
   const {
     data: adminList,
@@ -90,7 +94,6 @@ export function ProfilePage() {
       return;
     }
 
-    // Validate principal format client-side before calling backend
     try {
       Principal.fromText(principalText);
     } catch (_error) {
@@ -168,7 +171,6 @@ export function ProfilePage() {
     );
   }
 
-  // Sort admin list by principal for stable ordering
   const sortedAdminList = adminList
     ? [...adminList].sort((a, b) =>
         a.principal.toString().localeCompare(b.principal.toString()),
@@ -178,6 +180,58 @@ export function ProfilePage() {
   return (
     <main className="container mx-auto px-6 py-8">
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Install App Card — visible to all users when PWA install is available */}
+        {canInstall && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Smartphone className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Install App</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add Conceptmachine to your home screen for quick access
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={install}
+                  disabled={isInstalling}
+                  size="sm"
+                  className="gap-2 flex-shrink-0"
+                  data-ocid="profile.install.button"
+                >
+                  <Download className="w-4 h-4" />
+                  {isInstalling ? "Installing..." : "Install"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Already installed indicator */}
+        {isInstalled && (
+          <Card className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                  <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm text-green-700 dark:text-green-300">
+                    App Installed
+                  </p>
+                  <p className="text-xs text-green-600/80 dark:text-green-400/80">
+                    Conceptmachine is installed on this device
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Profile Information */}
         <Card>
           <CardHeader>

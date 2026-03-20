@@ -16,6 +16,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Brush,
   CartesianGrid,
   ComposedChart,
   Customized,
@@ -786,13 +787,8 @@ export function AdvancedChartSection({
     [formulas, saveConfig],
   );
 
-  const visibleData = useMemo(
-    () => data.slice(startIndex, endIndex + 1),
-    [data, startIndex, endIndex],
-  );
-
   const chartData = useMemo(() => {
-    return visibleData.map((point) => {
+    return data.map((point) => {
       const row: Record<string, number | null | undefined | [number, number]> =
         { timestamp: point.timestamp.getTime() };
 
@@ -842,18 +838,20 @@ export function AdvancedChartSection({
       }
       return row;
     });
-  }, [visibleData, formulas, bands, showAllSensors]);
+  }, [data, formulas, bands, showAllSensors]);
 
   const { xTicks, xDomain } = useMemo(() => {
-    if (visibleData.length === 0)
+    if (data.length === 0)
       return { xTicks: [], xDomain: [0, 1] as [number, number] };
-    const firstTs = visibleData[0].timestamp.getTime();
-    const lastTs = visibleData[visibleData.length - 1].timestamp.getTime();
+    const firstTs = (data[startIndex] ?? data[0]).timestamp.getTime();
+    const lastTs = (
+      data[endIndex] ?? data[data.length - 1]
+    ).timestamp.getTime();
     return {
       xTicks: buildXTicks(firstTs, lastTs),
       xDomain: computeXDomain(firstTs, lastTs),
     };
-  }, [visibleData]);
+  }, [data, startIndex, endIndex]);
 
   const yDomain = useMemo((): [number | string, number | string] => {
     if (yMin !== undefined && yMax !== undefined) return [yMin, yMax];
@@ -866,7 +864,8 @@ export function AdvancedChartSection({
     const visibleBandsCfg = bands.filter(
       (b) => b.visible && b.sensors.length > 0,
     );
-    for (const row of chartData) {
+    const visibleChartData = chartData.slice(startIndex, endIndex + 1);
+    for (const row of visibleChartData) {
       for (const f of visibleFormulas) {
         const v = row[`formula_${f.id}`];
         if (v != null && typeof v === "number" && !Number.isNaN(v) && v !== 0) {
@@ -897,7 +896,7 @@ export function AdvancedChartSection({
       return ["auto", "auto"];
     const padding = (globalMax - globalMin) * 0.05 || 1;
     return [globalMin - padding, globalMax + padding];
-  }, [yMin, yMax, chartData, formulas, bands]);
+  }, [yMin, yMax, chartData, startIndex, endIndex, formulas, bands]);
 
   const handleMouseDown = useCallback((e: any) => {
     if (!e?.activeLabel) return;
@@ -1008,8 +1007,6 @@ export function AdvancedChartSection({
     return map;
   }, [hoverPayload, hoverTimestamp, chartData, bands]);
 
-  void MONTH_NAMES;
-
   return (
     <div
       className="mt-2 rounded-xl border border-border bg-card shadow-sm"
@@ -1097,7 +1094,7 @@ export function AdvancedChartSection({
       ) : (
         <>
           {((hasContent && hasVisibleContent) || showAllSensors) &&
-            visibleData.length > 0 &&
+            data.length > 0 &&
             chartData.length > 0 && (
               <div className="p-4 pb-2">
                 {/* Y-axis controls */}
@@ -1161,10 +1158,10 @@ export function AdvancedChartSection({
                     className="flex-1 min-w-0"
                     style={{ userSelect: "none" }}
                   >
-                    <ResponsiveContainer width="100%" height={450}>
+                    <ResponsiveContainer width="100%" height={900}>
                       <ComposedChart
                         data={chartData}
-                        margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 60 }}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
@@ -1298,6 +1295,27 @@ export function AdvancedChartSection({
                             stroke="oklch(var(--primary))"
                           />
                         )}
+                        <Brush
+                          dataKey="timestamp"
+                          height={40}
+                          stroke="oklch(var(--primary))"
+                          fill="oklch(var(--muted))"
+                          startIndex={startIndex}
+                          endIndex={endIndex}
+                          onChange={(range: any) => {
+                            if (
+                              range?.startIndex != null &&
+                              range?.endIndex != null
+                            ) {
+                              onRangeChange(range.startIndex, range.endIndex);
+                            }
+                          }}
+                          travellerWidth={10}
+                          tickFormatter={(ts: number) => {
+                            const d = new Date(ts);
+                            return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+                          }}
+                        />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>
