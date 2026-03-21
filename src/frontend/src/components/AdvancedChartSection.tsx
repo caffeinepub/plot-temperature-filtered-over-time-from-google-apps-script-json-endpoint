@@ -1155,7 +1155,7 @@ export function AdvancedChartSection({
                   }}
                 >
                   <div
-                    className="flex-1 min-w-0"
+                    className="flex-1 min-w-0 w-full"
                     style={{ userSelect: "none" }}
                   >
                     <ResponsiveContainer width="100%" height={900}>

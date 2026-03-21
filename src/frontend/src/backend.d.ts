@@ -11,10 +11,12 @@ export interface UserProfileInfo {
     principal: Principal;
     name: string;
     isAdmin: boolean;
+    isAdminPlus: boolean;
 }
 export interface AdminInfo {
     principal: Principal;
     name: string;
+    isAdminPlus: boolean;
 }
 export interface UserProfile {
     name: string;
@@ -38,8 +40,11 @@ export interface backendInterface {
     getUserProfile(user: Principal): Promise<UserProfileInfo>;
     getUserRole(): Promise<UserRole | null>;
     grantAdminRole(target: Principal): Promise<boolean>;
+    grantAdminPlusRole(target: Principal): Promise<boolean>;
+    revokeAdminRole(target: Principal): Promise<boolean>;
     hasProfile(): Promise<boolean>;
     isCallerAdmin(): Promise<boolean>;
+    isCallerAdminPlus(): Promise<boolean>;
     isConceptMachineVisible(): Promise<boolean>;
     resetSensorLabelsForId(loggerId: bigint): Promise<void>;
     saveAdvancedChartConfigForId(id: bigint, json: string): Promise<void>;

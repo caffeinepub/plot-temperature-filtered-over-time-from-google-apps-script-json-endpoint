@@ -1040,7 +1040,7 @@ export function TSICLoggersPage() {
           >
             {/* Chart + hover side panel */}
             <div className="flex flex-col md:flex-row gap-4 items-start">
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 w-full">
                 <TSICSensorChart
                   data={data}
                   startIndex={visibleRange.startIndex}

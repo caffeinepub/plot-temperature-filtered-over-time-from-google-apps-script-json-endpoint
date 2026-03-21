@@ -9,16 +9,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { useActor } from "@/hooks/useActor";
 import { useAdminList } from "@/hooks/useAdminList";
 import {
   useConceptMachineVisibility,
   useSetConceptMachineVisibility,
 } from "@/hooks/useConceptMachineVisibility";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
+import { useIsCallerAdminPlus } from "@/hooks/useIsCallerAdminPlus";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import {
   useCurrentUserProfile,
@@ -26,6 +36,7 @@ import {
   useSaveUserProfile,
 } from "@/hooks/useQueries";
 import { Principal } from "@icp-sdk/core/principal";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Check,
@@ -34,18 +45,26 @@ import {
   Info,
   RefreshCw,
   Shield,
+  ShieldCheck,
   Smartphone,
+  Trash2,
   User,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+const HARDCODED_ADMIN_PRINCIPAL =
+  "nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe";
+
 export function ProfilePage() {
   const { userProfile, isLoading } = useCurrentUserProfile();
   const { isAdmin, isConfirmed: adminConfirmed } = useIsCallerAdmin();
+  const { isAdminPlus } = useIsCallerAdminPlus();
   const { mutate: saveProfile, isPending: isSaving } = useSaveUserProfile();
   const { mutate: grantAdmin, isPending: isGranting } = useGrantAdmin();
   const { canInstall, install, isInstalled, isInstalling } = usePWAInstall();
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   const {
     data: adminList,
@@ -68,6 +87,22 @@ export function ProfilePage() {
   >(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  // Remove admin confirmation dialog state
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [adminToRemove, setAdminToRemove] = useState<{
+    principal: string;
+    name: string;
+  } | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  // Promote to admin+ confirmation state
+  const [promoteConfirmOpen, setPromoteConfirmOpen] = useState(false);
+  const [adminToPromote, setAdminToPromote] = useState<{
+    principal: string;
+    name: string;
+  } | null>(null);
+  const [isPromoting, setIsPromoting] = useState(false);
 
   const handleSaveName = () => {
     if (name.trim()) {
@@ -155,6 +190,58 @@ export function ProfilePage() {
     });
   };
 
+  const openRemoveConfirm = (principal: string, name: string) => {
+    setAdminToRemove({ principal, name });
+    setRemoveConfirmOpen(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!adminToRemove || !actor) return;
+    setIsRemoving(true);
+    try {
+      const principal = Principal.fromText(adminToRemove.principal);
+      const result = await (actor as any).revokeAdminRole(principal);
+      if (!result) throw new Error("Backend returned false");
+      toast.success(
+        `Admin rights removed for ${adminToRemove.name || adminToRemove.principal}`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["adminList"] });
+      queryClient.refetchQueries({ queryKey: ["adminList"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to remove admin rights");
+    } finally {
+      setIsRemoving(false);
+      setRemoveConfirmOpen(false);
+      setAdminToRemove(null);
+    }
+  };
+
+  const openPromoteConfirm = (principal: string, name: string) => {
+    setAdminToPromote({ principal, name });
+    setPromoteConfirmOpen(true);
+  };
+
+  const handleConfirmPromote = async () => {
+    if (!adminToPromote || !actor) return;
+    setIsPromoting(true);
+    try {
+      const principal = Principal.fromText(adminToPromote.principal);
+      const result = await (actor as any).grantAdminPlusRole(principal);
+      if (!result) throw new Error("Backend returned false");
+      toast.success(
+        `Admin+ role granted to ${adminToPromote.name || adminToPromote.principal}`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["adminList"] });
+      queryClient.refetchQueries({ queryKey: ["adminList"] });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to promote to Admin+");
+    } finally {
+      setIsPromoting(false);
+      setPromoteConfirmOpen(false);
+      setAdminToPromote(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <main className="container mx-auto px-6 py-8">
@@ -180,7 +267,7 @@ export function ProfilePage() {
   return (
     <main className="container mx-auto px-6 py-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Install App Card — visible to all users when PWA install is available */}
+        {/* Install App Card */}
         {canInstall && (
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="py-4">
@@ -247,12 +334,25 @@ export function ProfilePage() {
                   </CardDescription>
                 </div>
               </div>
-              {isAdmin && (
-                <Badge variant="default" className="gap-1">
-                  <Shield className="w-3 h-3" />
-                  Admin
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isAdminPlus && (
+                  <Badge
+                    variant="default"
+                    className="gap-1"
+                    style={{ backgroundColor: "#808A54", color: "white" }}
+                    data-ocid="profile.adminplus.badge"
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    Admin+
+                  </Badge>
+                )}
+                {isAdmin && (
+                  <Badge variant="default" className="gap-1">
+                    <Shield className="w-3 h-3" />
+                    Admin
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -452,39 +552,117 @@ export function ProfilePage() {
                 {!adminListLoading &&
                   !adminListError &&
                   sortedAdminList.length > 0 && (
-                    <div className="space-y-2">
-                      {sortedAdminList.map((admin) => (
-                        <div
-                          key={admin.principal.toString()}
-                          className="flex items-center justify-between p-3 border rounded-md bg-muted/30"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">
-                              {admin.name}
+                    <div className="space-y-2" data-ocid="profile.admin.list">
+                      {sortedAdminList.map((admin: any, idx) => {
+                        const principalStr = admin.principal.toString();
+                        const isHardcoded =
+                          principalStr === HARDCODED_ADMIN_PRINCIPAL;
+                        const isCurrentUser =
+                          principalStr === userProfile?.principal.toString();
+                        return (
+                          <div
+                            key={principalStr}
+                            className="flex items-center justify-between p-3 border rounded-md bg-muted/30 gap-2"
+                            data-ocid={`profile.admin.item.${idx + 1}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium truncate">
+                                  {admin.name ||
+                                    `${principalStr.slice(0, 12)}...`}
+                                </span>
+                                {admin.isAdminPlus && (
+                                  <Badge
+                                    variant="default"
+                                    className="gap-1 text-xs px-1.5 py-0"
+                                    style={{
+                                      backgroundColor: "#808A54",
+                                      color: "white",
+                                    }}
+                                  >
+                                    <ShieldCheck className="w-2.5 h-2.5" />
+                                    Admin+
+                                  </Badge>
+                                )}
+                                {isCurrentUser && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs px-1.5 py-0"
+                                  >
+                                    You
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono truncate">
+                                {principalStr}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground font-mono truncate">
-                              {admin.principal.toString()}
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {/* Promote to Admin+ — only for admin+ users, only for non-admin+ admins, not hardcoded */}
+                              {isAdminPlus &&
+                                !admin.isAdminPlus &&
+                                !isHardcoded && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs h-7 px-2 gap-1"
+                                    style={{
+                                      borderColor: "#808A54",
+                                      color: "#808A54",
+                                    }}
+                                    onClick={() =>
+                                      openPromoteConfirm(
+                                        principalStr,
+                                        admin.name,
+                                      )
+                                    }
+                                    data-ocid={`profile.admin.promote_button.${idx + 1}`}
+                                  >
+                                    <ShieldCheck className="w-3 h-3" />
+                                    Make Admin+
+                                  </Button>
+                                )}
+
+                              {/* Remove admin — only for admin+ users, not hardcoded, not yourself */}
+                              {isAdminPlus &&
+                                !isHardcoded &&
+                                !isCurrentUser && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() =>
+                                      openRemoveConfirm(
+                                        principalStr,
+                                        admin.name,
+                                      )
+                                    }
+                                    data-ocid={`profile.admin.delete_button.${idx + 1}`}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+
+                              {/* Copy principal */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() =>
+                                  handleCopyAdminPrincipal(principalStr)
+                                }
+                              >
+                                {copiedAdminPrincipal === principalStr ? (
+                                  <Check className="h-4 w-4" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              handleCopyAdminPrincipal(
-                                admin.principal.toString(),
-                              )
-                            }
-                            className="ml-2 flex-shrink-0"
-                          >
-                            {copiedAdminPrincipal ===
-                            admin.principal.toString() ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 {!adminListLoading &&
@@ -501,6 +679,75 @@ export function ProfilePage() {
       </div>
 
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      {/* Remove Admin Confirmation Dialog */}
+      <Dialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+        <DialogContent data-ocid="profile.remove_admin.dialog">
+          <DialogHeader>
+            <DialogTitle>Remove Admin Rights</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove admin rights from{" "}
+              <span className="font-semibold">
+                {adminToRemove?.name || adminToRemove?.principal}
+              </span>
+              ? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRemoveConfirmOpen(false)}
+              disabled={isRemoving}
+              data-ocid="profile.remove_admin.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmRemove}
+              disabled={isRemoving}
+              data-ocid="profile.remove_admin.confirm_button"
+            >
+              {isRemoving ? "Removing..." : "Remove Admin"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Promote to Admin+ Confirmation Dialog */}
+      <Dialog open={promoteConfirmOpen} onOpenChange={setPromoteConfirmOpen}>
+        <DialogContent data-ocid="profile.promote_admin.dialog">
+          <DialogHeader>
+            <DialogTitle>Promote to Admin+</DialogTitle>
+            <DialogDescription>
+              Grant Admin+ privileges to{" "}
+              <span className="font-semibold">
+                {adminToPromote?.name || adminToPromote?.principal}
+              </span>
+              ? Admin+ users can remove admins and promote others to Admin+.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPromoteConfirmOpen(false)}
+              disabled={isPromoting}
+              data-ocid="profile.promote_admin.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmPromote}
+              disabled={isPromoting}
+              style={{ backgroundColor: "#808A54" }}
+              className="text-white hover:opacity-90"
+              data-ocid="profile.promote_admin.confirm_button"
+            >
+              {isPromoting ? "Promoting..." : "Make Admin+"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
