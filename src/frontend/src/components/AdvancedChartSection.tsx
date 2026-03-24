@@ -139,11 +139,74 @@ function tokenize(expr: string): Token[] | null {
   return tokens;
 }
 
+function preprocessFunctions(
+  expr: string,
+  sensors: Record<string, number | undefined>,
+): string | null {
+  const funcRegex = /\b(avg|min|max|median|range)\(([^()]*)\)/i;
+  let result = expr;
+  let iterations = 0;
+  let match: RegExpExecArray | null = funcRegex.exec(result);
+  while (match !== null) {
+    if (++iterations > 100) return null;
+    const [fullMatch, funcName, argsStr] = match;
+    const args = argsStr
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const values: number[] = [];
+    for (const arg of args) {
+      const sensorMatch = /^[Ss](\d+)$/.exec(arg);
+      const numMatch = /^-?\d+(\.\d+)?$/.exec(arg);
+      if (sensorMatch) {
+        const num = Number.parseInt(sensorMatch[1], 10);
+        const v = sensors[`S${num}`];
+        if (v === undefined || v === null) return null;
+        if (v !== 0) values.push(v);
+      } else if (numMatch) {
+        const v = Number.parseFloat(arg);
+        if (v !== 0) values.push(v);
+      } else {
+        return null;
+      }
+    }
+    if (values.length === 0) return null;
+    const fn = funcName.toLowerCase();
+    let resultVal: number;
+    if (fn === "avg") {
+      resultVal = values.reduce((a, b) => a + b, 0) / values.length;
+    } else if (fn === "min") {
+      resultVal = Math.min(...values);
+    } else if (fn === "max") {
+      resultVal = Math.max(...values);
+    } else if (fn === "median") {
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      resultVal =
+        sorted.length % 2 === 0
+          ? (sorted[mid - 1] + sorted[mid]) / 2
+          : sorted[mid];
+    } else if (fn === "range") {
+      resultVal = Math.max(...values) - Math.min(...values);
+    } else {
+      return null;
+    }
+    result =
+      result.slice(0, match.index) +
+      resultVal.toString() +
+      result.slice(match.index + fullMatch.length);
+    match = funcRegex.exec(result);
+  }
+  return result;
+}
+
 function evaluateFormula(
   expression: string,
   sensors: Record<string, number | undefined>,
 ): number | null {
-  const tokens = tokenize(expression);
+  const preprocessed = preprocessFunctions(expression, sensors);
+  if (preprocessed === null) return null;
+  const tokens = tokenize(preprocessed);
   if (!tokens) return null;
   const values: (number | null)[] = [];
   for (const tok of tokens) {
@@ -213,8 +276,6 @@ function evaluateFormula(
 
 function validateExpression(expression: string): boolean {
   if (!expression.trim()) return false;
-  const tokens = tokenize(expression);
-  if (!tokens || tokens.length === 0) return false;
   try {
     const dummySensors: Record<string, number> = {};
     for (let i = 1; i <= 72; i++) dummySensors[`S${i}`] = 1;
@@ -271,6 +332,7 @@ function LegendLine({
     </div>
   );
 }
+
 function LegendBand({
   color,
   name,
@@ -369,7 +431,7 @@ function BandPolygon({
   );
 }
 
-// ─── Hover panel ──────────────────────────────────────────────────────────────────────────────
+// ─── Hover panel (always renders wrapper to prevent layout shift) ──────────────────────────────
 function AdvancedHoverPanel({
   payload,
   activeTimestamp,
@@ -383,84 +445,105 @@ function AdvancedHoverPanel({
   visibleBands: BandConfig[];
   chartData: Record<string, unknown>[];
 }) {
-  if (!activeTimestamp || payload.length === 0) return null;
+  // Always render the fixed-width wrapper to prevent chart resize on hover (flicker fix)
+  const hasData = activeTimestamp != null && payload.length > 0;
+
   const byKey: Record<string, number | null> = {};
-  for (const p of payload)
-    byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
-  // Look up band min/max directly from chartData to avoid invisible-line payload issues
-  const dataRow = chartData.find((d) => d.timestamp === activeTimestamp);
-  const date = new Date(activeTimestamp);
-  const timeStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-  const formulaEntries = visibleFormulas.map((f) => ({
-    id: f.id,
-    name: f.name || f.expression,
-    color: f.color,
-    value: byKey[`formula_${f.id}`] ?? null,
-  }));
-  const bandEntries = visibleBands.map((b) => {
-    const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
-    const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
-    const minVal = minRaw != null ? Number(minRaw) : null;
-    const maxVal = maxRaw != null ? Number(maxRaw) : null;
-    return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
-  });
+  if (hasData) {
+    for (const p of payload)
+      byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
+  }
+
+  const dataRow = hasData
+    ? chartData.find((d) => d.timestamp === activeTimestamp)
+    : undefined;
+  const date = activeTimestamp ? new Date(activeTimestamp) : null;
+  const timeStr = date
+    ? `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
+    : null;
+
+  const formulaEntries = hasData
+    ? visibleFormulas.map((f) => ({
+        id: f.id,
+        name: f.name || f.expression,
+        color: f.color,
+        value: byKey[`formula_${f.id}`] ?? null,
+      }))
+    : [];
+  const bandEntries = hasData
+    ? visibleBands.map((b) => {
+        const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
+        const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
+        return {
+          id: b.id,
+          name: b.name,
+          color: b.color,
+          minVal: minRaw != null ? Number(minRaw) : null,
+          maxVal: maxRaw != null ? Number(maxRaw) : null,
+        };
+      })
+    : [];
+
   const hasAny =
     formulaEntries.some((e) => e.value !== null) ||
     bandEntries.some((e) => e.minVal !== null);
-  if (!hasAny) return null;
+
   return (
     <div className="w-full md:w-44 md:flex-shrink-0 pt-2 pl-2">
-      <div
-        className="rounded border border-border/40 bg-card/90 backdrop-blur-sm p-2 shadow-sm"
-        style={{ fontSize: "10px", lineHeight: "1.4" }}
-      >
-        <div className="text-muted-foreground mb-1.5 font-medium">
-          {timeStr}
-        </div>
-        {formulaEntries.map(
-          (e) =>
-            e.value !== null && (
-              <div key={e.id} className="flex items-center gap-1 mb-0.5">
-                <span
-                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: e.color }}
-                />
-                <span className="text-muted-foreground truncate flex-1">
-                  {e.name}
-                </span>
-                <span className="font-mono tabular-nums text-foreground flex-shrink-0">
-                  {e.value.toFixed(2)}
-                </span>
-              </div>
-            ),
-        )}
-        {bandEntries.map(
-          (e) =>
-            e.minVal !== null && (
-              <div key={e.id} className="mb-0.5">
-                <div className="flex items-center gap-1">
-                  <span
-                    className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: e.color, opacity: 0.7 }}
-                  />
-                  <span className="text-muted-foreground truncate flex-1">
+      {hasAny && timeStr && (
+        <div className="text-xs">
+          <div className="text-[10px] text-muted-foreground pb-1 mb-1.5 border-b border-border">
+            {timeStr}
+          </div>
+          <div className="space-y-2">
+            {formulaEntries
+              .filter((e) => e.value !== null)
+              .map((e) => (
+                <div
+                  key={e.id}
+                  className="flex justify-between gap-2 leading-tight py-px"
+                >
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px] flex items-center gap-1">
+                    <span
+                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: e.color }}
+                    />
                     {e.name}
                   </span>
-                </div>
-                <div className="pl-3 text-muted-foreground/80">
-                  <span>min: </span>
-                  <span className="font-mono tabular-nums text-foreground">
-                    {e.minVal?.toFixed(2)}
-                  </span>
-                  {" / max: "}
-                  <span className="font-mono tabular-nums text-foreground">
-                    {e.maxVal?.toFixed(2)}
+                  <span className="text-[10px] tabular-nums flex-shrink-0">
+                    {(e.value as number).toFixed(2)}
                   </span>
                 </div>
-              </div>
-            ),
-        )}
-      </div>
+              ))}
+            {bandEntries
+              .filter((e) => e.minVal !== null)
+              .map((e) => (
+                <div key={e.id}>
+                  <div
+                    className="text-[10px] font-semibold mb-0.5 leading-tight flex items-center gap-1"
+                    style={{ color: e.color }}
+                  >
+                    <span
+                      className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
+                      style={{ backgroundColor: e.color, opacity: 0.7 }}
+                    />
+                    {e.name}
+                  </div>
+                  <div className="pl-3 text-[10px] text-muted-foreground/80">
+                    min:{" "}
+                    <span className="font-mono tabular-nums text-foreground">
+                      {e.minVal?.toFixed(2)}
+                    </span>
+                    {" / max: "}
+                    <span className="font-mono tabular-nums text-foreground">
+                      {e.maxVal?.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -658,6 +741,7 @@ export function AdvancedChartSection({
   const [loaded, setLoaded] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
+  // Y-axis zoom state (set via scroll wheel, no longer has manual inputs)
   const [yMin, setYMin] = useState<number | undefined>(undefined);
   const [yMax, setYMax] = useState<number | undefined>(undefined);
 
@@ -673,7 +757,6 @@ export function AdvancedChartSection({
   const [hoverPayload, setHoverPayload] = useState<any[]>([]);
   const [hoverTimestamp, setHoverTimestamp] = useState<number | null>(null);
 
-  // Cursor tooltip
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -779,6 +862,7 @@ export function AdvancedChartSection({
     },
     [bands, saveConfig],
   );
+
   const updateBands = useCallback(
     (updated: BandConfig[]) => {
       setBands(updated);
@@ -791,7 +875,6 @@ export function AdvancedChartSection({
     return data.map((point) => {
       const row: Record<string, number | null | undefined | [number, number]> =
         { timestamp: point.timestamp.getTime() };
-
       if (showAllSensors) {
         const sensorMap = point.sensors as Record<string, number | undefined>;
         for (let i = 1; i <= 72; i++) {
@@ -800,7 +883,6 @@ export function AdvancedChartSection({
           row[`sensor_${key}`] = v !== undefined ? v : null;
         }
       }
-
       for (const f of formulas) {
         if (f.visible && f.expression) {
           row[`formula_${f.id}`] = evaluateFormula(
@@ -809,7 +891,6 @@ export function AdvancedChartSection({
           );
         }
       }
-
       for (const b of bands) {
         if (b.visible && b.sensors.length > 0) {
           const values = b.sensors
@@ -821,14 +902,15 @@ export function AdvancedChartSection({
             )
             .filter(
               (v): v is number =>
-                v !== undefined && v !== null && !Number.isNaN(v),
+                v !== undefined && v !== null && !Number.isNaN(v) && v !== 0,
             );
           if (values.length > 0) {
-            const minVal = Math.min(...values);
-            const maxVal = Math.max(...values);
-            row[`band_area_${b.id}`] = [minVal, maxVal];
-            row[`band_min_${b.id}`] = minVal;
-            row[`band_max_${b.id}`] = maxVal;
+            row[`band_area_${b.id}`] = [
+              Math.min(...values),
+              Math.max(...values),
+            ];
+            row[`band_min_${b.id}`] = Math.min(...values);
+            row[`band_max_${b.id}`] = Math.max(...values);
           } else {
             row[`band_area_${b.id}`] = undefined;
             row[`band_min_${b.id}`] = undefined;
@@ -898,6 +980,25 @@ export function AdvancedChartSection({
     return [globalMin - padding, globalMax + padding];
   }, [yMin, yMax, chartData, startIndex, endIndex, formulas, bands]);
 
+  // Y-axis scroll zoom
+  const handleChartWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const d0 = yDomain[0];
+      const d1 = yDomain[1];
+      if (typeof d0 !== "number" || typeof d1 !== "number") return;
+      const range = d1 - d0;
+      const factor = e.deltaY < 0 ? 0.1 : -0.1;
+      const newMin = d0 + range * factor;
+      const newMax = d1 - range * factor;
+      if (newMax - newMin > 0.1) {
+        setYMin(newMin);
+        setYMax(newMax);
+      }
+    },
+    [yDomain],
+  );
+
   const handleMouseDown = useCallback((e: any) => {
     if (!e?.activeLabel) return;
     setRefAreaLeft(String(e.activeLabel));
@@ -913,7 +1014,6 @@ export function AdvancedChartSection({
         setHoverPayload(e.activePayload);
         setHoverTimestamp(e.activeLabel ?? null);
       }
-      // Find nearest formula line for cursor tooltip
       if (
         !selectingRef.current &&
         e?.activePayload?.length &&
@@ -990,7 +1090,6 @@ export function AdvancedChartSection({
     const map: Record<string, number | null> = {};
     for (const p of hoverPayload)
       map[p.dataKey] = p.value != null ? Number(p.value) : null;
-    // Also populate band min/max directly from chartData for reliability
     if (hoverTimestamp != null) {
       const row = chartData.find(
         (d) => (d as any).timestamp === hoverTimestamp,
@@ -1021,7 +1120,6 @@ export function AdvancedChartSection({
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Show all sensors toggle + opacity */}
           <label
             className="flex items-center gap-1.5 cursor-pointer select-none"
             data-ocid="tsic.advanced.toggle"
@@ -1054,7 +1152,6 @@ export function AdvancedChartSection({
               </span>
             </div>
           )}
-          {/* Band fill opacity */}
           {bands.length > 0 && (
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted-foreground">Band fill:</span>
@@ -1097,52 +1194,6 @@ export function AdvancedChartSection({
             data.length > 0 &&
             chartData.length > 0 && (
               <div className="p-4 pb-2">
-                {/* Y-axis controls */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xs text-muted-foreground">Y-axis:</span>
-                  <Input
-                    type="number"
-                    placeholder="Min (auto)"
-                    value={yMin !== undefined ? yMin : ""}
-                    onChange={(e) =>
-                      setYMin(
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                      )
-                    }
-                    className="h-7 w-24 text-xs"
-                    data-ocid="tsic.advanced.input"
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max (auto)"
-                    value={yMax !== undefined ? yMax : ""}
-                    onChange={(e) =>
-                      setYMax(
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                      )
-                    }
-                    className="h-7 w-24 text-xs"
-                    data-ocid="tsic.advanced.input"
-                  />
-                  {(yMin !== undefined || yMax !== undefined) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setYMin(undefined);
-                        setYMax(undefined);
-                      }}
-                      className="h-7 px-2 text-xs rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                      data-ocid="tsic.advanced.secondary_button"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-
                 {/* Chart + hover panel side by side */}
                 <div
                   className="flex flex-col md:flex-row gap-4 items-start"
@@ -1157,6 +1208,11 @@ export function AdvancedChartSection({
                   <div
                     className="flex-1 min-w-0 w-full"
                     style={{ userSelect: "none" }}
+                    onWheel={handleChartWheel}
+                    onDoubleClick={() => {
+                      setYMin(undefined);
+                      setYMax(undefined);
+                    }}
                   >
                     <ResponsiveContainer width="100%" height={900}>
                       <ComposedChart
@@ -1318,9 +1374,12 @@ export function AdvancedChartSection({
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
+                    <p className="text-center text-[10px] text-muted-foreground mt-1 pb-1 select-none">
+                      Scroll to zoom Y axis · Double-click to reset
+                    </p>
                   </div>
 
-                  {/* Hover side panel */}
+                  {/* Hover side panel — always rendered to prevent layout shift */}
                   <AdvancedHoverPanel
                     payload={hoverPayload}
                     activeTimestamp={hoverTimestamp}
@@ -1371,9 +1430,24 @@ export function AdvancedChartSection({
           <div className="p-4 space-y-4">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Formula Lines
-                </Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Formula Lines
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Use S1–S72, +, -, *, /, (, ) and functions:{" "}
+                  <span className="font-mono">avg(S1,S2)*</span>,{" "}
+                  <span className="font-mono">min(S1,S2)*</span>,{" "}
+                  <span className="font-mono">max(S1,S2)*</span>,{" "}
+                  <span className="font-mono">median(S1,S2)*</span>,{" "}
+                  <span className="font-mono">range(S1,S2)*</span>
+                  <br />
+                  <span className="italic">
+                    * All functions and bands skip zero values — e.g.
+                    avg(S1,S2,S3) with S2=0 becomes (S1+S3)/2
+                  </span>
+                </p>
                 <Button
                   size="sm"
                   variant="outline"

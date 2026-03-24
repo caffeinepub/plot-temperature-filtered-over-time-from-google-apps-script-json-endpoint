@@ -170,13 +170,11 @@ export function FanVoltageFlowControlChart({
     if (!selectingRef.current) return;
     selectingRef.current = false;
     setIsSelecting(false);
-
     if (!refAreaLeft || !refAreaRight || refAreaLeft === refAreaRight) {
       setRefAreaLeft(null);
       setRefAreaRight(null);
       return;
     }
-
     const visibleData = chartData.slice(startIndex, endIndex + 1);
     const leftIdx = visibleData.findIndex(
       (d) => String(d.timestamp) === refAreaLeft,
@@ -184,18 +182,14 @@ export function FanVoltageFlowControlChart({
     const rightIdx = visibleData.findIndex(
       (d) => String(d.timestamp) === refAreaRight,
     );
-
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
       setRefAreaRight(null);
       return;
     }
-
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
-
     const slice = visibleData.slice(lo, hi + 1);
-
     const fanValues = slice
       .flatMap((d) => [d.fan1V, d.fan2V, d.fan3V])
       .filter((v) => v != null && !Number.isNaN(v as number)) as number[];
@@ -206,7 +200,6 @@ export function FanVoltageFlowControlChart({
       setZoomedYBottom(minY - padding);
       setZoomedYTop(maxY + padding);
     }
-
     const flowValues = slice
       .map((d) => d.flowControlPa)
       .filter((v) => v != null && !Number.isNaN(v as number)) as number[];
@@ -217,7 +210,6 @@ export function FanVoltageFlowControlChart({
       setZoomedY2Bottom(minY2 - padding2);
       setZoomedY2Top(maxY2 + padding2);
     }
-
     onRangeChange(startIndex + lo, startIndex + hi);
     setRefAreaLeft(null);
     setRefAreaRight(null);
@@ -246,11 +238,87 @@ export function FanVoltageFlowControlChart({
     }
   }
 
+  // Compute visible data range for Y-axis scroll zoom baseline
+  const computeVisibleFanRange = useCallback((): [number, number] | null => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    const values = slice
+      .flatMap((d) => [d.fan1V, d.fan2V, d.fan3V])
+      .filter((v): v is number => v != null && !Number.isNaN(v) && v !== 0);
+    if (values.length === 0) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = (max - min) * 0.05 || 0.5;
+    return [min - pad, max + pad];
+  }, [chartData, startIndex, endIndex]);
+
+  const computeVisibleFlowRange = useCallback((): [number, number] | null => {
+    const slice = chartData.slice(startIndex, endIndex + 1);
+    const values = slice
+      .map((d) => d.flowControlPa)
+      .filter((v): v is number => v != null && !Number.isNaN(v) && v !== 0);
+    if (values.length === 0) return null;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = (max - min) * 0.05 || 1;
+    return [min - pad, max + pad];
+  }, [chartData, startIndex, endIndex]);
+
+  // Scroll zooms both axes together
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 0.1 : -0.1;
+      // Left axis (fan voltage)
+      let curMin1: number;
+      let curMax1: number;
+      if (zoomedYBottom !== null && zoomedYTop !== null) {
+        curMin1 = zoomedYBottom;
+        curMax1 = zoomedYTop;
+      } else {
+        const r = computeVisibleFanRange();
+        if (!r) return;
+        [curMin1, curMax1] = r;
+      }
+      const range1 = curMax1 - curMin1;
+      const newMin1 = curMin1 + range1 * factor;
+      const newMax1 = curMax1 - range1 * factor;
+      if (newMax1 - newMin1 > 0.01) {
+        setZoomedYBottom(newMin1);
+        setZoomedYTop(newMax1);
+      }
+      // Right axis (flow control)
+      let curMin2: number;
+      let curMax2: number;
+      if (zoomedY2Bottom !== null && zoomedY2Top !== null) {
+        curMin2 = zoomedY2Bottom;
+        curMax2 = zoomedY2Top;
+      } else {
+        const r2 = computeVisibleFlowRange();
+        if (!r2) return;
+        [curMin2, curMax2] = r2;
+      }
+      const range2 = curMax2 - curMin2;
+      const newMin2 = curMin2 + range2 * factor;
+      const newMax2 = curMax2 - range2 * factor;
+      if (newMax2 - newMin2 > 0.01) {
+        setZoomedY2Bottom(newMin2);
+        setZoomedY2Top(newMax2);
+      }
+    },
+    [
+      zoomedYBottom,
+      zoomedYTop,
+      zoomedY2Bottom,
+      zoomedY2Top,
+      computeVisibleFanRange,
+      computeVisibleFlowRange,
+    ],
+  );
+
   const yDomain: [number | string, number | string] =
     zoomedYBottom !== null && zoomedYTop !== null
       ? [zoomedYBottom, zoomedYTop]
       : ["auto", "auto"];
-
   const y2Domain: [number | string, number | string] =
     zoomedY2Bottom !== null && zoomedY2Top !== null
       ? [zoomedY2Bottom, zoomedY2Top]
@@ -261,210 +329,220 @@ export function FanVoltageFlowControlChart({
     : null;
 
   return (
-    <div
-      className="w-full h-[450px] relative"
-      style={{ userSelect: "none" }}
-      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => {
-        setCursorPos(null);
-        setNearestLineName(null);
-      }}
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={chartData}
-          margin={{ top: 2, right: 60, left: 20, bottom: 60 }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="oklch(var(--border))"
-            opacity={0.3}
-          />
-          <XAxis
-            dataKey="timestamp"
-            type="number"
-            domain={xDomain}
-            scale="time"
-            ticks={xTickValues}
-            interval={0}
-            tick={(tickProps) => (
-              <CustomXTick
-                {...tickProps}
-                allTicks={xTickEntries}
-                fill="oklch(var(--muted-foreground))"
+    <>
+      <div
+        className="w-full h-[450px] relative"
+        style={{ userSelect: "none" }}
+        onWheel={handleWheel}
+        onDoubleClick={() => {
+          setZoomedYBottom(null);
+          setZoomedYTop(null);
+          setZoomedY2Bottom(null);
+          setZoomedY2Top(null);
+        }}
+        onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+        onMouseLeave={() => {
+          setCursorPos(null);
+          setNearestLineName(null);
+        }}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 2, right: 60, left: 20, bottom: 60 }}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="oklch(var(--border))"
+              opacity={0.3}
+            />
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              domain={xDomain}
+              scale="time"
+              ticks={xTickValues}
+              interval={0}
+              tick={(tickProps) => (
+                <CustomXTick
+                  {...tickProps}
+                  allTicks={xTickEntries}
+                  fill="oklch(var(--muted-foreground))"
+                />
+              )}
+              tickLine={false}
+              axisLine={{ stroke: "oklch(var(--border))" }}
+              allowDataOverflow
+              height={46}
+            />
+            <YAxis
+              yAxisId="left"
+              domain={yDomain}
+              allowDataOverflow
+              tickFormatter={formatYTick}
+              stroke="oklch(var(--muted-foreground))"
+              tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
+              tickLine={{ stroke: "oklch(var(--border))" }}
+              label={{
+                value: "Fan Voltage (V)",
+                angle: -90,
+                position: "insideLeft",
+                style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
+              }}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              domain={y2Domain}
+              allowDataOverflow
+              tickFormatter={formatYTick}
+              stroke="oklch(var(--muted-foreground))"
+              tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
+              tickLine={{ stroke: "oklch(var(--border))" }}
+              label={{
+                value: "Flow Control (Pa)",
+                angle: 90,
+                position: "insideRight",
+                style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
+              }}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "oklch(var(--popover))",
+                border: "1px solid oklch(var(--border))",
+                borderRadius: "8px",
+                color: "oklch(var(--popover-foreground))",
+              }}
+              labelStyle={{ color: "oklch(var(--popover-foreground))" }}
+              formatter={(value: number, name: string) => {
+                let label = "";
+                if (name === "fan1V") label = "Fan 1 Voltage (V)";
+                else if (name === "fan2V") label = "Fan 2 Voltage (V)";
+                else if (name === "fan3V") label = "Fan 3 Voltage (V)";
+                else if (name === "flowControlPa") label = "Flow Control (Pa)";
+                const formattedValue =
+                  typeof value === "number" && !Number.isNaN(value)
+                    ? value.toFixed(2)
+                    : "0.00";
+                return [formattedValue, label];
+              }}
+              labelFormatter={
+                ((label: any, payload: any) => {
+                  if (payload && payload.length > 0) {
+                    const dp = payload[0].payload;
+                    if (dp?.fullTimestamp) return dp.fullTimestamp;
+                  }
+                  return label;
+                }) as any
+              }
+            />
+            <Legend
+              wrapperStyle={{
+                paddingTop: "10px",
+                color: "oklch(var(--foreground))",
+              }}
+              iconType="line"
+              formatter={(value) => {
+                if (value === "fan1V") return "Fan 1 Voltage (V)";
+                if (value === "fan2V") return "Fan 2 Voltage (V)";
+                if (value === "fan3V") return "Fan 3 Voltage (V)";
+                if (value === "flowControlPa") return "Flow Control (Pa)";
+                return value;
+              }}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="fan1V"
+              name="fan1V"
+              stroke={fan1Color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6, fill: fan1Color }}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="fan2V"
+              name="fan2V"
+              stroke={fan2Color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6, fill: fan2Color }}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="fan3V"
+              name="fan3V"
+              stroke={fan3Color}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6, fill: fan3Color }}
+              isAnimationActive={false}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="flowControlPa"
+              name="flowControlPa"
+              stroke={flowControlColor}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 6, fill: flowControlColor }}
+              isAnimationActive={false}
+            />
+            {refAreaLeft && refAreaRight && (
+              <ReferenceArea
+                yAxisId="left"
+                x1={Number(refAreaLeft)}
+                x2={Number(refAreaRight)}
+                strokeOpacity={0.3}
+                fill="oklch(var(--primary))"
+                fillOpacity={0.2}
+                stroke="oklch(var(--primary))"
               />
             )}
-            tickLine={false}
-            axisLine={{ stroke: "oklch(var(--border))" }}
-            allowDataOverflow
-            height={46}
-          />
-          <YAxis
-            yAxisId="left"
-            domain={yDomain}
-            allowDataOverflow
-            tickFormatter={formatYTick}
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
-            label={{
-              value: "Fan Voltage (V)",
-              angle: -90,
-              position: "insideLeft",
-              style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
-            }}
-          />
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            domain={y2Domain}
-            allowDataOverflow
-            tickFormatter={formatYTick}
-            stroke="oklch(var(--muted-foreground))"
-            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-            tickLine={{ stroke: "oklch(var(--border))" }}
-            label={{
-              value: "Flow Control (Pa)",
-              angle: 90,
-              position: "insideRight",
-              style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
-            }}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "oklch(var(--popover))",
-              border: "1px solid oklch(var(--border))",
-              borderRadius: "8px",
-              color: "oklch(var(--popover-foreground))",
-            }}
-            labelStyle={{ color: "oklch(var(--popover-foreground))" }}
-            formatter={(value: number, name: string) => {
-              let label = "";
-              if (name === "fan1V") label = "Fan 1 Voltage (V)";
-              else if (name === "fan2V") label = "Fan 2 Voltage (V)";
-              else if (name === "fan3V") label = "Fan 3 Voltage (V)";
-              else if (name === "flowControlPa") label = "Flow Control (Pa)";
-              const formattedValue =
-                typeof value === "number" && !Number.isNaN(value)
-                  ? value.toFixed(2)
-                  : "0.00";
-              return [formattedValue, label];
-            }}
-            labelFormatter={
-              ((label: any, payload: any) => {
-                if (payload && payload.length > 0) {
-                  const dataPoint = payload[0].payload;
-                  if (dataPoint?.fullTimestamp) {
-                    return dataPoint.fullTimestamp;
-                  }
-                }
-                return label;
-              }) as any
-            }
-          />
-          <Legend
-            wrapperStyle={{
-              paddingTop: "10px",
-              color: "oklch(var(--foreground))",
-            }}
-            iconType="line"
-            formatter={(value) => {
-              if (value === "fan1V") return "Fan 1 Voltage (V)";
-              if (value === "fan2V") return "Fan 2 Voltage (V)";
-              if (value === "fan3V") return "Fan 3 Voltage (V)";
-              if (value === "flowControlPa") return "Flow Control (Pa)";
-              return value;
-            }}
-          />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="fan1V"
-            name="fan1V"
-            stroke={fan1Color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 6, fill: fan1Color }}
-            isAnimationActive={false}
-          />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="fan2V"
-            name="fan2V"
-            stroke={fan2Color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 6, fill: fan2Color }}
-            isAnimationActive={false}
-          />
-          <Line
-            yAxisId="left"
-            type="monotone"
-            dataKey="fan3V"
-            name="fan3V"
-            stroke={fan3Color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 6, fill: fan3Color }}
-            isAnimationActive={false}
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="flowControlPa"
-            name="flowControlPa"
-            stroke={flowControlColor}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 6, fill: flowControlColor }}
-            isAnimationActive={false}
-          />
-          {refAreaLeft && refAreaRight && (
-            <ReferenceArea
-              yAxisId="left"
-              x1={Number(refAreaLeft)}
-              x2={Number(refAreaRight)}
-              strokeOpacity={0.3}
-              fill="oklch(var(--primary))"
-              fillOpacity={0.2}
+            <Brush
+              dataKey="timestamp"
+              height={40}
               stroke="oklch(var(--primary))"
+              fill="oklch(var(--muted))"
+              startIndex={startIndex}
+              endIndex={endIndex}
+              onChange={handleBrushChange}
+              travellerWidth={10}
+              tickFormatter={(ts: number) => {
+                const d = new Date(ts);
+                return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+              }}
             />
-          )}
-          <Brush
-            dataKey="timestamp"
-            height={40}
-            stroke="oklch(var(--primary))"
-            fill="oklch(var(--muted))"
-            startIndex={startIndex}
-            endIndex={endIndex}
-            onChange={handleBrushChange}
-            travellerWidth={10}
-            tickFormatter={(ts: number) => {
-              const d = new Date(ts);
-              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+          </LineChart>
+        </ResponsiveContainer>
+        {cursorPos && displayName && (
+          <div
+            style={{
+              position: "fixed",
+              left: cursorPos.x + 14,
+              top: cursorPos.y - 10,
+              pointerEvents: "none",
+              zIndex: 9999,
             }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      {cursorPos && displayName && (
-        <div
-          style={{
-            position: "fixed",
-            left: cursorPos.x + 14,
-            top: cursorPos.y - 10,
-            pointerEvents: "none",
-            zIndex: 9999,
-          }}
-          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
-        >
-          {displayName}
-        </div>
-      )}
-    </div>
+            className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+          >
+            {displayName}
+          </div>
+        )}
+      </div>
+      <p className="text-center text-[10px] text-muted-foreground mt-1 pb-1 select-none">
+        Scroll to zoom Y axis · Double-click to reset
+      </p>
+    </>
   );
 }
