@@ -14,6 +14,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
 import {
@@ -31,15 +32,29 @@ import { useTSICData } from "@/hooks/useTSICData";
 import { useSetLoggerLabel, useTSICLabels } from "@/hooks/useTSICLabels";
 import {
   AlertCircle,
+  Calendar,
   Check,
   ChevronDown,
   ChevronUp,
   Layers,
   Pencil,
   RefreshCw,
+  RotateCcw,
   X,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+
+function parseDDMMYYYY(value: string): Date | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10) - 1;
+  const year = Number.parseInt(match[3], 10);
+  const d = new Date(year, month, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day)
+    return null;
+  return d;
+}
 
 // ─── Color helpers (for name group color picker) ───
 function hueToHex(hue: number): string {
@@ -127,6 +142,7 @@ function NameGroupPanel({
       </p>
     );
   }
+
   return (
     <div className="space-y-1">
       {activeLabels.map((label) => {
@@ -178,11 +194,14 @@ function TSICSensorLegend({
     g.sensors.some((s: number) => activeSet.has(s)),
   );
   const activeUngrouped = ungroupedSensors.filter((s) => activeSet.has(s));
+
   if (visibleGroups.length === 0 && activeUngrouped.length === 0) return null;
+
   const getDisplayLabel = (sensorNum: number) => {
     const custom = sensorLabels?.get(sensorNum);
     return custom && custom.trim() !== "" ? custom : `S${sensorNum}`;
   };
+
   return (
     <div className="border-t border-border pt-4 pb-6 px-1">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
@@ -264,7 +283,7 @@ function TSICSensorLegend({
   );
 }
 
-// ─── Hover side panel (always renders to prevent layout shift / flicker fix) ───
+// ─── Hover side panel ───
 function HoverSidePanel({
   groups,
   timestamp,
@@ -272,48 +291,47 @@ function HoverSidePanel({
   groups: HoveredGroup[] | null;
   timestamp: string | null;
 }) {
-  const hasData = groups && groups.length > 0;
+  if (!groups || groups.length === 0) return null;
+
   return (
     <div className="text-xs">
-      {hasData && timestamp && (
+      {timestamp && (
         <div className="text-[10px] text-muted-foreground pb-1 mb-1.5 border-b border-border">
           {timestamp}
         </div>
       )}
-      {hasData && (
-        <div className="space-y-2">
-          {[...groups]
-            .sort((a, b) => a.groupName.localeCompare(b.groupName))
-            .map((group) => (
-              <div key={group.groupName}>
-                <div
-                  className="text-[10px] font-semibold mb-0.5 leading-tight"
-                  style={{ color: group.groupColor }}
-                >
-                  {group.groupName}
-                </div>
-                {group.sensors.map((s) => (
-                  <div
-                    key={s.label}
-                    className="flex justify-between gap-2 leading-tight py-px"
-                  >
-                    <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
-                      {s.label}
-                    </span>
-                    <span
-                      className={[
-                        "text-[10px] tabular-nums flex-shrink-0",
-                        s.isBold ? "font-bold" : "",
-                      ].join(" ")}
-                    >
-                      {s.value.toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+      <div className="space-y-2">
+        {[...groups]
+          .sort((a, b) => a.groupName.localeCompare(b.groupName))
+          .map((group) => (
+            <div key={group.groupName}>
+              <div
+                className="text-[10px] font-semibold mb-0.5 leading-tight"
+                style={{ color: group.groupColor }}
+              >
+                {group.groupName}
               </div>
-            ))}
-        </div>
-      )}
+              {group.sensors.map((s) => (
+                <div
+                  key={s.label}
+                  className="flex justify-between gap-2 leading-tight py-px"
+                >
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px]">
+                    {s.label}
+                  </span>
+                  <span
+                    className={[
+                      "text-[10px] tabular-nums flex-shrink-0",
+                      s.isBold ? "font-bold" : "",
+                    ].join(" ")}
+                  >
+                    {s.value.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+      </div>
     </div>
   );
 }
@@ -422,10 +440,12 @@ export function TSICLoggersPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const { data, isLoading, isError, error, isRefetching, refetch } =
     useTSICData(selectedId);
-  const { visibleRange, setRange, resetZoom } = useSyncedTimeWindow(
+  const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(
     data?.length || 0,
   );
 
+  const [startDateText, setStartDateText] = useState("");
+  const [endDateText, setEndDateText] = useState("");
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
   const [yAxisMax, setYAxisMax] = useState<number | null>(null);
   const [sensorGroupsOpen, setSensorGroupsOpen] = useState(false);
@@ -521,60 +541,49 @@ export function TSICLoggersPage() {
     [],
   );
 
+  const dateRangeIndices = useMemo(() => {
+    const start = parseDDMMYYYY(startDateText);
+    const end = parseDDMMYYYY(endDateText);
+    if (!data || !start || !end) return null;
+    if (start > end) return null;
+    end.setHours(23, 59, 59, 999);
+
+    let startIndex = -1;
+    let endIndex = -1;
+    for (let i = 0; i < data.length; i++) {
+      const pointTime = data[i].timestamp.getTime();
+      if (startIndex === -1 && pointTime >= start.getTime()) startIndex = i;
+      if (pointTime <= end.getTime()) endIndex = i;
+    }
+    if (startIndex === -1 || endIndex === -1 || startIndex > endIndex) {
+      return { startIndex: -1, endIndex: -1, isEmpty: true };
+    }
+    return { startIndex, endIndex, isEmpty: false };
+  }, [data, startDateText, endDateText]);
+
+  useMemo(() => {
+    if (dateRangeIndices && !dateRangeIndices.isEmpty) {
+      setRange(dateRangeIndices.startIndex, dateRangeIndices.endIndex);
+    }
+  }, [dateRangeIndices, setRange]);
+
+  const handleResetZoom = () => {
+    resetZoom();
+    setStartDateText("");
+    setEndDateText("");
+  };
+
   const handleIdClick = (id: number) => {
     setSelectedId(id);
     resetZoom();
+    setStartDateText("");
+    setEndDateText("");
     setYAxisMin(null);
     setYAxisMax(null);
     setHoveredGroups(null);
     setHoveredTimestamp(null);
     prevDataLengthRef.current = 0;
   };
-
-  // Y-axis scroll zoom handler for TSIC chart
-  const handleChartWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      if (!data || data.length === 0) return;
-      let curMin: number;
-      let curMax: number;
-      if (yAxisMin !== null && yAxisMax !== null) {
-        curMin = yAxisMin;
-        curMax = yAxisMax;
-      } else {
-        // Compute from visible data
-        const slice = data.slice(
-          visibleRange.startIndex,
-          visibleRange.endIndex + 1,
-        );
-        const vals: number[] = [];
-        for (const point of slice) {
-          for (let s = 1; s <= 72; s++) {
-            const v = (point.sensors as Record<string, number | undefined>)[
-              `S${s}`
-            ];
-            if (v !== undefined && v !== null && !Number.isNaN(v) && v !== 0)
-              vals.push(v);
-          }
-        }
-        if (vals.length === 0) return;
-        const dataMin = Math.min(...vals);
-        const dataMax = Math.max(...vals);
-        const pad = (dataMax - dataMin) * 0.05 || 1;
-        curMin = dataMin - pad;
-        curMax = dataMax + pad;
-      }
-      const range = curMax - curMin;
-      const factor = e.deltaY < 0 ? 0.1 : -0.1;
-      const newMin = curMin + range * factor;
-      const newMax = curMax - range * factor;
-      if (newMax - newMin > 0.1) {
-        setYAxisMin(newMin);
-        setYAxisMax(newMax);
-      }
-    },
-    [data, visibleRange, yAxisMin, yAxisMax],
-  );
 
   // Derive active sensors
   const activeSensors = useMemo(() => {
@@ -596,6 +605,7 @@ export function TSICLoggersPage() {
     return active;
   }, [data]);
 
+  // Helper: get display label for a sensor
   const getLabel = useCallback(
     (sensorNum: number): string => {
       const custom = sensorLabels?.get(sensorNum);
@@ -604,12 +614,14 @@ export function TSICLoggersPage() {
     [sensorLabels],
   );
 
+  // Unique labels for active sensors (for NameGroupPanel)
   const activeLabels = useMemo(() => {
     const labelSet = new Set<string>();
     for (const s of activeSensors) labelSet.add(getLabel(s));
     return Array.from(labelSet).sort();
   }, [activeSensors, getLabel]);
 
+  // Build sensorColorMap based on colorMode
   const sensorColorMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (let s = 1; s <= 72; s++) {
@@ -621,6 +633,7 @@ export function TSICLoggersPage() {
     return map;
   }, [colorMode, getSensorColor, getSensorColorByName, getLabel]);
 
+  // Build sensorVisibility based on colorMode
   const sensorVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
     for (let s = 1; s <= 72; s++) {
@@ -715,6 +728,7 @@ export function TSICLoggersPage() {
           data-ocid="tsic.error_state"
         >
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error Loading Data</AlertTitle>
           <AlertDescription className="mt-2">
             {error instanceof Error ? error.message : "Failed to fetch data"}
             <Button
@@ -744,6 +758,7 @@ export function TSICLoggersPage() {
       {data && data.length === 0 && !isLoading && selectedId !== null && (
         <Alert className="shadow-lg" data-ocid="tsic.empty_state">
           <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Data Available</AlertTitle>
           <AlertDescription>
             No valid data points to display for ID {selectedId}.
           </AlertDescription>
@@ -753,40 +768,191 @@ export function TSICLoggersPage() {
       {/* Data display */}
       {data && data.length > 0 && selectedId !== null && (
         <>
-          {/* ── Color Mode toggle (above sensor groups) ── */}
-          <div className="flex items-center gap-3 px-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Color Mode:
-            </span>
-            <Button
-              variant={colorMode === "byGroup" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setColorMode("byGroup")}
-              className="h-7 text-xs"
-              data-ocid="tsic.color_mode.button"
-              style={
-                colorMode === "byGroup"
-                  ? { backgroundColor: "#808A54" }
-                  : undefined
-              }
-            >
-              By Group
-            </Button>
-            <Button
-              variant={colorMode === "byName" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setColorMode("byName")}
-              className="h-7 text-xs"
-              data-ocid="tsic.color_mode.button"
-              style={
-                colorMode === "byName"
-                  ? { backgroundColor: "#808A54" }
-                  : undefined
-              }
-            >
-              By Sensor Name
-            </Button>
-          </div>
+          {/* ── Chart Controls ── */}
+          <Card className="shadow-sm" data-ocid="tsic.controls.card">
+            <CardContent className="pt-5 pb-5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                Chart Controls
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Date Range */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    Date Range
+                  </p>
+                  <div className="space-y-2">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="start-date"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Start Date
+                      </Label>
+                      <Input
+                        id="start-date"
+                        type="text"
+                        value={startDateText}
+                        onChange={(e) => setStartDateText(e.target.value)}
+                        placeholder="DD/MM/JJJJ"
+                        maxLength={10}
+                        className="w-full h-8 text-sm"
+                        data-ocid="tsic.controls.input"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="end-date"
+                        className="text-xs text-muted-foreground"
+                      >
+                        End Date
+                      </Label>
+                      <Input
+                        id="end-date"
+                        type="text"
+                        value={endDateText}
+                        onChange={(e) => setEndDateText(e.target.value)}
+                        placeholder="DD/MM/JJJJ"
+                        maxLength={10}
+                        className="w-full h-8 text-sm"
+                        data-ocid="tsic.controls.input"
+                      />
+                    </div>
+                  </div>
+                  {(isZoomed || startDateText || endDateText) && (
+                    <Button
+                      onClick={handleResetZoom}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 w-full sm:w-auto"
+                      data-ocid="tsic.controls.button"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Reset Zoom
+                    </Button>
+                  )}
+                  {dateRangeIndices?.isEmpty && (
+                    <Alert className="mt-2 py-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle className="text-xs">
+                        No Data in Selected Range
+                      </AlertTitle>
+                      <AlertDescription className="text-xs">
+                        No data points between selected dates.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                {/* Y-Axis */}
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    Y-Axis
+                  </p>
+                  <div className="space-y-2">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="y-axis-min"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Minimum
+                      </Label>
+                      <Input
+                        id="y-axis-min"
+                        type="number"
+                        placeholder="Auto"
+                        value={yAxisMin ?? ""}
+                        onChange={(e) =>
+                          setYAxisMin(
+                            e.target.value
+                              ? Number.parseFloat(e.target.value)
+                              : null,
+                          )
+                        }
+                        className="w-full h-8 text-sm"
+                        data-ocid="tsic.controls.input"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="y-axis-max"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Maximum
+                      </Label>
+                      <Input
+                        id="y-axis-max"
+                        type="number"
+                        placeholder="Auto"
+                        value={yAxisMax ?? ""}
+                        onChange={(e) =>
+                          setYAxisMax(
+                            e.target.value
+                              ? Number.parseFloat(e.target.value)
+                              : null,
+                          )
+                        }
+                        className="w-full h-8 text-sm"
+                        data-ocid="tsic.controls.input"
+                      />
+                    </div>
+                  </div>
+                  {(yAxisMin !== null || yAxisMax !== null) && (
+                    <Button
+                      onClick={() => {
+                        setYAxisMin(null);
+                        setYAxisMax(null);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 w-full sm:w-auto"
+                      data-ocid="tsic.controls.button"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Reset Y-Axis
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Color mode toggle */}
+              <div className="border-t border-border pt-3 mt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                  Color Mode
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant={colorMode === "byGroup" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorMode("byGroup")}
+                    className="h-7 text-xs"
+                    data-ocid="tsic.color_mode.button"
+                    style={
+                      colorMode === "byGroup"
+                        ? { backgroundColor: "#808A54" }
+                        : undefined
+                    }
+                  >
+                    By Group
+                  </Button>
+                  <Button
+                    variant={colorMode === "byName" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setColorMode("byName")}
+                    className="h-7 text-xs"
+                    data-ocid="tsic.color_mode.button"
+                    style={
+                      colorMode === "byName"
+                        ? { backgroundColor: "#808A54" }
+                        : undefined
+                    }
+                  >
+                    By Sensor Name
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* ── Merged: Sensor Groups + Name Groups (admin, collapsible) ── */}
           {showAdminFeatures && !isGroupsLoading && (
@@ -841,6 +1007,7 @@ export function TSICLoggersPage() {
                       onSaveSensorLabel={handleSaveSensorLabel}
                       isSavingSensorLabel={isSavingSensorLabel}
                     />
+
                     {/* Name Groups sub-section (only in byName mode) */}
                     {colorMode === "byName" && (
                       <div className="border-t border-border px-4 py-3">
@@ -873,15 +1040,7 @@ export function TSICLoggersPage() {
           >
             {/* Chart + hover side panel */}
             <div className="flex flex-col md:flex-row gap-4 items-start">
-              {/* Chart container with Y-axis scroll zoom */}
-              <div
-                className="flex-1 min-w-0 w-full"
-                onWheel={handleChartWheel}
-                onDoubleClick={() => {
-                  setYAxisMin(null);
-                  setYAxisMax(null);
-                }}
-              >
+              <div className="flex-1 min-w-0 w-full">
                 <TSICSensorChart
                   data={data}
                   startIndex={visibleRange.startIndex}
@@ -899,11 +1058,8 @@ export function TSICLoggersPage() {
                   dottedSensors={dottedSensors}
                   onHoverChange={handleHoverChange}
                 />
-                <p className="text-center text-[10px] text-muted-foreground mt-1 pb-1 select-none">
-                  Scroll to zoom Y axis · Double-click to reset
-                </p>
               </div>
-              {/* Side panel: hover data — always rendered for fixed width (flicker fix) */}
+              {/* Side panel: hover data */}
               <div className="w-full md:w-44 md:flex-shrink-0 pt-2">
                 <HoverSidePanel
                   groups={hoveredGroups}
@@ -923,7 +1079,6 @@ export function TSICLoggersPage() {
               />
             </div>
           </DashboardCard>
-
           {/* Advanced Chart Toggle */}
           <div className="flex justify-center mt-2">
             <button

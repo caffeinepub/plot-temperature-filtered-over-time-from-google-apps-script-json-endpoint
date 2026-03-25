@@ -59,9 +59,16 @@ export interface BandConfig {
   visible: boolean;
 }
 
+export interface EventConfig {
+  id: string;
+  timestamp: number; // ms since epoch
+  label: string;
+}
+
 export interface AdvancedChartConfig {
   formulas: FormulaLine[];
   bands: BandConfig[];
+  events?: EventConfig[];
 }
 
 interface AdvancedChartSectionProps {
@@ -139,10 +146,12 @@ function tokenize(expr: string): Token[] | null {
   return tokens;
 }
 
+// ─── Function pre-processor (avg, min, max, median, range — all skip zeros) ────────────────
 function preprocessFunctions(
   expr: string,
   sensors: Record<string, number | undefined>,
 ): string | null {
+  // Match innermost function call (no nested parens inside args)
   const funcRegex = /\b(avg|min|max|median|range)\(([^()]*)\)/i;
   let result = expr;
   let iterations = 0;
@@ -162,10 +171,10 @@ function preprocessFunctions(
         const num = Number.parseInt(sensorMatch[1], 10);
         const v = sensors[`S${num}`];
         if (v === undefined || v === null) return null;
-        if (v !== 0) values.push(v);
+        if (v !== 0) values.push(v); // skip zeros
       } else if (numMatch) {
         const v = Number.parseFloat(arg);
-        if (v !== 0) values.push(v);
+        if (v !== 0) values.push(v); // skip zeros
       } else {
         return null;
       }
@@ -332,7 +341,6 @@ function LegendLine({
     </div>
   );
 }
-
 function LegendBand({
   color,
   name,
@@ -431,7 +439,7 @@ function BandPolygon({
   );
 }
 
-// ─── Hover panel (always renders wrapper to prevent layout shift) ──────────────────────────────
+// ─── Hover panel ──────────────────────────────────────────────────────────────────────────────
 function AdvancedHoverPanel({
   payload,
   activeTimestamp,
@@ -445,105 +453,142 @@ function AdvancedHoverPanel({
   visibleBands: BandConfig[];
   chartData: Record<string, unknown>[];
 }) {
-  // Always render the fixed-width wrapper to prevent chart resize on hover (flicker fix)
-  const hasData = activeTimestamp != null && payload.length > 0;
-
+  if (!activeTimestamp || payload.length === 0) return null;
   const byKey: Record<string, number | null> = {};
-  if (hasData) {
-    for (const p of payload)
-      byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
-  }
-
-  const dataRow = hasData
-    ? chartData.find((d) => d.timestamp === activeTimestamp)
-    : undefined;
-  const date = activeTimestamp ? new Date(activeTimestamp) : null;
-  const timeStr = date
-    ? `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`
-    : null;
-
-  const formulaEntries = hasData
-    ? visibleFormulas.map((f) => ({
-        id: f.id,
-        name: f.name || f.expression,
-        color: f.color,
-        value: byKey[`formula_${f.id}`] ?? null,
-      }))
-    : [];
-  const bandEntries = hasData
-    ? visibleBands.map((b) => {
-        const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
-        const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
-        return {
-          id: b.id,
-          name: b.name,
-          color: b.color,
-          minVal: minRaw != null ? Number(minRaw) : null,
-          maxVal: maxRaw != null ? Number(maxRaw) : null,
-        };
-      })
-    : [];
-
+  for (const p of payload)
+    byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
+  // Look up band min/max directly from chartData to avoid invisible-line payload issues
+  const dataRow = chartData.find((d) => d.timestamp === activeTimestamp);
+  const date = new Date(activeTimestamp);
+  const timeStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+  const formulaEntries = visibleFormulas.map((f) => ({
+    id: f.id,
+    name: f.name || f.expression,
+    color: f.color,
+    value: byKey[`formula_${f.id}`] ?? null,
+  }));
+  const bandEntries = visibleBands.map((b) => {
+    const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
+    const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
+    const minVal = minRaw != null ? Number(minRaw) : null;
+    const maxVal = maxRaw != null ? Number(maxRaw) : null;
+    return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
+  });
   const hasAny =
     formulaEntries.some((e) => e.value !== null) ||
     bandEntries.some((e) => e.minVal !== null);
-
+  if (!hasAny) return null;
   return (
     <div className="w-full md:w-44 md:flex-shrink-0 pt-2 pl-2">
-      {hasAny && timeStr && (
-        <div className="text-xs">
-          <div className="text-[10px] text-muted-foreground pb-1 mb-1.5 border-b border-border">
-            {timeStr}
-          </div>
-          <div className="space-y-2">
-            {formulaEntries
-              .filter((e) => e.value !== null)
-              .map((e) => (
-                <div
-                  key={e.id}
-                  className="flex justify-between gap-2 leading-tight py-px"
-                >
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[80px] flex items-center gap-1">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: e.color }}
-                    />
-                    {e.name}
-                  </span>
-                  <span className="text-[10px] tabular-nums flex-shrink-0">
-                    {(e.value as number).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            {bandEntries
-              .filter((e) => e.minVal !== null)
-              .map((e) => (
-                <div key={e.id}>
-                  <div
-                    className="text-[10px] font-semibold mb-0.5 leading-tight flex items-center gap-1"
-                    style={{ color: e.color }}
-                  >
-                    <span
-                      className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
-                      style={{ backgroundColor: e.color, opacity: 0.7 }}
-                    />
-                    {e.name}
-                  </div>
-                  <div className="pl-3 text-[10px] text-muted-foreground/80">
-                    min:{" "}
-                    <span className="font-mono tabular-nums text-foreground">
-                      {e.minVal?.toFixed(2)}
-                    </span>
-                    {" / max: "}
-                    <span className="font-mono tabular-nums text-foreground">
-                      {e.maxVal?.toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-          </div>
+      <div
+        className="rounded border border-border/40 bg-card/90 backdrop-blur-sm p-2 shadow-sm"
+        style={{ fontSize: "10px", lineHeight: "1.4" }}
+      >
+        <div className="text-muted-foreground mb-1.5 font-medium">
+          {timeStr}
         </div>
-      )}
+        {formulaEntries.map(
+          (e) =>
+            e.value !== null && (
+              <div key={e.id} className="flex items-center gap-1 mb-0.5">
+                <span
+                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: e.color }}
+                />
+                <span className="text-muted-foreground truncate flex-1">
+                  {e.name}
+                </span>
+                <span className="font-mono tabular-nums text-foreground flex-shrink-0">
+                  {e.value.toFixed(2)}
+                </span>
+              </div>
+            ),
+        )}
+        {bandEntries.map(
+          (e) =>
+            e.minVal !== null && (
+              <div key={e.id} className="mb-0.5">
+                <div className="flex items-center gap-1">
+                  <span
+                    className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
+                    style={{ backgroundColor: e.color, opacity: 0.7 }}
+                  />
+                  <span className="text-muted-foreground truncate flex-1">
+                    {e.name}
+                  </span>
+                </div>
+                <div className="pl-3 text-muted-foreground/80">
+                  <span>min: </span>
+                  <span className="font-mono tabular-nums text-foreground">
+                    {e.minVal?.toFixed(2)}
+                  </span>
+                  {" / max: "}
+                  <span className="font-mono tabular-nums text-foreground">
+                    {e.maxVal?.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── EventRow ──────────────────────────────────────────────────────────────────────────────
+interface EventRowProps {
+  ev: EventConfig;
+  index: number;
+  onUpdate: (updated: EventConfig) => void;
+  onDelete: (id: string) => void;
+}
+function toDatetimeLocal(ms: number) {
+  const d = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function EventRow({ ev, onUpdate, onDelete }: EventRowProps) {
+  const [localLabel, setLocalLabel] = useState(ev.label);
+  const [localDatetime, setLocalDatetime] = useState(
+    toDatetimeLocal(ev.timestamp),
+  );
+  const prevId = useRef(ev.id);
+  useEffect(() => {
+    if (prevId.current !== ev.id) {
+      prevId.current = ev.id;
+      setLocalLabel(ev.label);
+      setLocalDatetime(toDatetimeLocal(ev.timestamp));
+    }
+  }, [ev.id, ev.label, ev.timestamp]);
+  return (
+    <div className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0">
+      <input
+        type="datetime-local"
+        value={localDatetime}
+        onChange={(e) => setLocalDatetime(e.target.value)}
+        onBlur={() => {
+          const ms = new Date(localDatetime).getTime();
+          if (!Number.isNaN(ms)) onUpdate({ ...ev, timestamp: ms });
+        }}
+        className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
+        style={{ width: 175 }}
+      />
+      <Input
+        value={localLabel}
+        onChange={(e) => setLocalLabel(e.target.value)}
+        onBlur={() => onUpdate({ ...ev, label: localLabel })}
+        placeholder="Event label"
+        className="h-7 text-xs flex-1"
+      />
+      <button
+        type="button"
+        onClick={() => onDelete(ev.id)}
+        className="w-6 h-6 rounded text-xs border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex-shrink-0"
+        title="Delete event"
+      >
+        <X className="w-3 h-3 mx-auto" />
+      </button>
     </div>
   );
 }
@@ -719,6 +764,27 @@ function BandRow({ b, index, onUpdate, onDelete }: BandRowProps) {
   );
 }
 
+// ─── makeEventLabel ──────────────────────────────────────────────────────────────────────────────
+function makeEventLabel(label: string) {
+  return (props: { viewBox?: { x: number; y: number; height: number } }) => {
+    const { viewBox } = props;
+    if (!viewBox) return <g />;
+    const { x, y, height } = viewBox;
+    return (
+      <text
+        x={x + 4}
+        y={y + height - 6}
+        transform={`rotate(-90, ${x + 4}, ${y + height - 6})`}
+        fontSize={10}
+        fill="#000000"
+        style={{ userSelect: "none", pointerEvents: "none" }}
+      >
+        {label}
+      </text>
+    );
+  };
+}
+
 const ALL_SENSOR_KEYS = Array.from(
   { length: 72 },
   (_, i) => `sensor_S${i + 1}`,
@@ -738,10 +804,10 @@ export function AdvancedChartSection({
 
   const [formulas, setFormulas] = useState<FormulaLine[]>([]);
   const [bands, setBands] = useState<BandConfig[]>([]);
+  const [events, setEvents] = useState<EventConfig[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
-  // Y-axis zoom state (set via scroll wheel, no longer has manual inputs)
   const [yMin, setYMin] = useState<number | undefined>(undefined);
   const [yMax, setYMax] = useState<number | undefined>(undefined);
 
@@ -757,6 +823,7 @@ export function AdvancedChartSection({
   const [hoverPayload, setHoverPayload] = useState<any[]>([]);
   const [hoverTimestamp, setHoverTimestamp] = useState<number | null>(null);
 
+  // Cursor tooltip
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -779,6 +846,7 @@ export function AdvancedChartSection({
             const cfg: AdvancedChartConfig = JSON.parse(json);
             setFormulas(cfg.formulas ?? []);
             setBands(cfg.bands ?? []);
+            setEvents(cfg.events ?? []);
             savedRef.current = json;
           } catch {
             setFormulas([]);
@@ -796,9 +864,18 @@ export function AdvancedChartSection({
 
   // ── Save with debounce ──
   const saveConfig = useCallback(
-    (newFormulas: FormulaLine[], newBands: BandConfig[]) => {
+    (
+      newFormulas: FormulaLine[],
+      newBands: BandConfig[],
+      newEvents?: EventConfig[],
+    ) => {
       if (!isAdmin || !actor || !loaded) return;
-      const json = JSON.stringify({ formulas: newFormulas, bands: newBands });
+      const evs = newEvents !== undefined ? newEvents : events;
+      const json = JSON.stringify({
+        formulas: newFormulas,
+        bands: newBands,
+        events: evs,
+      });
       if (json === savedRef.current) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
@@ -808,7 +885,7 @@ export function AdvancedChartSection({
           .catch(() => {});
       }, 800);
     },
-    [actor, isAdmin, loaded, selectedId],
+    [actor, isAdmin, loaded, selectedId, events],
   );
 
   const handleFormulaUpdate = useCallback(
@@ -862,7 +939,6 @@ export function AdvancedChartSection({
     },
     [bands, saveConfig],
   );
-
   const updateBands = useCallback(
     (updated: BandConfig[]) => {
       setBands(updated);
@@ -871,10 +947,19 @@ export function AdvancedChartSection({
     [formulas, saveConfig],
   );
 
+  const updateEvents = useCallback(
+    (updated: EventConfig[]) => {
+      setEvents(updated);
+      saveConfig(formulas, bands, updated);
+    },
+    [formulas, bands, saveConfig],
+  );
+
   const chartData = useMemo(() => {
     return data.map((point) => {
       const row: Record<string, number | null | undefined | [number, number]> =
         { timestamp: point.timestamp.getTime() };
+
       if (showAllSensors) {
         const sensorMap = point.sensors as Record<string, number | undefined>;
         for (let i = 1; i <= 72; i++) {
@@ -883,6 +968,7 @@ export function AdvancedChartSection({
           row[`sensor_${key}`] = v !== undefined ? v : null;
         }
       }
+
       for (const f of formulas) {
         if (f.visible && f.expression) {
           row[`formula_${f.id}`] = evaluateFormula(
@@ -891,6 +977,7 @@ export function AdvancedChartSection({
           );
         }
       }
+
       for (const b of bands) {
         if (b.visible && b.sensors.length > 0) {
           const values = b.sensors
@@ -905,12 +992,11 @@ export function AdvancedChartSection({
                 v !== undefined && v !== null && !Number.isNaN(v) && v !== 0,
             );
           if (values.length > 0) {
-            row[`band_area_${b.id}`] = [
-              Math.min(...values),
-              Math.max(...values),
-            ];
-            row[`band_min_${b.id}`] = Math.min(...values);
-            row[`band_max_${b.id}`] = Math.max(...values);
+            const minVal = Math.min(...values);
+            const maxVal = Math.max(...values);
+            row[`band_area_${b.id}`] = [minVal, maxVal];
+            row[`band_min_${b.id}`] = minVal;
+            row[`band_max_${b.id}`] = maxVal;
           } else {
             row[`band_area_${b.id}`] = undefined;
             row[`band_min_${b.id}`] = undefined;
@@ -980,25 +1066,6 @@ export function AdvancedChartSection({
     return [globalMin - padding, globalMax + padding];
   }, [yMin, yMax, chartData, startIndex, endIndex, formulas, bands]);
 
-  // Y-axis scroll zoom
-  const handleChartWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      const d0 = yDomain[0];
-      const d1 = yDomain[1];
-      if (typeof d0 !== "number" || typeof d1 !== "number") return;
-      const range = d1 - d0;
-      const factor = e.deltaY < 0 ? 0.1 : -0.1;
-      const newMin = d0 + range * factor;
-      const newMax = d1 - range * factor;
-      if (newMax - newMin > 0.1) {
-        setYMin(newMin);
-        setYMax(newMax);
-      }
-    },
-    [yDomain],
-  );
-
   const handleMouseDown = useCallback((e: any) => {
     if (!e?.activeLabel) return;
     setRefAreaLeft(String(e.activeLabel));
@@ -1014,6 +1081,7 @@ export function AdvancedChartSection({
         setHoverPayload(e.activePayload);
         setHoverTimestamp(e.activeLabel ?? null);
       }
+      // Find nearest formula line for cursor tooltip
       if (
         !selectingRef.current &&
         e?.activePayload?.length &&
@@ -1090,6 +1158,7 @@ export function AdvancedChartSection({
     const map: Record<string, number | null> = {};
     for (const p of hoverPayload)
       map[p.dataKey] = p.value != null ? Number(p.value) : null;
+    // Also populate band min/max directly from chartData for reliability
     if (hoverTimestamp != null) {
       const row = chartData.find(
         (d) => (d as any).timestamp === hoverTimestamp,
@@ -1120,6 +1189,7 @@ export function AdvancedChartSection({
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Show all sensors toggle + opacity */}
           <label
             className="flex items-center gap-1.5 cursor-pointer select-none"
             data-ocid="tsic.advanced.toggle"
@@ -1152,6 +1222,7 @@ export function AdvancedChartSection({
               </span>
             </div>
           )}
+          {/* Band fill opacity */}
           {bands.length > 0 && (
             <div className="flex items-center gap-1">
               <span className="text-xs text-muted-foreground">Band fill:</span>
@@ -1194,6 +1265,52 @@ export function AdvancedChartSection({
             data.length > 0 &&
             chartData.length > 0 && (
               <div className="p-4 pb-2">
+                {/* Y-axis controls */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs text-muted-foreground">Y-axis:</span>
+                  <Input
+                    type="number"
+                    placeholder="Min (auto)"
+                    value={yMin !== undefined ? yMin : ""}
+                    onChange={(e) =>
+                      setYMin(
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                      )
+                    }
+                    className="h-7 w-24 text-xs"
+                    data-ocid="tsic.advanced.input"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max (auto)"
+                    value={yMax !== undefined ? yMax : ""}
+                    onChange={(e) =>
+                      setYMax(
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                      )
+                    }
+                    className="h-7 w-24 text-xs"
+                    data-ocid="tsic.advanced.input"
+                  />
+                  {(yMin !== undefined || yMax !== undefined) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setYMin(undefined);
+                        setYMax(undefined);
+                      }}
+                      className="h-7 px-2 text-xs rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
+                      data-ocid="tsic.advanced.secondary_button"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+
                 {/* Chart + hover panel side by side */}
                 <div
                   className="flex flex-col md:flex-row gap-4 items-start"
@@ -1208,11 +1325,6 @@ export function AdvancedChartSection({
                   <div
                     className="flex-1 min-w-0 w-full"
                     style={{ userSelect: "none" }}
-                    onWheel={handleChartWheel}
-                    onDoubleClick={() => {
-                      setYMin(undefined);
-                      setYMax(undefined);
-                    }}
                   >
                     <ResponsiveContainer width="100%" height={900}>
                       <ComposedChart
@@ -1340,6 +1452,20 @@ export function AdvancedChartSection({
                           />
                         )}
 
+                        {/* Event lines */}
+                        {events.map((ev) => {
+                          const labelFn = makeEventLabel(ev.label);
+                          return (
+                            <ReferenceLine
+                              key={`event_${ev.id}`}
+                              x={ev.timestamp}
+                              stroke="#000000"
+                              strokeWidth={1}
+                              label={labelFn as any}
+                            />
+                          );
+                        })}
+
                         {/* Drag selection area */}
                         {refAreaLeft && refAreaRight && (
                           <ReferenceArea
@@ -1374,12 +1500,9 @@ export function AdvancedChartSection({
                         />
                       </ComposedChart>
                     </ResponsiveContainer>
-                    <p className="text-center text-[10px] text-muted-foreground mt-1 pb-1 select-none">
-                      Scroll to zoom Y axis · Double-click to reset
-                    </p>
                   </div>
 
-                  {/* Hover side panel — always rendered to prevent layout shift */}
+                  {/* Hover side panel */}
                   <AdvancedHoverPanel
                     payload={hoverPayload}
                     activeTimestamp={hoverTimestamp}
@@ -1531,6 +1654,55 @@ export function AdvancedChartSection({
                 </div>
               )}
             </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Events
+                </Label>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-xs px-2 gap-1"
+                  onClick={() => {
+                    const newEv: EventConfig = {
+                      id: crypto.randomUUID(),
+                      timestamp: Date.now(),
+                      label: `Event ${events.length + 1}`,
+                    };
+                    updateEvents([...events, newEv]);
+                  }}
+                  data-ocid="tsic.advanced.event.button"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Event
+                </Button>
+              </div>
+              {events.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  No events yet. Add one to mark a moment on the chart with a
+                  vertical line and label.
+                </p>
+              ) : (
+                <div className="space-y-0">
+                  {events.map((ev, i) => (
+                    <EventRow
+                      key={ev.id}
+                      ev={ev}
+                      index={i}
+                      onUpdate={(updated) => {
+                        const next = events.map((e) =>
+                          e.id === updated.id ? updated : e,
+                        );
+                        updateEvents(next);
+                      }}
+                      onDelete={(id) =>
+                        updateEvents(events.filter((e) => e.id !== id))
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -1574,6 +1746,7 @@ export function AdvancedChartSection({
               onClick={() => {
                 updateFormulas([]);
                 updateBands([]);
+                updateEvents([]);
                 setShowReset(false);
               }}
               data-ocid="tsic.advanced.confirm_button"

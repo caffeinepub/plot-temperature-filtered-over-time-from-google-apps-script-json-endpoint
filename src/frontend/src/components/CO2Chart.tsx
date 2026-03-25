@@ -158,11 +158,13 @@ export function CO2Chart({
     if (!selectingRef.current) return;
     selectingRef.current = false;
     setIsSelecting(false);
+
     if (!refAreaLeft || !refAreaRight || refAreaLeft === refAreaRight) {
       setRefAreaLeft(null);
       setRefAreaRight(null);
       return;
     }
+
     const visibleData = chartData.slice(startIndex, endIndex + 1);
     const leftIdx = visibleData.findIndex(
       (d) => String(d.timestamp) === refAreaLeft,
@@ -170,13 +172,16 @@ export function CO2Chart({
     const rightIdx = visibleData.findIndex(
       (d) => String(d.timestamp) === refAreaRight,
     );
+
     if (leftIdx === -1 || rightIdx === -1) {
       setRefAreaLeft(null);
       setRefAreaRight(null);
       return;
     }
+
     const lo = Math.min(leftIdx, rightIdx);
     const hi = Math.max(leftIdx, rightIdx);
+
     const slice = visibleData.slice(lo, hi + 1);
     const allYValues = slice
       .flatMap((d) => [d.co2Right, d.co2Left, d.co2CSV])
@@ -188,6 +193,7 @@ export function CO2Chart({
       setZoomedYBottom(minY - padding);
       setZoomedYTop(maxY + padding);
     }
+
     onRangeChange(startIndex + lo, startIndex + hi);
     setRefAreaLeft(null);
     setRefAreaRight(null);
@@ -214,44 +220,6 @@ export function CO2Chart({
     }
   }
 
-  // Compute visible data range for Y-axis scroll zoom baseline
-  const computeVisibleRange = useCallback((): [number, number] | null => {
-    const slice = chartData.slice(startIndex, endIndex + 1);
-    const values = slice
-      .flatMap((d) => [d.co2Right, d.co2Left, d.co2CSV])
-      .filter((v): v is number => v != null && !Number.isNaN(v) && v !== 0);
-    if (values.length === 0) return null;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const pad = (max - min) * 0.05 || 1;
-    return [min - pad, max + pad];
-  }, [chartData, startIndex, endIndex]);
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault();
-      let curMin: number;
-      let curMax: number;
-      if (zoomedYBottom !== null && zoomedYTop !== null) {
-        curMin = zoomedYBottom;
-        curMax = zoomedYTop;
-      } else {
-        const range = computeVisibleRange();
-        if (!range) return;
-        [curMin, curMax] = range;
-      }
-      const range = curMax - curMin;
-      const factor = e.deltaY < 0 ? 0.1 : -0.1;
-      const newMin = curMin + range * factor;
-      const newMax = curMax - range * factor;
-      if (newMax - newMin > 0.1) {
-        setZoomedYBottom(newMin);
-        setZoomedYTop(newMax);
-      }
-    },
-    [zoomedYBottom, zoomedYTop, computeVisibleRange],
-  );
-
   const yDomain: [number | string, number | string] =
     zoomedYBottom !== null && zoomedYTop !== null
       ? [zoomedYBottom, zoomedYTop]
@@ -262,185 +230,177 @@ export function CO2Chart({
     : null;
 
   return (
-    <>
-      <div
-        className="w-full h-[450px] relative"
-        style={{ userSelect: "none" }}
-        onWheel={handleWheel}
-        onDoubleClick={() => {
-          setZoomedYBottom(null);
-          setZoomedYTop(null);
-        }}
-        onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
-        onMouseLeave={() => {
-          setCursorPos(null);
-          setNearestLineName(null);
-        }}
-      >
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 2, right: 30, left: 20, bottom: 60 }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="oklch(var(--border))"
-              opacity={0.3}
-            />
-            <XAxis
-              dataKey="timestamp"
-              type="number"
-              domain={xDomain}
-              scale="time"
-              ticks={xTickValues}
-              interval={0}
-              tick={(tickProps) => (
-                <CustomXTick
-                  {...tickProps}
-                  allTicks={xTickEntries}
-                  fill="oklch(var(--muted-foreground))"
-                />
-              )}
-              tickLine={false}
-              axisLine={{ stroke: "oklch(var(--border))" }}
-              allowDataOverflow
-              height={46}
-            />
-            <YAxis
-              domain={yDomain}
-              allowDataOverflow
-              tickFormatter={formatYTick}
-              stroke="oklch(var(--muted-foreground))"
-              tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
-              tickLine={{ stroke: "oklch(var(--border))" }}
-              label={{
-                value: "CO\u2082 Level (%)",
-                angle: -90,
-                position: "insideLeft",
-                style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
-              }}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "oklch(var(--popover))",
-                border: "1px solid oklch(var(--border))",
-                borderRadius: "8px",
-                color: "oklch(var(--popover-foreground))",
-              }}
-              labelStyle={{ color: "oklch(var(--popover-foreground))" }}
-              formatter={(value: number, name: string) => {
-                let label = "";
-                if (name === "co2Right") label = "CO2 Right (%)";
-                else if (name === "co2Left") label = "CO2 Left (%)";
-                else if (name === "co2CSV") label = "CO2 CSV (%) - dashed";
-                const formattedValue =
-                  typeof value === "number" && !Number.isNaN(value)
-                    ? value.toFixed(2)
-                    : "0.00";
-                return [formattedValue, label];
-              }}
-              labelFormatter={
-                ((label: any, payload: any) => {
-                  if (payload && payload.length > 0) {
-                    const dp = payload[0].payload;
-                    if (dp?.fullTimestamp) return dp.fullTimestamp;
-                  }
-                  return label;
-                }) as any
-              }
-            />
-            <Legend
-              wrapperStyle={{
-                paddingTop: "10px",
-                color: "oklch(var(--foreground))",
-              }}
-              iconType="line"
-              formatter={(value) => {
-                if (value === "co2Right") return "CO2 Right (%)";
-                if (value === "co2Left") return "CO2 Left (%)";
-                if (value === "co2CSV") return "CO2 CSV (%) - dashed";
-                return value;
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="co2Right"
-              name="co2Right"
-              stroke={CO2_RIGHT_COLOR}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 6, fill: CO2_RIGHT_COLOR }}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="co2Left"
-              name="co2Left"
-              stroke={CO2_LEFT_COLOR}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 6, fill: CO2_LEFT_COLOR }}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="co2CSV"
-              name="co2CSV"
-              stroke={CO2_CSV_COLOR}
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              activeDot={{ r: 6, fill: CO2_CSV_COLOR }}
-              isAnimationActive={false}
-            />
-            {refAreaLeft && refAreaRight && (
-              <ReferenceArea
-                x1={Number(refAreaLeft)}
-                x2={Number(refAreaRight)}
-                strokeOpacity={0.3}
-                fill="oklch(var(--primary))"
-                fillOpacity={0.2}
-                stroke="oklch(var(--primary))"
+    <div
+      className="w-full h-[450px] relative"
+      style={{ userSelect: "none" }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => {
+        setCursorPos(null);
+        setNearestLineName(null);
+      }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={chartData}
+          margin={{ top: 2, right: 30, left: 20, bottom: 60 }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="oklch(var(--border))"
+            opacity={0.3}
+          />
+          <XAxis
+            dataKey="timestamp"
+            type="number"
+            domain={xDomain}
+            scale="time"
+            ticks={xTickValues}
+            interval={0}
+            tick={(tickProps) => (
+              <CustomXTick
+                {...tickProps}
+                allTicks={xTickEntries}
+                fill="oklch(var(--muted-foreground))"
               />
             )}
-            <Brush
-              dataKey="timestamp"
-              height={40}
-              stroke="oklch(var(--primary))"
-              fill="oklch(var(--muted))"
-              startIndex={startIndex}
-              endIndex={endIndex}
-              onChange={handleBrushChange}
-              travellerWidth={10}
-              tickFormatter={(ts: number) => {
-                const d = new Date(ts);
-                return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
-              }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-        {cursorPos && displayName && (
-          <div
-            style={{
-              position: "fixed",
-              left: cursorPos.x + 14,
-              top: cursorPos.y - 10,
-              pointerEvents: "none",
-              zIndex: 9999,
+            tickLine={false}
+            axisLine={{ stroke: "oklch(var(--border))" }}
+            allowDataOverflow
+            height={46}
+          />
+          <YAxis
+            domain={yDomain}
+            allowDataOverflow
+            tickFormatter={formatYTick}
+            stroke="oklch(var(--muted-foreground))"
+            tick={{ fill: "oklch(var(--muted-foreground))", fontSize: 12 }}
+            tickLine={{ stroke: "oklch(var(--border))" }}
+            label={{
+              value: "CO\u2082 Level (%)",
+              angle: -90,
+              position: "insideLeft",
+              style: { fill: "oklch(var(--muted-foreground))", fontSize: 12 },
             }}
-            className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
-          >
-            {displayName}
-          </div>
-        )}
-      </div>
-      <p className="text-center text-[10px] text-muted-foreground mt-1 pb-1 select-none">
-        Scroll to zoom Y axis · Double-click to reset
-      </p>
-    </>
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "oklch(var(--popover))",
+              border: "1px solid oklch(var(--border))",
+              borderRadius: "8px",
+              color: "oklch(var(--popover-foreground))",
+            }}
+            labelStyle={{ color: "oklch(var(--popover-foreground))" }}
+            formatter={(value: number, name: string) => {
+              let label = "";
+              if (name === "co2Right") label = "CO2 Right (%)";
+              else if (name === "co2Left") label = "CO2 Left (%)";
+              else if (name === "co2CSV") label = "CO2 CSV (%) - dashed";
+              const formattedValue =
+                typeof value === "number" && !Number.isNaN(value)
+                  ? value.toFixed(2)
+                  : "0.00";
+              return [formattedValue, label];
+            }}
+            labelFormatter={
+              ((label: any, payload: any) => {
+                if (payload && payload.length > 0) {
+                  const dataPoint = payload[0].payload;
+                  if (dataPoint?.fullTimestamp) {
+                    return dataPoint.fullTimestamp;
+                  }
+                }
+                return label;
+              }) as any
+            }
+          />
+          <Legend
+            wrapperStyle={{
+              paddingTop: "10px",
+              color: "oklch(var(--foreground))",
+            }}
+            iconType="line"
+            formatter={(value) => {
+              if (value === "co2Right") return "CO2 Right (%)";
+              if (value === "co2Left") return "CO2 Left (%)";
+              if (value === "co2CSV") return "CO2 CSV (%) - dashed";
+              return value;
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="co2Right"
+            name="co2Right"
+            stroke={CO2_RIGHT_COLOR}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 6, fill: CO2_RIGHT_COLOR }}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="co2Left"
+            name="co2Left"
+            stroke={CO2_LEFT_COLOR}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 6, fill: CO2_LEFT_COLOR }}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="co2CSV"
+            name="co2CSV"
+            stroke={CO2_CSV_COLOR}
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={false}
+            activeDot={{ r: 6, fill: CO2_CSV_COLOR }}
+            isAnimationActive={false}
+          />
+          {refAreaLeft && refAreaRight && (
+            <ReferenceArea
+              x1={Number(refAreaLeft)}
+              x2={Number(refAreaRight)}
+              strokeOpacity={0.3}
+              fill="oklch(var(--primary))"
+              fillOpacity={0.2}
+              stroke="oklch(var(--primary))"
+            />
+          )}
+          <Brush
+            dataKey="timestamp"
+            height={40}
+            stroke="oklch(var(--primary))"
+            fill="oklch(var(--muted))"
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onChange={handleBrushChange}
+            travellerWidth={10}
+            tickFormatter={(ts: number) => {
+              const d = new Date(ts);
+              return `${d.getDate()} ${MONTH_NAMES[d.getMonth()].slice(0, 3)}`;
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      {cursorPos && displayName && (
+        <div
+          style={{
+            position: "fixed",
+            left: cursorPos.x + 14,
+            top: cursorPos.y - 10,
+            pointerEvents: "none",
+            zIndex: 9999,
+          }}
+          className="bg-card border border-border rounded px-2 py-0.5 text-xs shadow-md text-foreground whitespace-nowrap"
+        >
+          {displayName}
+        </div>
+      )}
+    </div>
   );
 }
