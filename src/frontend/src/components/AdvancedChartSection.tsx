@@ -772,10 +772,10 @@ function makeEventLabel(label: string) {
     const { x, y, height } = viewBox;
     return (
       <text
-        x={x + 4}
+        x={x + 10}
         y={y + height - 6}
-        transform={`rotate(-90, ${x + 4}, ${y + height - 6})`}
-        fontSize={10}
+        transform={`rotate(-90, ${x + 10}, ${y + height - 6})`}
+        fontSize={13}
         fill="#000000"
         style={{ userSelect: "none", pointerEvents: "none" }}
       >

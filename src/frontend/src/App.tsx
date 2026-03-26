@@ -43,11 +43,12 @@ function App() {
 
   const [footerAboutOpen, setFooterAboutOpen] = useState(false);
 
-  // Filter pages based on ConceptMachine visibility
+  const isAdminConfirmed = isAdmin && adminConfirmed;
+
+  // Filter pages based on visibility rules
   const visiblePages = logSystemPages.filter((page) => {
-    if (page.id === "conceptmachine") {
-      return conceptMachineVisible;
-    }
+    if (page.id === "conceptmachine") return conceptMachineVisible;
+    if (page.id === "backups") return isAdminConfirmed;
     return true;
   });
 
@@ -172,8 +173,6 @@ function App() {
       );
     }
   }
-
-  const isAdminConfirmed = isAdmin && adminConfirmed;
 
   return (
     <div className="min-h-screen bg-background">

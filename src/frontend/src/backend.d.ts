@@ -30,6 +30,7 @@ export interface backendInterface {
     getAllAdmins(): Promise<Array<AdminInfo>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getAllSensorLabelsForId(loggerId: bigint): Promise<Array<[bigint, string]>>;
+    getBackupsForId(id: bigint): Promise<string>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;
@@ -43,6 +44,7 @@ export interface backendInterface {
     isConceptMachineVisible(): Promise<boolean>;
     resetSensorLabelsForId(loggerId: bigint): Promise<void>;
     saveAdvancedChartConfigForId(id: bigint, json: string): Promise<void>;
+    saveBackupsForId(id: bigint, json: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;

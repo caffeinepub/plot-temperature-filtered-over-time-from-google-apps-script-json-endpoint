@@ -13,9 +13,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useActor } from "@/hooks/useActor";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
 import {
   getGroupColor,
@@ -32,6 +40,7 @@ import { useTSICData } from "@/hooks/useTSICData";
 import { useSetLoggerLabel, useTSICLabels } from "@/hooks/useTSICLabels";
 import {
   AlertCircle,
+  Archive,
   Calendar,
   Check,
   ChevronDown,
@@ -457,9 +466,14 @@ export function TSICLoggersPage() {
   );
   const [hoveredTimestamp, setHoveredTimestamp] = useState<string | null>(null);
 
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [backupLabel, setBackupLabel] = useState("");
+  const [isSavingBackup, setIsSavingBackup] = useState(false);
+
   const prevDataLengthRef = useRef<number>(0);
 
   const { isAdmin, isConfirmed } = useIsCallerAdmin();
+  const { actor } = useActor();
   const { data: labelsMap } = useTSICLabels();
   const { mutate: saveLabel, isPending: isSavingLabel } = useSetLoggerLabel();
   const { data: sensorLabels } = useSensorLabels(selectedId);
@@ -499,6 +513,53 @@ export function TSICLoggersPage() {
   } = useSensorGroups(isAdmin, selectedId);
 
   const [savingId, setSavingId] = useState<number | null>(null);
+
+  const handleSaveBackup = useCallback(async () => {
+    if (!actor || selectedId === null || !backupLabel.trim()) return;
+    setIsSavingBackup(true);
+    try {
+      const [sensorGroupsJson, advancedConfigJson, existingJson] =
+        await Promise.all([
+          actor.getSensorGroupsForId(BigInt(selectedId)),
+          actor.getAdvancedChartConfigForId(BigInt(selectedId)),
+          (actor as any).getBackupsForId(BigInt(selectedId)),
+        ]);
+
+      const labelsArray: [number, string][] = [];
+      if (sensorLabels) {
+        sensorLabels.forEach((label, num) => labelsArray.push([num, label]));
+      }
+      const sensorLabelsJson = JSON.stringify(labelsArray);
+
+      const newEntry = {
+        id: Date.now().toString(),
+        loggerId: selectedId,
+        label: backupLabel.trim(),
+        timestampMs: Date.now(),
+        sensorGroupsJson,
+        advancedConfigJson,
+        sensorLabelsJson,
+      };
+
+      let existing: (typeof newEntry)[] = [];
+      try {
+        existing = JSON.parse(existingJson);
+      } catch {
+        existing = [];
+      }
+      existing.push(newEntry);
+      await (actor as any).saveBackupsForId(
+        BigInt(selectedId),
+        JSON.stringify(existing),
+      );
+      setBackupDialogOpen(false);
+      setBackupLabel("");
+    } catch (e) {
+      console.error("Failed to save backup:", e);
+    } finally {
+      setIsSavingBackup(false);
+    }
+  }, [actor, selectedId, backupLabel, sensorLabels]);
 
   const handleSaveLabel = useCallback(
     (id: number, label: string) => {
@@ -1036,7 +1097,23 @@ export function TSICLoggersPage() {
           {/* ── Chart + Side panel + Legend ── */}
           <DashboardCard
             title={`TSIC Logger ${selectedId} - All sensor readings over time`}
-            headerAction={refreshingIndicator}
+            headerAction={
+              <div className="flex items-center gap-2">
+                {refreshingIndicator}
+                {showAdminFeatures && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBackupDialogOpen(true)}
+                    className="h-7 text-xs gap-1.5"
+                    data-ocid="tsic.backup.open_modal_button"
+                  >
+                    <Archive className="h-3.5 w-3.5" />
+                    Save Backup
+                  </Button>
+                )}
+              </div>
+            }
           >
             {/* Chart + hover side panel */}
             <div className="flex flex-col md:flex-row gap-4 items-start">
@@ -1079,6 +1156,59 @@ export function TSICLoggersPage() {
               />
             </div>
           </DashboardCard>
+          {/* Backup Dialog */}
+          <Dialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
+            <DialogContent data-ocid="backup.dialog">
+              <DialogHeader>
+                <DialogTitle>Save Configuration Backup</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <p className="text-sm text-muted-foreground">
+                  Save a backup of logger ID {selectedId} including sensor
+                  groups, labels, and advanced chart config.
+                </p>
+                <div className="space-y-1.5">
+                  <label htmlFor="backup-label" className="text-sm font-medium">
+                    Backup Label
+                  </label>
+                  <input
+                    id="backup-label"
+                    type="text"
+                    value={backupLabel}
+                    onChange={(e) => setBackupLabel(e.target.value)}
+                    placeholder="e.g. Before filter change 15/03"
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    data-ocid="backup.input"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && backupLabel.trim())
+                        handleSaveBackup();
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setBackupDialogOpen(false);
+                    setBackupLabel("");
+                  }}
+                  data-ocid="backup.cancel_button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveBackup}
+                  disabled={!backupLabel.trim() || isSavingBackup}
+                  style={{ backgroundColor: "#808A54" }}
+                  data-ocid="backup.submit_button"
+                >
+                  {isSavingBackup ? "Saving..." : "Save Backup"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Advanced Chart Toggle */}
           <div className="flex justify-center mt-2">
             <button
