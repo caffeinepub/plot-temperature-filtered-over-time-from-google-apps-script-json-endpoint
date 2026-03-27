@@ -17,6 +17,16 @@ export const AdminInfo = IDL.Record({
   'principal' : IDL.Principal,
   'name' : IDL.Text,
 });
+export const BackupEntry = IDL.Record({
+  'id' : IDL.Nat,
+  'sensorLabelsJson' : IDL.Text,
+  'sensorGroupsJson' : IDL.Text,
+  'backupLabel' : IDL.Text,
+  'advancedConfigJson' : IDL.Text,
+  'sensorDataJson' : IDL.Text,
+  'timestampMs' : IDL.Int,
+  'loggerId' : IDL.Nat,
+});
 export const UserProfileInfo = IDL.Record({
   'principal' : IDL.Principal,
   'name' : IDL.Text,
@@ -27,8 +37,10 @@ export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'deleteBackup' : IDL.Func([IDL.Nat], [], []),
   'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
   'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+  'getAllBackups' : IDL.Func([], [IDL.Vec(BackupEntry)], ['query']),
   'getAllLoggerLabels' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
@@ -52,6 +64,11 @@ export const idlService = IDL.Service({
   'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
   'resetSensorLabelsForId' : IDL.Func([IDL.Nat], [], []),
   'saveAdvancedChartConfigForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'saveBackup' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),
@@ -71,6 +88,16 @@ export const idlFactory = ({ IDL }) => {
     'principal' : IDL.Principal,
     'name' : IDL.Text,
   });
+  const BackupEntry = IDL.Record({
+    'id' : IDL.Nat,
+    'sensorLabelsJson' : IDL.Text,
+    'sensorGroupsJson' : IDL.Text,
+    'backupLabel' : IDL.Text,
+    'advancedConfigJson' : IDL.Text,
+    'sensorDataJson' : IDL.Text,
+    'timestampMs' : IDL.Int,
+    'loggerId' : IDL.Nat,
+  });
   const UserProfileInfo = IDL.Record({
     'principal' : IDL.Principal,
     'name' : IDL.Text,
@@ -81,8 +108,10 @@ export const idlFactory = ({ IDL }) => {
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'deleteBackup' : IDL.Func([IDL.Nat], [], []),
     'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
     'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
+    'getAllBackups' : IDL.Func([], [IDL.Vec(BackupEntry)], ['query']),
     'getAllLoggerLabels' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
@@ -110,6 +139,11 @@ export const idlFactory = ({ IDL }) => {
     'isConceptMachineVisible' : IDL.Func([], [IDL.Bool], ['query']),
     'resetSensorLabelsForId' : IDL.Func([IDL.Nat], [], []),
     'saveAdvancedChartConfigForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'saveBackup' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'saveSensorGroupsForId' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'setConceptMachineVisible' : IDL.Func([IDL.Bool], [], []),

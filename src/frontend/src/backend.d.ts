@@ -12,6 +12,16 @@ export interface UserProfileInfo {
     name: string;
     isAdmin: boolean;
 }
+export interface BackupEntry {
+    id: bigint;
+    sensorLabelsJson: string;
+    sensorGroupsJson: string;
+    backupLabel: string;
+    advancedConfigJson: string;
+    sensorDataJson: string;
+    timestampMs: bigint;
+    loggerId: bigint;
+}
 export interface AdminInfo {
     principal: Principal;
     name: string;
@@ -26,8 +36,10 @@ export enum UserRole {
 }
 export interface backendInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    deleteBackup(id: bigint): Promise<void>;
     getAdvancedChartConfigForId(id: bigint): Promise<string>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
+    getAllBackups(): Promise<Array<BackupEntry>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getAllSensorLabelsForId(loggerId: bigint): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
@@ -43,6 +55,7 @@ export interface backendInterface {
     isConceptMachineVisible(): Promise<boolean>;
     resetSensorLabelsForId(loggerId: bigint): Promise<void>;
     saveAdvancedChartConfigForId(id: bigint, json: string): Promise<void>;
+    saveBackup(loggerId: bigint, backupLabel: string, sensorDataJson: string, sensorGroupsJson: string, sensorLabelsJson: string, advancedConfigJson: string): Promise<bigint>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;

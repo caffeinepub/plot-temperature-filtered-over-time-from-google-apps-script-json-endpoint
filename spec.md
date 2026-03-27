@@ -1,52 +1,27 @@
-# R&D Dashboard – Backup Page
+# TSIC Loggers – Backup UX Improvements
 
 ## Current State
-- Admin-only multi-page dashboard (TSIC Loggers, Conceptmachine, Profile, Image Copies)
-- TSIC Loggers shows per-ID sensor charts with persistent sensor groups, sensor labels, and advanced chart config (formulas/bands/events)
-- All config is stored in Motoko stable variables (sensorGroupsPerIdJson, advancedChartConfigPerIdJson, sensorLabels)
-- No backup functionality exists
+- Backup view appears BELOW the main chart (both are visible simultaneously)
+- Save Backup and Backups dropdown buttons are inside the overflow-x-auto scroll container, below the ID buttons
+- Ungrouped sensors use a hue-derived color (labelToHue)
+- BackupViewSection has no group management panel — you can only see the chart but cannot toggle group visibility or change group colors
+- Sensors can be dragged between groups in the main SensorGroupManager
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Backend**: `backupsPerIdJson` Map<Nat, Text> stable variable – stores JSON array of BackupEntry per logger ID
-- **Backend**: `getBackupsForId(id: Nat): async Text` (admin only query)
-- **Backend**: `saveBackupsForId(id: Nat, json: Text): async ()` (admin only update)
-- **Frontend**: `BackupPage.tsx` – admin-only page listing all backups by logger ID. Shows label, timestamp per backup. Delete button per backup. "View" button loads live GAS data + backup config and shows an interactive chart.
-- **Frontend**: "Save Backup" button on TSICLoggersPage (admin only, when an ID is loaded). Opens a dialog to name the backup, then saves: current sensorGroupsJson + advancedConfigJson + sensorLabelsJson.
-- **Navigation**: Add "Image Copies" and "Backups" pages to logSystemPages (both admin-only).
+- Backup group manager panel inside BackupViewSection that allows: toggling group/sensor visibility, changing group colors, toggling bold/dotted per sensor — but NOT renaming sensors, NOT moving sensors between groups, NOT drag-and-drop reorder
 
 ### Modify
-- `logSystemPages.ts`: Add BackupPage entry (id: "backups", displayName: "Backups")
-- `App.tsx`: Filter backup and image-copies pages to only show for admins
-- `TSICLoggersPage.tsx`: Add "Save Backup" button (Camera+Archive icon, admin only)
-- `declarations/backend.did.js` and `backend.did.d.ts` and `backend.d.ts`: add new methods
+- When a backup is selected (`selectedBackup !== null`), hide the main chart/controls/advanced section — show ONLY the BackupViewSection
+- Move the Save Backup and Backups buttons outside the `overflow-x-auto` container so they sit to the right of the ID buttons row (in the same card, flex row)
+- Ungrouped sensors: use grey (#9ca3af) color in both main TSIC view and backup view instead of hue-derived colors
 
 ### Remove
 - Nothing removed
 
 ## Implementation Plan
-1. Update main.mo: add backupsPerIdJson variable + getBackupsForId + saveBackupsForId
-2. Update all declaration files to include the new backend functions
-3. Create BackupPage.tsx with list view and inline chart preview
-4. Update TSICLoggersPage.tsx to add Save Backup button with label dialog
-5. Update logSystemPages.ts to add Backups page
-6. Update App.tsx to filter admin-only pages (backups, image-copies) from non-admins
-
-## BackupEntry TypeScript shape (stored as JSON in backend)
-```typescript
-type BackupEntry = {
-  id: string; // uuid
-  loggerId: number;
-  label: string;
-  timestampMs: number;
-  sensorGroupsJson: string;
-  advancedConfigJson: string;
-  sensorLabelsJson: string; // JSON.stringify([[sensorNum, label], ...])
-};
-```
-
-## Notes
-- Raw sensor data is NOT stored (too large for ICP message limits). The backup captures configuration state only.
-- When viewing a backup, live data is fetched from the GAS endpoint for that logger ID.
-- If the GAS data is unavailable (>19 days old), the chart shows empty but config is still visible.
+1. **TSICLoggersPage.tsx**: Wrap the data display section (Chart Controls, Sensor Groups, Chart, Advanced) with `{!selectedBackup && (...)}` so it hides when backup is active
+2. **TSICLoggersPage.tsx**: Restructure the ID selector card — use `flex items-start gap-4` at the outer level; put `overflow-x-auto` div with ID buttons on the left (flex-1), and put Save Backup + Backups buttons on the right (flex-shrink-0) — both at same level outside overflow container
+3. **useSensorGroups hook / getSensorColor**: Make ungrouped sensors return `#9ca3af` (grey) instead of `labelToHue` derived color
+4. **BackupViewSection.tsx**: Add a collapsible `BackupGroupPanel` that shows groups with: color picker dot (click to change), eye toggle per group, eye toggle per sensor, B/D buttons per sensor. Wired to local state (not persisted to backend). No drag handles, no rename, no add/remove sensor.

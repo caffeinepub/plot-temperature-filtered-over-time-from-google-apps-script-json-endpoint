@@ -79,6 +79,7 @@ interface AdvancedChartSectionProps {
   selectedId: number;
   isAdmin: boolean;
   sensorLabels?: Map<number, string>;
+  initialConfigJson?: string;
 }
 
 // ─── Safe formula evaluator ───────────────────────────────────────────────────────────────────
@@ -799,6 +800,7 @@ export function AdvancedChartSection({
   onRangeChange,
   selectedId,
   isAdmin,
+  initialConfigJson,
 }: AdvancedChartSectionProps) {
   const { actor, isFetching: actorFetching } = useActor();
 
@@ -836,6 +838,26 @@ export function AdvancedChartSection({
 
   // ── Load from backend ──
   useEffect(() => {
+    // If initialConfigJson is provided (backup view), use it directly
+    if (initialConfigJson !== undefined) {
+      if (initialConfigJson.trim()) {
+        try {
+          const cfg: AdvancedChartConfig = JSON.parse(initialConfigJson);
+          setFormulas(cfg.formulas ?? []);
+          setBands(cfg.bands ?? []);
+          setEvents(cfg.events ?? []);
+          savedRef.current = initialConfigJson;
+        } catch {
+          setFormulas([]);
+          setBands([]);
+        }
+      } else {
+        setFormulas([]);
+        setBands([]);
+      }
+      setLoaded(true);
+      return;
+    }
     if (!isAdmin || !actor || actorFetching) return;
     setLoaded(false);
     (actor as any)
@@ -860,7 +882,7 @@ export function AdvancedChartSection({
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
-  }, [actor, actorFetching, selectedId, isAdmin]);
+  }, [actor, actorFetching, selectedId, isAdmin, initialConfigJson]);
 
   // ── Save with debounce ──
   const saveConfig = useCallback(

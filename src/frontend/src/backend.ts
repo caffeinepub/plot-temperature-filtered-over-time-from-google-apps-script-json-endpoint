@@ -94,6 +94,16 @@ export interface UserProfileInfo {
     name: string;
     isAdmin: boolean;
 }
+export interface BackupEntry {
+    id: bigint;
+    sensorLabelsJson: string;
+    sensorGroupsJson: string;
+    backupLabel: string;
+    advancedConfigJson: string;
+    sensorDataJson: string;
+    timestampMs: bigint;
+    loggerId: bigint;
+}
 export interface AdminInfo {
     principal: Principal;
     name: string;
@@ -109,8 +119,10 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    deleteBackup(id: bigint): Promise<void>;
     getAdvancedChartConfigForId(id: bigint): Promise<string>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
+    getAllBackups(): Promise<Array<BackupEntry>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getAllSensorLabelsForId(loggerId: bigint): Promise<Array<[bigint, string]>>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
@@ -126,6 +138,7 @@ export interface backendInterface {
     isConceptMachineVisible(): Promise<boolean>;
     resetSensorLabelsForId(loggerId: bigint): Promise<void>;
     saveAdvancedChartConfigForId(id: bigint, json: string): Promise<void>;
+    saveBackup(loggerId: bigint, backupLabel: string, sensorDataJson: string, sensorGroupsJson: string, sensorLabelsJson: string, advancedConfigJson: string): Promise<bigint>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     saveSensorGroupsForId(id: bigint, json: string): Promise<void>;
     setConceptMachineVisible(visible: boolean): Promise<void>;
@@ -163,6 +176,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteBackup(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteBackup(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteBackup(arg0);
+            return result;
+        }
+    }
     async getAdvancedChartConfigForId(arg0: bigint): Promise<string> {
         if (this.processError) {
             try {
@@ -188,6 +215,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAllAdmins();
+            return result;
+        }
+    }
+    async getAllBackups(): Promise<Array<BackupEntry>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllBackups();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllBackups();
             return result;
         }
     }
@@ -398,6 +439,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveAdvancedChartConfigForId(arg0, arg1);
+            return result;
+        }
+    }
+    async saveBackup(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.saveBackup(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.saveBackup(arg0, arg1, arg2, arg3, arg4, arg5);
             return result;
         }
     }

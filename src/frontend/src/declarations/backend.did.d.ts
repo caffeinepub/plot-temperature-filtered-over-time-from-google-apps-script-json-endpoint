@@ -11,6 +11,16 @@ import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
 export interface AdminInfo { 'principal' : Principal, 'name' : string }
+export interface BackupEntry {
+  'id' : bigint,
+  'sensorLabelsJson' : string,
+  'sensorGroupsJson' : string,
+  'backupLabel' : string,
+  'advancedConfigJson' : string,
+  'sensorDataJson' : string,
+  'timestampMs' : bigint,
+  'loggerId' : bigint,
+}
 export interface UserProfile { 'name' : string }
 export interface UserProfileInfo {
   'principal' : Principal,
@@ -23,8 +33,10 @@ export type UserRole = { 'admin' : null } |
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'deleteBackup' : ActorMethod<[bigint], undefined>,
   'getAdvancedChartConfigForId' : ActorMethod<[bigint], string>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
+  'getAllBackups' : ActorMethod<[], Array<BackupEntry>>,
   'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
   'getAllSensorLabelsForId' : ActorMethod<[bigint], Array<[bigint, string]>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfileInfo]>,
@@ -40,6 +52,10 @@ export interface _SERVICE {
   'isConceptMachineVisible' : ActorMethod<[], boolean>,
   'resetSensorLabelsForId' : ActorMethod<[bigint], undefined>,
   'saveAdvancedChartConfigForId' : ActorMethod<[bigint, string], undefined>,
+  'saveBackup' : ActorMethod<
+    [bigint, string, string, string, string, string],
+    bigint
+  >,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'saveSensorGroupsForId' : ActorMethod<[bigint, string], undefined>,
   'setConceptMachineVisible' : ActorMethod<[boolean], undefined>,

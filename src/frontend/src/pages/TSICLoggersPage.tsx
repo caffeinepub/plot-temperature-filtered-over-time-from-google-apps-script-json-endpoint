@@ -1,4 +1,8 @@
 import { AdvancedChartSection } from "@/components/AdvancedChartSection";
+import {
+  BackupViewSection,
+  serializeTSICData,
+} from "@/components/BackupViewSection";
 import { DashboardCard } from "@/components/DashboardCard";
 import { SensorGroupManager } from "@/components/SensorGroupManager";
 import {
@@ -13,9 +17,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useActor } from "@/hooks/useActor";
 import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
 import {
   getGroupColor,
@@ -30,19 +41,25 @@ import {
 import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
 import { useTSICData } from "@/hooks/useTSICData";
 import { useSetLoggerLabel, useTSICLabels } from "@/hooks/useTSICLabels";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  Archive,
   Calendar,
   Check,
   ChevronDown,
   ChevronUp,
+  Database,
   Layers,
   Pencil,
   RefreshCw,
   RotateCcw,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import type { BackupEntry } from "../backend.d";
 
 function parseDDMMYYYY(value: string): Date | null {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -647,6 +664,78 @@ export function TSICLoggersPage() {
 
   const showAdminFeatures = isConfirmed && isAdmin;
 
+  // ─── Backup state ───
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const [selectedBackup, setSelectedBackup] = useState<BackupEntry | null>(
+    null,
+  );
+  const [saveBackupOpen, setSaveBackupOpen] = useState(false);
+  const [backupLabelInput, setBackupLabelInput] = useState("");
+  const [isSavingBackup, setIsSavingBackup] = useState(false);
+  const [backupsDropdownOpen, setBackupsDropdownOpen] = useState(false);
+
+  const { data: allBackups = [] } = useQuery<BackupEntry[]>({
+    queryKey: ["allBackups"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getAllBackups();
+    },
+    enabled: !!actor && showAdminFeatures,
+  });
+
+  const handleSaveBackup = useCallback(async () => {
+    if (!actor || selectedId === null || !data) return;
+    setIsSavingBackup(true);
+    try {
+      const label =
+        backupLabelInput.trim() ||
+        `ID ${selectedId} - ${new Date().toLocaleDateString("nl-BE")}`;
+      const sensorDataJson = serializeTSICData(data);
+      const sensorGroupsJson = await (actor as any).getSensorGroupsForId(
+        BigInt(selectedId),
+      );
+      const sensorLabelsRaw = sensorLabels
+        ? JSON.stringify(Array.from(sensorLabels.entries()))
+        : "[]";
+      const advancedConfigJson = await (
+        actor as any
+      ).getAdvancedChartConfigForId(BigInt(selectedId));
+      await (actor as any).saveBackup(
+        BigInt(selectedId),
+        label,
+        sensorDataJson,
+        sensorGroupsJson,
+        sensorLabelsRaw,
+        advancedConfigJson,
+      );
+      toast.success("Backup saved");
+      queryClient.invalidateQueries({ queryKey: ["allBackups"] });
+      setSaveBackupOpen(false);
+      setBackupLabelInput("");
+    } catch (e) {
+      toast.error("Failed to save backup");
+      console.error(e);
+    } finally {
+      setIsSavingBackup(false);
+    }
+  }, [actor, selectedId, data, backupLabelInput, sensorLabels, queryClient]);
+
+  const handleDeleteBackup = useCallback(
+    async (id: bigint) => {
+      if (!actor) return;
+      try {
+        await (actor as any).deleteBackup(id);
+        toast.success("Backup deleted");
+        queryClient.invalidateQueries({ queryKey: ["allBackups"] });
+        if (selectedBackup?.id === id) setSelectedBackup(null);
+      } catch {
+        toast.error("Failed to delete backup");
+      }
+    },
+    [actor, selectedBackup, queryClient],
+  );
+
   const refreshingIndicator = isRefetching ? (
     <span className="text-sm font-normal text-muted-foreground flex items-center gap-2">
       <RefreshCw className="h-3 w-3 animate-spin" />
@@ -656,459 +745,628 @@ export function TSICLoggersPage() {
 
   void hueToHex;
 
+  // Backup buttons JSX (rendered outside overflow so they sit to the right)
+  const backupButtonsJsx =
+    showAdminFeatures && selectedId !== null && data && data.length > 0 ? (
+      <div className="flex items-start gap-2 flex-shrink-0">
+        {/* Save Backup */}
+        {saveBackupOpen ? (
+          <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 bg-card shadow-sm">
+            <Input
+              value={backupLabelInput}
+              onChange={(e) => setBackupLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveBackup();
+                if (e.key === "Escape") {
+                  setSaveBackupOpen(false);
+                  setBackupLabelInput("");
+                }
+              }}
+              placeholder="Backup label (optional)"
+              className="h-7 text-xs w-40"
+              autoFocus
+              disabled={isSavingBackup}
+            />
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={handleSaveBackup}
+              disabled={isSavingBackup}
+              data-ocid="tsic.backup.save_button"
+              style={{ backgroundColor: "#808A54" }}
+            >
+              {isSavingBackup ? (
+                <RefreshCw className="h-3 w-3 animate-spin" />
+              ) : (
+                <Check className="h-3 w-3" />
+              )}
+              Save
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setSaveBackupOpen(false);
+                setBackupLabelInput("");
+              }}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5 text-xs"
+            onClick={() => setSaveBackupOpen(true)}
+            title="Save Backup"
+            data-ocid="tsic.backup.open_modal_button"
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Save Backup
+          </Button>
+        )}
+
+        {/* Backups dropdown */}
+        <DropdownMenu
+          open={backupsDropdownOpen}
+          onOpenChange={setBackupsDropdownOpen}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 gap-1.5 text-xs"
+              title="View Backups"
+              data-ocid="tsic.backup.dropdown_menu"
+            >
+              <Database className="h-3.5 w-3.5" />
+              Backups
+              {allBackups.length > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                  {allBackups.length}
+                </span>
+              )}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-72 max-h-72 overflow-y-auto"
+          >
+            {allBackups.length === 0 ? (
+              <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                No backups yet
+              </div>
+            ) : (
+              [...allBackups]
+                .sort((a, b) => Number(b.timestampMs) - Number(a.timestampMs))
+                .map((backup) => {
+                  const d = new Date(Number(backup.timestampMs));
+                  const dateStr = `${d.toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" })} ${d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })}`;
+                  return (
+                    <DropdownMenuItem
+                      key={String(backup.id)}
+                      className="flex items-center justify-between gap-2 cursor-pointer py-2 pr-1"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setSelectedBackup(backup);
+                        setBackupsDropdownOpen(false);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white flex-shrink-0"
+                          style={{ backgroundColor: "#808A54" }}
+                        >
+                          {Number(backup.loggerId)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">
+                            {backup.backupLabel ||
+                              `ID ${Number(backup.loggerId)}`}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {dateStr}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBackup(backup.id);
+                        }}
+                        className="flex-shrink-0 text-muted-foreground hover:text-destructive p-1 rounded"
+                        title="Delete backup"
+                        data-ocid="tsic.backup.delete_button"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuItem>
+                  );
+                })
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    ) : null;
+
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">
       {/* ── ID Selector ── */}
       <div className="rounded-xl border border-border bg-card shadow-sm px-4 py-3">
-        <div className="overflow-x-auto">
-          <div className="flex gap-2 min-w-max">
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((id) => {
-              const isActive = selectedId === id;
-              return (
-                <div
-                  key={id}
-                  className="flex flex-col items-center min-w-[64px]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleIdClick(id)}
-                    disabled={isLoading}
-                    data-ocid="tsic.id_selector.button"
-                    className={[
-                      "h-10 px-4 rounded-lg text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed w-full",
-                      isActive
-                        ? "text-white shadow-sm"
-                        : "bg-transparent text-muted-foreground border border-border hover:text-foreground hover:border-foreground/30 hover:bg-muted/40",
-                    ].join(" ")}
-                    style={
-                      isActive
-                        ? { backgroundColor: "#808A54", border: "none" }
-                        : undefined
-                    }
+        <div className="flex items-start gap-3">
+          <div className="overflow-x-auto flex-1">
+            <div className="flex gap-2 min-w-max">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((id) => {
+                const isActive = selectedId === id;
+                return (
+                  <div
+                    key={id}
+                    className="flex flex-col items-center min-w-[64px]"
                   >
-                    ID {id}
-                  </button>
-                  {showAdminFeatures && (
-                    <LoggerIdLabelEditor
-                      id={id}
-                      currentLabel={labelsMap?.get(id) ?? ""}
-                      onSave={handleSaveLabel}
-                      isSaving={isSavingLabel && savingId === id}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                    <button
+                      type="button"
+                      onClick={() => handleIdClick(id)}
+                      disabled={isLoading}
+                      data-ocid="tsic.id_selector.button"
+                      className={[
+                        "h-10 px-4 rounded-lg text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed w-full",
+                        isActive
+                          ? "text-white shadow-sm"
+                          : "bg-transparent text-muted-foreground border border-border hover:text-foreground hover:border-foreground/30 hover:bg-muted/40",
+                      ].join(" ")}
+                      style={
+                        isActive
+                          ? { backgroundColor: "#808A54", border: "none" }
+                          : undefined
+                      }
+                    >
+                      ID {id}
+                    </button>
+                    {showAdminFeatures && (
+                      <LoggerIdLabelEditor
+                        id={id}
+                        currentLabel={labelsMap?.get(id) ?? ""}
+                        onSave={handleSaveLabel}
+                        isSaving={isSavingLabel && savingId === id}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
+          {/* Backup buttons — outside overflow, to the right */}
+          {backupButtonsJsx}
         </div>
       </div>
 
-      {/* Loading */}
-      {isLoading && selectedId !== null && (
-        <Card
-          className="shadow-lg p-0 overflow-hidden"
-          data-ocid="tsic.loading_state"
-        >
-          <CardContent className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                Loading data for ID {selectedId}...
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Error */}
-      {isError && selectedId !== null && (
-        <Alert
-          variant="destructive"
-          className="shadow-lg"
-          data-ocid="tsic.error_state"
-        >
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription className="mt-2">
-            {error instanceof Error ? error.message : "Failed to fetch data"}
-            <Button
-              onClick={() => refetch()}
-              variant="outline"
-              size="sm"
-              className="mt-3"
-            >
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* No ID selected */}
-      {selectedId === null && (
-        <Card className="shadow-lg" data-ocid="tsic.empty_state">
-          <CardContent className="flex items-center justify-center py-16">
-            <p className="text-lg text-muted-foreground">
-              Please select a logger ID to view sensor data
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* No data */}
-      {data && data.length === 0 && !isLoading && selectedId !== null && (
-        <Alert className="shadow-lg" data-ocid="tsic.empty_state">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Data Available</AlertTitle>
-          <AlertDescription>
-            No valid data points to display for ID {selectedId}.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Data display */}
-      {data && data.length > 0 && selectedId !== null && (
+      {/* ── Main content: hidden when a backup is selected ── */}
+      {selectedBackup === null && (
         <>
-          {/* ── Chart Controls ── */}
-          <Card className="shadow-sm" data-ocid="tsic.controls.card">
-            <CardContent className="pt-5 pb-5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
-                Chart Controls
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Date Range */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    Date Range
-                  </p>
-                  <div className="space-y-2">
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="start-date"
-                        className="text-xs text-muted-foreground"
-                      >
-                        Start Date
-                      </Label>
-                      <Input
-                        id="start-date"
-                        type="text"
-                        value={startDateText}
-                        onChange={(e) => setStartDateText(e.target.value)}
-                        placeholder="DD/MM/JJJJ"
-                        maxLength={10}
-                        className="w-full h-8 text-sm"
-                        data-ocid="tsic.controls.input"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="end-date"
-                        className="text-xs text-muted-foreground"
-                      >
-                        End Date
-                      </Label>
-                      <Input
-                        id="end-date"
-                        type="text"
-                        value={endDateText}
-                        onChange={(e) => setEndDateText(e.target.value)}
-                        placeholder="DD/MM/JJJJ"
-                        maxLength={10}
-                        className="w-full h-8 text-sm"
-                        data-ocid="tsic.controls.input"
-                      />
-                    </div>
-                  </div>
-                  {(isZoomed || startDateText || endDateText) && (
-                    <Button
-                      onClick={handleResetZoom}
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 w-full sm:w-auto"
-                      data-ocid="tsic.controls.button"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Reset Zoom
-                    </Button>
-                  )}
-                  {dateRangeIndices?.isEmpty && (
-                    <Alert className="mt-2 py-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle className="text-xs">
-                        No Data in Selected Range
-                      </AlertTitle>
-                      <AlertDescription className="text-xs">
-                        No data points between selected dates.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-
-                {/* Y-Axis */}
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-foreground">
-                    Y-Axis
-                  </p>
-                  <div className="space-y-2">
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="y-axis-min"
-                        className="text-xs text-muted-foreground"
-                      >
-                        Minimum
-                      </Label>
-                      <Input
-                        id="y-axis-min"
-                        type="number"
-                        placeholder="Auto"
-                        value={yAxisMin ?? ""}
-                        onChange={(e) =>
-                          setYAxisMin(
-                            e.target.value
-                              ? Number.parseFloat(e.target.value)
-                              : null,
-                          )
-                        }
-                        className="w-full h-8 text-sm"
-                        data-ocid="tsic.controls.input"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label
-                        htmlFor="y-axis-max"
-                        className="text-xs text-muted-foreground"
-                      >
-                        Maximum
-                      </Label>
-                      <Input
-                        id="y-axis-max"
-                        type="number"
-                        placeholder="Auto"
-                        value={yAxisMax ?? ""}
-                        onChange={(e) =>
-                          setYAxisMax(
-                            e.target.value
-                              ? Number.parseFloat(e.target.value)
-                              : null,
-                          )
-                        }
-                        className="w-full h-8 text-sm"
-                        data-ocid="tsic.controls.input"
-                      />
-                    </div>
-                  </div>
-                  {(yAxisMin !== null || yAxisMax !== null) && (
-                    <Button
-                      onClick={() => {
-                        setYAxisMin(null);
-                        setYAxisMax(null);
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 w-full sm:w-auto"
-                      data-ocid="tsic.controls.button"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Reset Y-Axis
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Color mode toggle */}
-              <div className="border-t border-border pt-3 mt-4">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                  Color Mode
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant={colorMode === "byGroup" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setColorMode("byGroup")}
-                    className="h-7 text-xs"
-                    data-ocid="tsic.color_mode.button"
-                    style={
-                      colorMode === "byGroup"
-                        ? { backgroundColor: "#808A54" }
-                        : undefined
-                    }
-                  >
-                    By Group
-                  </Button>
-                  <Button
-                    variant={colorMode === "byName" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setColorMode("byName")}
-                    className="h-7 text-xs"
-                    data-ocid="tsic.color_mode.button"
-                    style={
-                      colorMode === "byName"
-                        ? { backgroundColor: "#808A54" }
-                        : undefined
-                    }
-                  >
-                    By Sensor Name
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ── Merged: Sensor Groups + Name Groups (admin, collapsible) ── */}
-          {showAdminFeatures && !isGroupsLoading && (
-            <Collapsible
-              open={sensorGroupsOpen}
-              onOpenChange={setSensorGroupsOpen}
+          {/* Loading */}
+          {isLoading && selectedId !== null && (
+            <Card
+              className="shadow-lg p-0 overflow-hidden"
+              data-ocid="tsic.loading_state"
             >
-              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                    data-ocid="tsic.sensor_groups.toggle"
-                  >
-                    <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Layers className="h-4 w-4 text-muted-foreground" />
-                      Sensor &amp; Name Groups
-                    </span>
-                    {sensorGroupsOpen ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="border-t border-border">
-                    <SensorGroupManager
-                      activeSensors={activeSensors}
-                      groups={groups}
-                      ungroupedSensors={ungroupedSensors}
-                      ungroupedVisible={ungroupedVisible}
-                      sensorVisibilityOverrides={sensorVisibilityOverrides}
-                      boldSensors={boldSensors}
-                      dottedSensors={dottedSensors}
-                      getSensorColor={getSensorColor}
-                      isSensorVisible={isSensorVisible}
-                      onCreateGroup={createGroup}
-                      onDeleteGroup={deleteGroup}
-                      onRenameGroup={renameGroup}
-                      onAddSensorToGroup={addSensorToGroup}
-                      onRemoveSensorFromGroup={removeSensorFromGroup}
-                      onToggleGroupVisible={toggleGroupVisible}
-                      onToggleSensorVisible={toggleSensorVisible}
-                      onToggleUngroupedVisible={toggleUngroupedVisible}
-                      onToggleSensorBold={toggleSensorBold}
-                      onToggleSensorDotted={toggleSensorDotted}
-                      onReset={handleReset}
-                      onChangeGroupColor={changeGroupColor}
-                      onReorderGroups={reorderGroups}
-                      sensorLabels={sensorLabels}
-                      onSaveSensorLabel={handleSaveSensorLabel}
-                      isSavingSensorLabel={isSavingSensorLabel}
-                    />
-
-                    {/* Name Groups sub-section (only in byName mode) */}
-                    {colorMode === "byName" && (
-                      <div className="border-t border-border px-4 py-3">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-                          Name Groups
-                        </p>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Each unique sensor name gets its own color. Click the
-                          dot to change it.
-                        </p>
-                        <NameGroupPanel
-                          activeLabels={activeLabels}
-                          nameColors={nameColors}
-                          nameVisibility={nameVisibility}
-                          onToggleVisible={toggleNameGroupVisible}
-                          onChangeColor={changeNameGroupColor}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
+              <CardContent className="flex items-center justify-center py-16">
+                <div className="text-center">
+                  <RefreshCw className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    Loading data for ID {selectedId}...
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* ── Chart + Side panel + Legend ── */}
-          <DashboardCard
-            title={`TSIC Logger ${selectedId} - All sensor readings over time`}
-            headerAction={refreshingIndicator}
-          >
-            {/* Chart + hover side panel */}
-            <div className="flex flex-col md:flex-row gap-4 items-start">
-              <div className="flex-1 min-w-0 w-full">
-                <TSICSensorChart
+          {/* Error */}
+          {isError && selectedId !== null && (
+            <Alert
+              variant="destructive"
+              className="shadow-lg"
+              data-ocid="tsic.error_state"
+            >
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error Loading Data</AlertTitle>
+              <AlertDescription className="mt-2">
+                {error instanceof Error
+                  ? error.message
+                  : "Failed to fetch data"}
+                <Button
+                  onClick={() => refetch()}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* No ID selected */}
+          {selectedId === null && (
+            <Card className="shadow-lg" data-ocid="tsic.empty_state">
+              <CardContent className="flex items-center justify-center py-16">
+                <p className="text-lg text-muted-foreground">
+                  Please select a logger ID to view sensor data
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No data */}
+          {data && data.length === 0 && !isLoading && selectedId !== null && (
+            <Alert className="shadow-lg" data-ocid="tsic.empty_state">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>No Data Available</AlertTitle>
+              <AlertDescription>
+                No valid data points to display for ID {selectedId}.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Data display */}
+          {data && data.length > 0 && selectedId !== null && (
+            <>
+              {/* ── Chart Controls ── */}
+              <Card className="shadow-sm" data-ocid="tsic.controls.card">
+                <CardContent className="pt-5 pb-5">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-4">
+                    Chart Controls
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Date Range */}
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        Date Range
+                      </p>
+                      <div className="space-y-2">
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="start-date"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Start Date
+                          </Label>
+                          <Input
+                            id="start-date"
+                            type="text"
+                            value={startDateText}
+                            onChange={(e) => setStartDateText(e.target.value)}
+                            placeholder="DD/MM/JJJJ"
+                            maxLength={10}
+                            className="w-full h-8 text-sm"
+                            data-ocid="tsic.controls.input"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="end-date"
+                            className="text-xs text-muted-foreground"
+                          >
+                            End Date
+                          </Label>
+                          <Input
+                            id="end-date"
+                            type="text"
+                            value={endDateText}
+                            onChange={(e) => setEndDateText(e.target.value)}
+                            placeholder="DD/MM/JJJJ"
+                            maxLength={10}
+                            className="w-full h-8 text-sm"
+                            data-ocid="tsic.controls.input"
+                          />
+                        </div>
+                      </div>
+                      {(isZoomed || startDateText || endDateText) && (
+                        <Button
+                          onClick={handleResetZoom}
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 w-full sm:w-auto"
+                          data-ocid="tsic.controls.button"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Reset Zoom
+                        </Button>
+                      )}
+                      {dateRangeIndices?.isEmpty && (
+                        <Alert className="mt-2 py-2">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle className="text-xs">
+                            No Data in Selected Range
+                          </AlertTitle>
+                          <AlertDescription className="text-xs">
+                            No data points between selected dates.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+
+                    {/* Y-Axis */}
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-foreground">
+                        Y-Axis
+                      </p>
+                      <div className="space-y-2">
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="y-axis-min"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Minimum
+                          </Label>
+                          <Input
+                            id="y-axis-min"
+                            type="number"
+                            placeholder="Auto"
+                            value={yAxisMin ?? ""}
+                            onChange={(e) =>
+                              setYAxisMin(
+                                e.target.value
+                                  ? Number.parseFloat(e.target.value)
+                                  : null,
+                              )
+                            }
+                            className="w-full h-8 text-sm"
+                            data-ocid="tsic.controls.input"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="y-axis-max"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Maximum
+                          </Label>
+                          <Input
+                            id="y-axis-max"
+                            type="number"
+                            placeholder="Auto"
+                            value={yAxisMax ?? ""}
+                            onChange={(e) =>
+                              setYAxisMax(
+                                e.target.value
+                                  ? Number.parseFloat(e.target.value)
+                                  : null,
+                              )
+                            }
+                            className="w-full h-8 text-sm"
+                            data-ocid="tsic.controls.input"
+                          />
+                        </div>
+                      </div>
+                      {(yAxisMin !== null || yAxisMax !== null) && (
+                        <Button
+                          onClick={() => {
+                            setYAxisMin(null);
+                            setYAxisMax(null);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 w-full sm:w-auto"
+                          data-ocid="tsic.controls.button"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Reset Y-Axis
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Color mode toggle */}
+                  <div className="border-t border-border pt-3 mt-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                      Color Mode
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={
+                          colorMode === "byGroup" ? "default" : "outline"
+                        }
+                        size="sm"
+                        onClick={() => setColorMode("byGroup")}
+                        className="h-7 text-xs"
+                        data-ocid="tsic.color_mode.button"
+                        style={
+                          colorMode === "byGroup"
+                            ? { backgroundColor: "#808A54" }
+                            : undefined
+                        }
+                      >
+                        By Group
+                      </Button>
+                      <Button
+                        variant={colorMode === "byName" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setColorMode("byName")}
+                        className="h-7 text-xs"
+                        data-ocid="tsic.color_mode.button"
+                        style={
+                          colorMode === "byName"
+                            ? { backgroundColor: "#808A54" }
+                            : undefined
+                        }
+                      >
+                        By Sensor Name
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Merged: Sensor Groups + Name Groups (admin, collapsible) ── */}
+              {showAdminFeatures && !isGroupsLoading && (
+                <Collapsible
+                  open={sensorGroupsOpen}
+                  onOpenChange={setSensorGroupsOpen}
+                >
+                  <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                        data-ocid="tsic.sensor_groups.toggle"
+                      >
+                        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          Sensor &amp; Name Groups
+                        </span>
+                        {sensorGroupsOpen ? (
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="border-t border-border">
+                        <SensorGroupManager
+                          activeSensors={activeSensors}
+                          groups={groups}
+                          ungroupedSensors={ungroupedSensors}
+                          ungroupedVisible={ungroupedVisible}
+                          sensorVisibilityOverrides={sensorVisibilityOverrides}
+                          boldSensors={boldSensors}
+                          dottedSensors={dottedSensors}
+                          getSensorColor={getSensorColor}
+                          isSensorVisible={isSensorVisible}
+                          onCreateGroup={createGroup}
+                          onDeleteGroup={deleteGroup}
+                          onRenameGroup={renameGroup}
+                          onAddSensorToGroup={addSensorToGroup}
+                          onRemoveSensorFromGroup={removeSensorFromGroup}
+                          onToggleGroupVisible={toggleGroupVisible}
+                          onToggleSensorVisible={toggleSensorVisible}
+                          onToggleUngroupedVisible={toggleUngroupedVisible}
+                          onToggleSensorBold={toggleSensorBold}
+                          onToggleSensorDotted={toggleSensorDotted}
+                          onReset={handleReset}
+                          onChangeGroupColor={changeGroupColor}
+                          onReorderGroups={reorderGroups}
+                          sensorLabels={sensorLabels}
+                          onSaveSensorLabel={handleSaveSensorLabel}
+                          isSavingSensorLabel={isSavingSensorLabel}
+                        />
+
+                        {/* Name Groups sub-section (only in byName mode) */}
+                        {colorMode === "byName" && (
+                          <div className="border-t border-border px-4 py-3">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                              Name Groups
+                            </p>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              Each unique sensor name gets its own color. Click
+                              the dot to change it.
+                            </p>
+                            <NameGroupPanel
+                              activeLabels={activeLabels}
+                              nameColors={nameColors}
+                              nameVisibility={nameVisibility}
+                              onToggleVisible={toggleNameGroupVisible}
+                              onChangeColor={changeNameGroupColor}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              )}
+
+              {/* ── Chart + Side panel + Legend ── */}
+              <DashboardCard
+                title={`TSIC Logger ${selectedId} - All sensor readings over time`}
+                headerAction={refreshingIndicator}
+              >
+                {/* Chart + hover side panel */}
+                <div className="flex flex-col md:flex-row gap-4 items-start">
+                  <div className="flex-1 min-w-0 w-full">
+                    <TSICSensorChart
+                      data={data}
+                      startIndex={visibleRange.startIndex}
+                      endIndex={visibleRange.endIndex}
+                      onRangeChange={setRange}
+                      yAxisMin={yAxisMin}
+                      yAxisMax={yAxisMax}
+                      sensorVisibility={sensorVisibility}
+                      onToggleSensor={undefined}
+                      onResetStates={handleResetStates}
+                      sensorColorMap={sensorColorMap}
+                      groups={groups}
+                      sensorLabels={sensorLabels}
+                      boldSensors={boldSensors}
+                      dottedSensors={dottedSensors}
+                      onHoverChange={handleHoverChange}
+                    />
+                  </div>
+                  {/* Side panel: hover data */}
+                  <div className="w-full md:w-44 md:flex-shrink-0 pt-2">
+                    <HoverSidePanel
+                      groups={hoveredGroups}
+                      timestamp={hoveredTimestamp}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <TSICSensorLegend
+                    groups={groups}
+                    ungroupedSensors={ungroupedSensors}
+                    ungroupedVisible={ungroupedVisible}
+                    activeSensors={activeSensors}
+                    getSensorColor={(n) => sensorColorMap[n] ?? "#9ca3af"}
+                    sensorLabels={sensorLabels}
+                    boldSensors={boldSensors}
+                  />
+                </div>
+              </DashboardCard>
+              {/* Advanced Chart Toggle */}
+              <div className="flex justify-center mt-2">
+                <button
+                  type="button"
+                  data-ocid="tsic.advanced.toggle"
+                  onClick={() => setShowAdvanced((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-border/50 hover:border-border transition-colors bg-card"
+                >
+                  <span>{showAdvanced ? "Hide Advanced" : "Advanced"}</span>
+                  <ChevronDown
+                    className={
+                      showAdvanced
+                        ? "w-3 h-3 rotate-180 transition-transform"
+                        : "w-3 h-3 transition-transform"
+                    }
+                  />
+                </button>
+              </div>
+              {showAdvanced && (
+                <AdvancedChartSection
                   data={data}
                   startIndex={visibleRange.startIndex}
                   endIndex={visibleRange.endIndex}
                   onRangeChange={setRange}
-                  yAxisMin={yAxisMin}
-                  yAxisMax={yAxisMax}
-                  sensorVisibility={sensorVisibility}
-                  onToggleSensor={undefined}
-                  onResetStates={handleResetStates}
-                  sensorColorMap={sensorColorMap}
-                  groups={groups}
+                  selectedId={selectedId}
+                  isAdmin={showAdminFeatures}
                   sensorLabels={sensorLabels}
-                  boldSensors={boldSensors}
-                  dottedSensors={dottedSensors}
-                  onHoverChange={handleHoverChange}
                 />
-              </div>
-              {/* Side panel: hover data */}
-              <div className="w-full md:w-44 md:flex-shrink-0 pt-2">
-                <HoverSidePanel
-                  groups={hoveredGroups}
-                  timestamp={hoveredTimestamp}
-                />
-              </div>
-            </div>
-            <div className="mt-4">
-              <TSICSensorLegend
-                groups={groups}
-                ungroupedSensors={ungroupedSensors}
-                ungroupedVisible={ungroupedVisible}
-                activeSensors={activeSensors}
-                getSensorColor={(n) => sensorColorMap[n] ?? "#9ca3af"}
-                sensorLabels={sensorLabels}
-                boldSensors={boldSensors}
-              />
-            </div>
-          </DashboardCard>
-          {/* Advanced Chart Toggle */}
-          <div className="flex justify-center mt-2">
-            <button
-              type="button"
-              data-ocid="tsic.advanced.toggle"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-border/50 hover:border-border transition-colors bg-card"
-            >
-              <span>{showAdvanced ? "Hide Advanced" : "Advanced"}</span>
-              <ChevronDown
-                className={
-                  showAdvanced
-                    ? "w-3 h-3 rotate-180 transition-transform"
-                    : "w-3 h-3 transition-transform"
-                }
-              />
-            </button>
-          </div>
-          {showAdvanced && (
-            <AdvancedChartSection
-              data={data}
-              startIndex={visibleRange.startIndex}
-              endIndex={visibleRange.endIndex}
-              onRangeChange={setRange}
-              selectedId={selectedId}
-              isAdmin={showAdminFeatures}
-              sensorLabels={sensorLabels}
-            />
+              )}
+            </>
           )}
         </>
+      )}
+
+      {/* ── Backup View — replaces main content when active ── */}
+      {selectedBackup !== null && (
+        <BackupViewSection
+          backup={selectedBackup}
+          onClose={() => setSelectedBackup(null)}
+          isAdmin={showAdminFeatures}
+        />
       )}
     </main>
   );

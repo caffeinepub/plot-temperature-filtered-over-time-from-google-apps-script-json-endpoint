@@ -7,6 +7,10 @@ import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Int "mo:core/Int";
+import Array "mo:core/Array";
+import Time "mo:core/Time";
+
 
 // Apply migration on upgrade.
 
@@ -26,17 +30,30 @@ actor {
     principal : Principal;
   };
 
-  var accessControlState = AccessControl.initState();
-  var grantedAdminsList = List.empty<Principal>();
-  var userProfiles = Map.empty<Principal, UserProfile>();
-  var conceptMachineVisible = true;
-  var loggerIdLoggerLabels = Map.empty<Nat, Text>();
-  var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
-  var advancedChartConfigPerIdJson = Map.empty<Nat, Text>();
+  type BackupEntry = {
+    id : Nat;
+    loggerId : Nat;
+    timestampMs : Int;
+    backupLabel : Text;
+    sensorDataJson : Text;
+    sensorGroupsJson : Text;
+    sensorLabelsJson : Text;
+    advancedConfigJson : Text;
+  };
+
+  stable var accessControlState = AccessControl.initState();
+  stable var grantedAdminsList = List.empty<Principal>();
+  stable var userProfiles = Map.empty<Principal, UserProfile>();
+  stable var conceptMachineVisible = true;
+  stable var loggerIdLoggerLabels = Map.empty<Nat, Text>();
+  stable var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
+  stable var advancedChartConfigPerIdJson = Map.empty<Nat, Text>();
+  stable var backupNextId = 0;
+  stable var backups = Map.empty<Nat, BackupEntry>();
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
 
   // key: "loggerId:sensorNum" (e.g. "2:5" for logger 2 sensor 5)
-  var sensorLabels = Map.empty<Text, Text>();
+  stable var sensorLabels = Map.empty<Text, Text>();
   include MixinAuthorization(accessControlState);
 
   func isHardcodedAdmin(pr : Principal) : Bool {
@@ -330,5 +347,56 @@ actor {
       Runtime.trap("Unauthorized: Only admins can save advanced chart config");
     };
     advancedChartConfigPerIdJson.add(id, json);
+  };
+
+  // ========= BACKUP =========
+  public shared ({ caller }) func saveBackup(loggerId : Nat, backupLabel : Text, sensorDataJson : Text, sensorGroupsJson : Text, sensorLabelsJson : Text, advancedConfigJson : Text) : async Nat {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can save backups");
+    };
+
+    let backupId = backupNextId;
+    backupNextId += 1;
+
+    let newBackup : BackupEntry = {
+      id = backupId;
+      loggerId;
+      timestampMs = Time.now() / 1_000_000;
+      backupLabel;
+      sensorDataJson;
+      sensorGroupsJson;
+      sensorLabelsJson;
+      advancedConfigJson;
+    };
+
+    backups.add(backupId, newBackup);
+    backupId;
+  };
+
+  public query ({ caller }) func getAllBackups() : async [BackupEntry] {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can fetch all backups");
+    };
+    let backupsArray = backups.toArray();
+    let sortedBackupsArray = backupsArray.sort(
+      func(a, b) {
+        Int.compare(b.1.timestampMs, a.1.timestampMs);
+      }
+    );
+
+    Array.tabulate<BackupEntry>(
+      sortedBackupsArray.size(),
+      func(i) { sortedBackupsArray[i].1 },
+    );
+  };
+
+  public shared ({ caller }) func deleteBackup(id : Nat) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can delete backups");
+    };
+    if (not backups.containsKey(id)) {
+      Runtime.trap("Unauthorized: Backup not found");
+    };
+    backups.remove(id);
   };
 };
