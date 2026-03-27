@@ -1,4 +1,3 @@
-import { BackupPage } from "@/pages/BackupPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { TSICLoggersPage } from "@/pages/TSICLoggersPage";
 import { TemperatureDashboardPage } from "@/pages/TemperatureDashboardPage";
@@ -25,12 +24,6 @@ export const logSystemPages: LogSystemPage[] = [
     subtitle:
       "data logging • Updated every 10-20 min • Data older than 19 days is not retained",
     component: TemperatureDashboardPage,
-  },
-  {
-    id: "backups",
-    displayName: "Backups",
-    subtitle: "Admin-only configuration backups per logger ID",
-    component: BackupPage,
   },
   {
     id: "profile",

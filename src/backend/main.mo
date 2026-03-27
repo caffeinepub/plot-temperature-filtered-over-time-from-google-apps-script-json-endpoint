@@ -33,7 +33,6 @@ actor {
   var loggerIdLoggerLabels = Map.empty<Nat, Text>();
   var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
   var advancedChartConfigPerIdJson = Map.empty<Nat, Text>();
-  var backupsPerIdJson = Map.empty<Nat, Text>();
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
 
   // key: "loggerId:sensorNum" (e.g. "2:5" for logger 2 sensor 5)
@@ -331,24 +330,5 @@ actor {
       Runtime.trap("Unauthorized: Only admins can save advanced chart config");
     };
     advancedChartConfigPerIdJson.add(id, json);
-  };
-
-  // ========= BACKUPS =========
-  // Stores a JSON array of BackupEntry objects per logger ID
-  public query ({ caller }) func getBackupsForId(id : Nat) : async Text {
-    if (not isEffectiveAdmin(caller)) {
-      Runtime.trap("Unauthorized: Only admins can query backups");
-    };
-    switch (backupsPerIdJson.get(id)) {
-      case (null) { "[]" };
-      case (?json) { json };
-    };
-  };
-
-  public shared ({ caller }) func saveBackupsForId(id : Nat, json : Text) : async () {
-    if (not isEffectiveAdmin(caller)) {
-      Runtime.trap("Unauthorized: Only admins can save backups");
-    };
-    backupsPerIdJson.add(id, json);
   };
 };
