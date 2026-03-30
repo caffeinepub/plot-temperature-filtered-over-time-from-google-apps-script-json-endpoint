@@ -5,11 +5,14 @@ import {
   TSICSensorChart,
 } from "@/components/TSICSensorChart";
 import { Button } from "@/components/ui/button";
+import { useActor } from "@/hooks/useActor";
 import { type SensorGroup, getGroupColor } from "@/hooks/useSensorGroups";
 import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
 import type { TSICDataPoint } from "@/lib/tsicDataParsing";
-import { ChevronDown, Eye, EyeOff, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, Eye, EyeOff, Save, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { BackupEntry } from "../backend.d";
 
 // ─── Serialize / Deserialize ─────────────────────────────────────────────────
@@ -370,6 +373,10 @@ function BackupGroupPanel({
 
       {open && (
         <div className="border-t border-border px-4 py-3 space-y-4">
+          <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+            Backups are read-only — group names and sensor assignments cannot be
+            changed. Save as new backup to preserve your changes.
+          </div>
           {groups.map((group) => {
             const groupColor = getGroupColor(group);
             const groupVisible = group.visible !== false;
@@ -523,6 +530,15 @@ export function BackupViewSection({
   const [yAxisMin, setYAxisMin] = useState<number | null>(null);
   const [yAxisMax, setYAxisMax] = useState<number | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [localAdvancedConfig, setLocalAdvancedConfig] = useState<string>(
+    backup.advancedConfigJson ?? "",
+  );
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveLabel, setSaveLabel] = useState("");
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
 
   const [hoveredGroups, setHoveredGroups] = useState<HoveredGroup[] | null>(
     null,
@@ -615,6 +631,32 @@ export function BackupViewSection({
     return active;
   }, [data]);
 
+  const handleSaveAsNewBackup = useCallback(async () => {
+    if (!actor) return;
+    const label =
+      saveLabel.trim() ||
+      `Copy of ${backup.backupLabel || `ID ${backup.loggerId} Backup`}`;
+    setIsSaving(true);
+    try {
+      await (actor as any).saveBackup(
+        BigInt(backup.loggerId),
+        label,
+        backup.sensorDataJson,
+        backup.sensorGroupsJson,
+        backup.sensorLabelsJson,
+        localAdvancedConfig,
+      );
+      toast.success("Saved as new backup");
+      await queryClient.invalidateQueries({ queryKey: ["allBackups"] });
+      setShowSaveDialog(false);
+      setSaveLabel("");
+    } catch (_e) {
+      toast.error("Failed to save backup");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [actor, backup, localAdvancedConfig, saveLabel, queryClient]);
+
   const loggerId = Number(backup.loggerId);
   const backupDate = new Date(Number(backup.timestampMs));
   const dateStr = backupDate.toLocaleDateString("nl-BE", {
@@ -643,16 +685,61 @@ export function BackupViewSection({
             <p className="text-xs text-muted-foreground">{dateStr}</p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="flex-shrink-0 gap-1.5 text-xs"
-          data-ocid="backup.close_button"
-        >
-          <X className="h-3.5 w-3.5" />
-          Close
-        </Button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isAdmin && !showSaveDialog && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSaveDialog(true)}
+              className="gap-1.5 text-xs"
+              data-ocid="backup.save_as_new"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save as new backup
+            </Button>
+          )}
+          {isAdmin && showSaveDialog && (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Backup label (optional)"
+                value={saveLabel}
+                onChange={(e) => setSaveLabel(e.target.value)}
+                className="h-7 text-xs px-2 rounded-md border border-border bg-background w-44"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveAsNewBackup();
+                  if (e.key === "Escape") setShowSaveDialog(false);
+                }}
+              />
+              <Button
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleSaveAsNewBackup}
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowSaveDialog(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="gap-1.5 text-xs"
+            data-ocid="backup.close_button"
+          >
+            <X className="h-3.5 w-3.5" />
+            Close
+          </Button>
+        </div>
       </div>
 
       {/* Groups panel */}
@@ -794,6 +881,8 @@ export function BackupViewSection({
           isAdmin={isAdmin}
           sensorLabels={sensorLabels}
           initialConfigJson={backup.advancedConfigJson}
+          localOnly={true}
+          onConfigChange={setLocalAdvancedConfig}
         />
       )}
     </div>

@@ -80,6 +80,9 @@ interface AdvancedChartSectionProps {
   isAdmin: boolean;
   sensorLabels?: Map<number, string>;
   initialConfigJson?: string;
+  /** When true, changes are NOT saved to the backend. Use onConfigChange to capture them. */
+  localOnly?: boolean;
+  onConfigChange?: (json: string) => void;
 }
 
 // ─── Safe formula evaluator ───────────────────────────────────────────────────────────────────
@@ -801,6 +804,8 @@ export function AdvancedChartSection({
   selectedId,
   isAdmin,
   initialConfigJson,
+  localOnly,
+  onConfigChange,
 }: AdvancedChartSectionProps) {
   const { actor, isFetching: actorFetching } = useActor();
 
@@ -891,7 +896,6 @@ export function AdvancedChartSection({
       newBands: BandConfig[],
       newEvents?: EventConfig[],
     ) => {
-      if (!isAdmin || !actor || !loaded) return;
       const evs = newEvents !== undefined ? newEvents : events;
       const json = JSON.stringify({
         formulas: newFormulas,
@@ -899,15 +903,21 @@ export function AdvancedChartSection({
         events: evs,
       });
       if (json === savedRef.current) return;
+      savedRef.current = json;
+      // In localOnly mode, notify parent but do NOT persist to backend
+      if (localOnly) {
+        onConfigChange?.(json);
+        return;
+      }
+      if (!isAdmin || !actor || !loaded) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        savedRef.current = json;
         (actor as any)
           .saveAdvancedChartConfigForId(BigInt(selectedId), json)
           .catch(() => {});
       }, 800);
     },
-    [actor, isAdmin, loaded, selectedId, events],
+    [actor, isAdmin, loaded, selectedId, events, localOnly, onConfigChange],
   );
 
   const handleFormulaUpdate = useCallback(

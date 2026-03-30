@@ -59,7 +59,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { BackupEntry } from "../backend.d";
+import type { BackupEntry, BackupMeta } from "../backend.d";
 
 function parseDDMMYYYY(value: string): Date | null {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
@@ -166,7 +166,7 @@ function NameGroupPanel({
         const color =
           nameColors[label] !== undefined
             ? nameColors[label]
-            : `hsl(${labelToHue(label)}, 70%, 50%)`;
+            : hueToHex(labelToHue(label));
         const isVisible = nameVisibility[label] !== false;
         return (
           <div key={label} className="flex items-center gap-2 py-0.5">
@@ -592,6 +592,7 @@ export function TSICLoggersPage() {
 
   const handleIdClick = (id: number) => {
     setSelectedId(id);
+    setSelectedBackup(null);
     resetZoom();
     setStartDateText("");
     setEndDateText("");
@@ -675,13 +676,21 @@ export function TSICLoggersPage() {
   const [isSavingBackup, setIsSavingBackup] = useState(false);
   const [backupsDropdownOpen, setBackupsDropdownOpen] = useState(false);
 
-  const { data: allBackups = [] } = useQuery<BackupEntry[]>({
+  const { data: allBackups = [] } = useQuery<BackupMeta[]>({
     queryKey: ["allBackups"],
     queryFn: async () => {
       if (!actor) return [];
-      return (actor as any).getAllBackups();
+      try {
+        const result = await (actor as any).getAllBackupsMeta();
+        return result;
+      } catch (e) {
+        console.error("getAllBackupsMeta failed:", e);
+        return [];
+      }
     },
-    enabled: !!actor && showAdminFeatures,
+    enabled: !!actor && showAdminFeatures && backupsDropdownOpen,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   const handleSaveBackup = useCallback(async () => {
@@ -710,7 +719,8 @@ export function TSICLoggersPage() {
         advancedConfigJson,
       );
       toast.success("Backup saved");
-      queryClient.invalidateQueries({ queryKey: ["allBackups"] });
+      // Invalidate so next dropdown open re-fetches fresh data
+      await queryClient.invalidateQueries({ queryKey: ["allBackups"] });
       setSaveBackupOpen(false);
       setBackupLabelInput("");
     } catch (e) {
@@ -722,8 +732,15 @@ export function TSICLoggersPage() {
   }, [actor, selectedId, data, backupLabelInput, sensorLabels, queryClient]);
 
   const handleDeleteBackup = useCallback(
-    async (id: bigint) => {
+    async (id: bigint, backupLabel: string) => {
       if (!actor) return;
+      const displayName = backupLabel || `Backup #${String(id)}`;
+      const first = window.confirm(
+        `Are you sure you want to delete '${displayName}'?`,
+      );
+      if (!first) return;
+      const second = window.confirm("Really sure?");
+      if (!second) return;
       try {
         await (actor as any).deleteBackup(id);
         toast.success("Backup deleted");
@@ -746,11 +763,13 @@ export function TSICLoggersPage() {
   void hueToHex;
 
   // Backup buttons JSX (rendered outside overflow so they sit to the right)
-  const backupButtonsJsx =
-    showAdminFeatures && selectedId !== null && data && data.length > 0 ? (
-      <div className="flex items-start gap-2 flex-shrink-0">
-        {/* Save Backup */}
-        {saveBackupOpen ? (
+  const backupButtonsJsx = showAdminFeatures ? (
+    <div className="flex items-start gap-2 flex-shrink-0">
+      {/* Save Backup */}
+      {selectedId !== null &&
+        data &&
+        data.length > 0 &&
+        (saveBackupOpen ? (
           <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 bg-card shadow-sm">
             <Input
               value={backupLabelInput}
@@ -805,77 +824,136 @@ export function TSICLoggersPage() {
             <Archive className="h-3.5 w-3.5" />
             Save Backup
           </Button>
-        )}
+        ))}
 
-        {/* Backups dropdown */}
-        <DropdownMenu
-          open={backupsDropdownOpen}
-          onOpenChange={setBackupsDropdownOpen}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-10 gap-1.5 text-xs"
-              title="View Backups"
-              data-ocid="tsic.backup.dropdown_menu"
-            >
-              <Database className="h-3.5 w-3.5" />
-              Backups
-              {allBackups.length > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
-                  {allBackups.length}
-                </span>
-              )}
-              <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-72 max-h-72 overflow-y-auto"
+      {/* Backups dropdown */}
+      <DropdownMenu
+        open={backupsDropdownOpen}
+        onOpenChange={setBackupsDropdownOpen}
+      >
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5 text-xs"
+            title="View Backups"
+            data-ocid="tsic.backup.dropdown_menu"
           >
-            {allBackups.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-                No backups yet
-              </div>
-            ) : (
-              [...allBackups]
-                .sort((a, b) => Number(b.timestampMs) - Number(a.timestampMs))
-                .map((backup) => {
-                  const d = new Date(Number(backup.timestampMs));
-                  const dateStr = `${d.toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" })} ${d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })}`;
-                  return (
-                    <DropdownMenuItem
-                      key={String(backup.id)}
-                      className="flex items-center justify-between gap-2 cursor-pointer py-2 pr-1"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        setSelectedBackup(backup);
-                        setBackupsDropdownOpen(false);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white flex-shrink-0"
-                          style={{ backgroundColor: "#808A54" }}
-                        >
-                          {Number(backup.loggerId)}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">
-                            {backup.backupLabel ||
-                              `ID ${Number(backup.loggerId)}`}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {dateStr}
-                          </p>
-                        </div>
+            <Database className="h-3.5 w-3.5" />
+            Backups
+            {allBackups.length > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                {allBackups.length}
+              </span>
+            )}
+            <ChevronDown className="h-3 w-3" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-72 max-h-72 overflow-y-auto"
+        >
+          {allBackups.length === 0 ? (
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+              No backups yet
+            </div>
+          ) : (
+            [...allBackups]
+              .sort((a, b) => Number(b.timestampMs) - Number(a.timestampMs))
+              .map((backup) => {
+                const d = new Date(Number(backup.timestampMs));
+                const dateStr = `${d.toLocaleDateString("nl-BE", { day: "2-digit", month: "2-digit", year: "numeric" })} ${d.toLocaleTimeString("nl-BE", { hour: "2-digit", minute: "2-digit" })}`;
+                return (
+                  <DropdownMenuItem
+                    key={String(backup.id)}
+                    className="flex items-center justify-between gap-2 cursor-pointer py-2 pr-1"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      (async () => {
+                        const full = await (actor as any).getBackupById(
+                          backup.id,
+                        );
+                        if (full) setSelectedBackup(full);
+                        else toast.error("Failed to load backup");
+                      })();
+                      setBackupsDropdownOpen(false);
+                    }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white flex-shrink-0"
+                        style={{ backgroundColor: "#808A54" }}
+                      >
+                        {Number(backup.loggerId)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">
+                          {backup.backupLabel ||
+                            `ID ${Number(backup.loggerId)}`}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {dateStr}
+                        </p>
                       </div>
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const full = await (actor as any).getBackupById(
+                              backup.id,
+                            );
+                            const jsonData = JSON.stringify(
+                              full,
+                              (_k, v) =>
+                                typeof v === "bigint" ? String(v) : v,
+                              2,
+                            );
+                            const blob = new Blob([jsonData], {
+                              type: "application/json",
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${backup.backupLabel || `backup_id${String(backup.loggerId)}`}_${new Date(Number(backup.timestampMs)).toISOString().slice(0, 10)}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch {
+                            toast.error("Failed to download backup");
+                          }
+                        }}
+                        className="flex-shrink-0 text-muted-foreground hover:text-primary p-1 rounded"
+                        title="Download raw JSON"
+                        data-ocid="tsic.backup.download_button"
+                      >
+                        {/* biome-ignore lint/a11y/noSvgWithoutTitle: icon button has title attr */}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteBackup(backup.id);
+                          handleDeleteBackup(
+                            backup.id,
+                            backup.backupLabel || "",
+                          );
                         }}
                         className="flex-shrink-0 text-muted-foreground hover:text-destructive p-1 rounded"
                         title="Delete backup"
@@ -883,14 +961,15 @@ export function TSICLoggersPage() {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                    </DropdownMenuItem>
-                  );
-                })
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    ) : null;
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  ) : null;
 
   return (
     <main className="container mx-auto px-6 py-8 space-y-6">

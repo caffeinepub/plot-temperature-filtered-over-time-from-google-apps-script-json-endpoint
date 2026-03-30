@@ -11,7 +11,6 @@ import Int "mo:core/Int";
 import Array "mo:core/Array";
 import Time "mo:core/Time";
 
-
 // Apply migration on upgrade.
 
 actor {
@@ -39,6 +38,13 @@ actor {
     sensorGroupsJson : Text;
     sensorLabelsJson : Text;
     advancedConfigJson : Text;
+  };
+
+  type BackupMeta = {
+    id : Nat;
+    loggerId : Nat;
+    timestampMs : Int;
+    backupLabel : Text;
   };
 
   stable var accessControlState = AccessControl.initState();
@@ -373,7 +379,7 @@ actor {
     backupId;
   };
 
-  public query ({ caller }) func getAllBackups() : async [BackupEntry] {
+  public query ({ caller }) func getAllBackupsMeta() : async [BackupMeta] {
     if (not isEffectiveAdmin(caller)) {
       Runtime.trap("Unauthorized: Only admins can fetch all backups");
     };
@@ -383,11 +389,20 @@ actor {
         Int.compare(b.1.timestampMs, a.1.timestampMs);
       }
     );
-
-    Array.tabulate<BackupEntry>(
+    Array.tabulate<BackupMeta>(
       sortedBackupsArray.size(),
-      func(i) { sortedBackupsArray[i].1 },
+      func(i) {
+        let e = sortedBackupsArray[i].1;
+        { id = e.id; loggerId = e.loggerId; timestampMs = e.timestampMs; backupLabel = e.backupLabel };
+      },
     );
+  };
+
+  public query ({ caller }) func getBackupById(id : Nat) : async ?BackupEntry {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can fetch backups");
+    };
+    backups.get(id);
   };
 
   public shared ({ caller }) func deleteBackup(id : Nat) : async () {
@@ -400,3 +415,4 @@ actor {
     backups.remove(id);
   };
 };
+

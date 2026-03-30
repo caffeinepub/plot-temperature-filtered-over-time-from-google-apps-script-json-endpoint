@@ -17,6 +17,12 @@ export const AdminInfo = IDL.Record({
   'principal' : IDL.Principal,
   'name' : IDL.Text,
 });
+export const BackupMeta = IDL.Record({
+  'id' : IDL.Nat,
+  'backupLabel' : IDL.Text,
+  'timestampMs' : IDL.Int,
+  'loggerId' : IDL.Nat,
+});
 export const BackupEntry = IDL.Record({
   'id' : IDL.Nat,
   'sensorLabelsJson' : IDL.Text,
@@ -40,7 +46,7 @@ export const idlService = IDL.Service({
   'deleteBackup' : IDL.Func([IDL.Nat], [], []),
   'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
   'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
-  'getAllBackups' : IDL.Func([], [IDL.Vec(BackupEntry)], ['query']),
+  'getAllBackupsMeta' : IDL.Func([], [IDL.Vec(BackupMeta)], ['query']),
   'getAllLoggerLabels' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
@@ -51,6 +57,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
       ['query'],
     ),
+  'getBackupById' : IDL.Func([IDL.Nat], [IDL.Opt(BackupEntry)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfileInfo)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGoogleSheetsDownloadLink' : IDL.Func([], [IDL.Text], ['query']),
@@ -88,6 +95,12 @@ export const idlFactory = ({ IDL }) => {
     'principal' : IDL.Principal,
     'name' : IDL.Text,
   });
+  const BackupMeta = IDL.Record({
+    'id' : IDL.Nat,
+    'backupLabel' : IDL.Text,
+    'timestampMs' : IDL.Int,
+    'loggerId' : IDL.Nat,
+  });
   const BackupEntry = IDL.Record({
     'id' : IDL.Nat,
     'sensorLabelsJson' : IDL.Text,
@@ -111,7 +124,7 @@ export const idlFactory = ({ IDL }) => {
     'deleteBackup' : IDL.Func([IDL.Nat], [], []),
     'getAdvancedChartConfigForId' : IDL.Func([IDL.Nat], [IDL.Text], ['query']),
     'getAllAdmins' : IDL.Func([], [IDL.Vec(AdminInfo)], ['query']),
-    'getAllBackups' : IDL.Func([], [IDL.Vec(BackupEntry)], ['query']),
+    'getAllBackupsMeta' : IDL.Func([], [IDL.Vec(BackupMeta)], ['query']),
     'getAllLoggerLabels' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
@@ -122,6 +135,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text))],
         ['query'],
       ),
+    'getBackupById' : IDL.Func([IDL.Nat], [IDL.Opt(BackupEntry)], ['query']),
     'getCallerUserProfile' : IDL.Func(
         [],
         [IDL.Opt(UserProfileInfo)],

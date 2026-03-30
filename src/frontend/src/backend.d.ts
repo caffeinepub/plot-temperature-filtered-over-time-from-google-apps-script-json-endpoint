@@ -29,6 +29,12 @@ export interface AdminInfo {
 export interface UserProfile {
     name: string;
 }
+export interface BackupMeta {
+    id: bigint;
+    backupLabel: string;
+    timestampMs: bigint;
+    loggerId: bigint;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -39,9 +45,10 @@ export interface backendInterface {
     deleteBackup(id: bigint): Promise<void>;
     getAdvancedChartConfigForId(id: bigint): Promise<string>;
     getAllAdmins(): Promise<Array<AdminInfo>>;
-    getAllBackups(): Promise<Array<BackupEntry>>;
+    getAllBackupsMeta(): Promise<Array<BackupMeta>>;
     getAllLoggerLabels(): Promise<Array<[bigint, string]>>;
     getAllSensorLabelsForId(loggerId: bigint): Promise<Array<[bigint, string]>>;
+    getBackupById(id: bigint): Promise<BackupEntry | null>;
     getCallerUserProfile(): Promise<UserProfileInfo | null>;
     getCallerUserRole(): Promise<UserRole>;
     getGoogleSheetsDownloadLink(): Promise<string>;

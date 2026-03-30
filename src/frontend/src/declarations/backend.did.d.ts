@@ -21,6 +21,12 @@ export interface BackupEntry {
   'timestampMs' : bigint,
   'loggerId' : bigint,
 }
+export interface BackupMeta {
+  'id' : bigint,
+  'backupLabel' : string,
+  'timestampMs' : bigint,
+  'loggerId' : bigint,
+}
 export interface UserProfile { 'name' : string }
 export interface UserProfileInfo {
   'principal' : Principal,
@@ -36,9 +42,10 @@ export interface _SERVICE {
   'deleteBackup' : ActorMethod<[bigint], undefined>,
   'getAdvancedChartConfigForId' : ActorMethod<[bigint], string>,
   'getAllAdmins' : ActorMethod<[], Array<AdminInfo>>,
-  'getAllBackups' : ActorMethod<[], Array<BackupEntry>>,
+  'getAllBackupsMeta' : ActorMethod<[], Array<BackupMeta>>,
   'getAllLoggerLabels' : ActorMethod<[], Array<[bigint, string]>>,
   'getAllSensorLabelsForId' : ActorMethod<[bigint], Array<[bigint, string]>>,
+  'getBackupById' : ActorMethod<[bigint], [] | [BackupEntry]>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfileInfo]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGoogleSheetsDownloadLink' : ActorMethod<[], string>,
