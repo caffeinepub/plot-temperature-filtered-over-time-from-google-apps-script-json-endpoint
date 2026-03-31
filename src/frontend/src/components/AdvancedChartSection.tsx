@@ -327,51 +327,6 @@ function parseSensorList(s: string): number[] {
     .filter((n) => !Number.isNaN(n) && n >= 1 && n <= 72);
 }
 
-// ─── Legend items ─────────────────────────────────────────────────────────────────────────────
-function LegendLine({
-  color,
-  name,
-  hoverValue,
-}: { color: string; name: string; hoverValue?: number | null }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="w-5 h-0.5 rounded" style={{ backgroundColor: color }} />
-      <span className="text-xs text-muted-foreground">{name}</span>
-      {hoverValue != null && (
-        <span className="text-xs font-mono tabular-nums text-foreground ml-1">
-          {hoverValue.toFixed(2)}
-        </span>
-      )}
-    </div>
-  );
-}
-function LegendBand({
-  color,
-  name,
-  hoverMin,
-  hoverMax,
-}: {
-  color: string;
-  name: string;
-  hoverMin?: number | null;
-  hoverMax?: number | null;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      <div
-        className="w-4 h-3 rounded-sm border"
-        style={{ backgroundColor: color, opacity: 0.35, borderColor: color }}
-      />
-      <span className="text-xs text-muted-foreground">{name}</span>
-      {hoverMin != null && hoverMax != null && (
-        <span className="text-xs font-mono tabular-nums text-foreground ml-1">
-          min: {hoverMin.toFixed(2)} / max: {hoverMax.toFixed(2)}
-        </span>
-      )}
-    </div>
-  );
-}
-
 // ─── BandPolygon ────────────────────────────────────────────────────────────────────────────────
 
 interface BandPolygonProps {
@@ -489,7 +444,7 @@ function AdvancedHoverPanel({
     return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
   });
   return (
-    <div className="w-full md:w-44 md:flex-shrink-0 pt-2 pl-2">
+    <div className="w-full md:w-44 md:flex-shrink-0 md:pt-2 md:pl-2 mt-2 md:mt-0">
       <div
         className="rounded border border-border/40 bg-card/90 backdrop-blur-sm p-2 shadow-sm"
         style={{ fontSize: "10px", lineHeight: "1.4" }}
@@ -1192,27 +1147,6 @@ export function AdvancedChartSection({
   const hasVisibleContent =
     visibleFormulas.length > 0 || visibleBands.length > 0;
 
-  const hoverByKey = useMemo(() => {
-    const map: Record<string, number | null> = {};
-    for (const p of hoverPayload)
-      map[p.dataKey] = p.value != null ? Number(p.value) : null;
-    // Also populate band min/max directly from chartData for reliability
-    if (hoverTimestamp != null) {
-      const row = chartData.find(
-        (d) => (d as any).timestamp === hoverTimestamp,
-      );
-      if (row) {
-        for (const b of bands) {
-          const minRaw = (row as any)[`band_min_${b.id}`];
-          const maxRaw = (row as any)[`band_max_${b.id}`];
-          if (minRaw != null) map[`band_min_${b.id}`] = Number(minRaw);
-          if (maxRaw != null) map[`band_max_${b.id}`] = Number(maxRaw);
-        }
-      }
-    }
-    return map;
-  }, [hoverPayload, hoverTimestamp, chartData, bands]);
-
   return (
     <div
       className="mt-2 rounded-xl border border-border bg-card shadow-sm"
@@ -1552,41 +1486,6 @@ export function AdvancedChartSection({
                     }
                   />
                 </div>
-
-                {/* Legend */}
-                {(visibleFormulas.length > 0 || visibleBands.length > 0) && (
-                  <div className="flex flex-wrap gap-3 px-2 pt-1 pb-2">
-                    {visibleFormulas.map((f) => (
-                      <LegendLine
-                        key={f.id}
-                        color={f.color}
-                        name={f.name || f.expression}
-                        hoverValue={
-                          hoverTimestamp != null
-                            ? (hoverByKey[`formula_${f.id}`] ?? null)
-                            : null
-                        }
-                      />
-                    ))}
-                    {visibleBands.map((b) => (
-                      <LegendBand
-                        key={b.id}
-                        color={b.color}
-                        name={b.name}
-                        hoverMin={
-                          hoverTimestamp != null
-                            ? (hoverByKey[`band_min_${b.id}`] ?? null)
-                            : null
-                        }
-                        hoverMax={
-                          hoverTimestamp != null
-                            ? (hoverByKey[`band_max_${b.id}`] ?? null)
-                            : null
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
