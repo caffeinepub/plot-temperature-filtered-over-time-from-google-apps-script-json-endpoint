@@ -375,7 +375,8 @@ function BackupGroupPanel({
         <div className="border-t border-border px-4 py-3 space-y-4">
           <div className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
             Backups are read-only — group names and sensor assignments cannot be
-            changed. Save as new backup to preserve your changes.
+            changed. Save as new backup to change current changes of the
+            advanced graph.
           </div>
           {groups.map((group) => {
             const groupColor = getGroupColor(group);

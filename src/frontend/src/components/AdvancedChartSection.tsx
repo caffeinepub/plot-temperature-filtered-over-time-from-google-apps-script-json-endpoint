@@ -450,90 +450,96 @@ function AdvancedHoverPanel({
   visibleFormulas,
   visibleBands,
   chartData,
+  hasContent,
 }: {
   payload: any[];
   activeTimestamp: number | null;
   visibleFormulas: FormulaLine[];
   visibleBands: BandConfig[];
   chartData: Record<string, unknown>[];
+  hasContent: boolean;
 }) {
-  if (!activeTimestamp || payload.length === 0) return null;
+  if (!hasContent) return null;
+  const isHovering = !!activeTimestamp && payload.length > 0;
   const byKey: Record<string, number | null> = {};
   for (const p of payload)
     byKey[p.dataKey] = p.value != null ? Number(p.value) : null;
   // Look up band min/max directly from chartData to avoid invisible-line payload issues
-  const dataRow = chartData.find((d) => d.timestamp === activeTimestamp);
-  const date = new Date(activeTimestamp);
-  const timeStr = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+  const dataRow = isHovering
+    ? chartData.find((d) => d.timestamp === activeTimestamp)
+    : undefined;
+  const timeStr =
+    isHovering && activeTimestamp
+      ? (() => {
+          const date = new Date(activeTimestamp);
+          return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1).toString().padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+        })()
+      : null;
   const formulaEntries = visibleFormulas.map((f) => ({
     id: f.id,
     name: f.name || f.expression,
     color: f.color,
-    value: byKey[`formula_${f.id}`] ?? null,
+    value: isHovering ? (byKey[`formula_${f.id}`] ?? null) : null,
   }));
   const bandEntries = visibleBands.map((b) => {
     const minRaw = dataRow ? dataRow[`band_min_${b.id}`] : undefined;
     const maxRaw = dataRow ? dataRow[`band_max_${b.id}`] : undefined;
-    const minVal = minRaw != null ? Number(minRaw) : null;
-    const maxVal = maxRaw != null ? Number(maxRaw) : null;
+    const minVal = isHovering && minRaw != null ? Number(minRaw) : null;
+    const maxVal = isHovering && maxRaw != null ? Number(maxRaw) : null;
     return { id: b.id, name: b.name, color: b.color, minVal, maxVal };
   });
-  const hasAny =
-    formulaEntries.some((e) => e.value !== null) ||
-    bandEntries.some((e) => e.minVal !== null);
-  if (!hasAny) return null;
   return (
     <div className="w-full md:w-44 md:flex-shrink-0 pt-2 pl-2">
       <div
         className="rounded border border-border/40 bg-card/90 backdrop-blur-sm p-2 shadow-sm"
         style={{ fontSize: "10px", lineHeight: "1.4" }}
       >
-        <div className="text-muted-foreground mb-1.5 font-medium">
-          {timeStr}
-        </div>
-        {formulaEntries.map(
-          (e) =>
-            e.value !== null && (
-              <div key={e.id} className="flex items-center gap-1 mb-0.5">
-                <span
-                  className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: e.color }}
-                />
-                <span className="text-muted-foreground truncate flex-1">
-                  {e.name}
+        {timeStr && (
+          <div className="text-muted-foreground mb-1.5 font-medium">
+            {timeStr}
+          </div>
+        )}
+        {formulaEntries.map((e) => (
+          <div key={e.id} className="flex items-center gap-1 mb-0.5">
+            <span
+              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: e.color }}
+            />
+            <span className="text-muted-foreground truncate flex-1">
+              {e.name}
+            </span>
+            {e.value !== null && (
+              <span className="font-mono tabular-nums text-foreground flex-shrink-0">
+                {e.value.toFixed(2)}
+              </span>
+            )}
+          </div>
+        ))}
+        {bandEntries.map((e) => (
+          <div key={e.id} className="mb-0.5">
+            <div className="flex items-center gap-1">
+              <span
+                className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: e.color, opacity: 0.7 }}
+              />
+              <span className="text-muted-foreground truncate flex-1">
+                {e.name}
+              </span>
+            </div>
+            {e.minVal !== null && (
+              <div className="pl-3 text-muted-foreground/80">
+                <span>min: </span>
+                <span className="font-mono tabular-nums text-foreground">
+                  {e.minVal?.toFixed(2)}
                 </span>
-                <span className="font-mono tabular-nums text-foreground flex-shrink-0">
-                  {e.value.toFixed(2)}
+                {" / max: "}
+                <span className="font-mono tabular-nums text-foreground">
+                  {e.maxVal?.toFixed(2)}
                 </span>
               </div>
-            ),
-        )}
-        {bandEntries.map(
-          (e) =>
-            e.minVal !== null && (
-              <div key={e.id} className="mb-0.5">
-                <div className="flex items-center gap-1">
-                  <span
-                    className="inline-block w-2 h-2 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: e.color, opacity: 0.7 }}
-                  />
-                  <span className="text-muted-foreground truncate flex-1">
-                    {e.name}
-                  </span>
-                </div>
-                <div className="pl-3 text-muted-foreground/80">
-                  <span>min: </span>
-                  <span className="font-mono tabular-nums text-foreground">
-                    {e.minVal?.toFixed(2)}
-                  </span>
-                  {" / max: "}
-                  <span className="font-mono tabular-nums text-foreground">
-                    {e.maxVal?.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            ),
-        )}
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1541,6 +1547,9 @@ export function AdvancedChartSection({
                     visibleFormulas={visibleFormulas}
                     visibleBands={visibleBands}
                     chartData={chartData as Record<string, unknown>[]}
+                    hasContent={
+                      visibleFormulas.length > 0 || visibleBands.length > 0
+                    }
                   />
                 </div>
 
