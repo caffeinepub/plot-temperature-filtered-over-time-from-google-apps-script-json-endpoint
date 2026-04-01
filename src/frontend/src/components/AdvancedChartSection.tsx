@@ -7,7 +7,7 @@ import {
   computeXDomain,
 } from "@/lib/chartXAxis";
 import type { TSICDataPoint } from "@/lib/tsicDataParsing";
-import { GripVertical, Plus, RefreshCw, X } from "lucide-react";
+import { Plus, RefreshCw, X } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -63,7 +63,6 @@ export interface EventConfig {
   id: string;
   timestamp: number; // ms since epoch
   label: string;
-  displayOrder?: number;
 }
 
 export interface AdvancedChartConfig {
@@ -532,9 +531,6 @@ interface EventRowProps {
   onUpdate: (updated: EventConfig) => void;
   onDelete: (id: string) => void;
   onSetIncubation: (evId: string, incubationMs: number) => void;
-  onDragStart?: (id: string) => void;
-  onDragOver?: (id: string) => void;
-  onDrop?: (id: string) => void;
 }
 function toDatetimeLocal(ms: number) {
   const d = new Date(ms);
@@ -548,9 +544,6 @@ function EventRow({
   onDelete,
   onSetIncubation,
   testStartMs,
-  onDragStart,
-  onDragOver,
-  onDrop,
 }: EventRowProps) {
   const [localLabel, setLocalLabel] = useState(ev.label);
   const [localDatetime, setLocalDatetime] = useState(
@@ -576,40 +569,7 @@ function EventRow({
   }, [testStartMs, ev.timestamp]);
 
   return (
-    <div
-      className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0"
-      draggable
-      onDragStart={
-        onDragStart
-          ? (e) => {
-              e.dataTransfer.effectAllowed = "move";
-              onDragStart(ev.id);
-            }
-          : undefined
-      }
-      onDragOver={
-        onDragOver
-          ? (e) => {
-              e.preventDefault();
-            }
-          : undefined
-      }
-      onDrop={
-        onDrop
-          ? (e) => {
-              e.preventDefault();
-              onDrop(ev.id);
-            }
-          : undefined
-      }
-    >
-      <button
-        type="button"
-        className="cursor-grab text-muted-foreground hover:text-foreground flex-shrink-0"
-        title="Drag to reorder"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+    <div className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0">
       <input
         type="datetime-local"
         value={localDatetime}
@@ -1079,38 +1039,13 @@ export function AdvancedChartSection({
     [events, formulas, bands, saveConfig],
   );
 
-  const [dragSourceId, setDragSourceId] = useState<string | null>(null);
-
   const sortedEvents = useMemo(() => {
-    return [...events].sort((a, b) => {
-      if (a.displayOrder !== undefined && b.displayOrder !== undefined)
-        return a.displayOrder - b.displayOrder;
-      return a.timestamp - b.timestamp;
-    });
+    return [...events].sort((a, b) => a.timestamp - b.timestamp);
   }, [events]);
 
   const hasSyntheticStart =
     testStartMs !== undefined &&
     !events.some((e) => e.timestamp === testStartMs);
-
-  const handleEventDrop = useCallback(
-    (targetId: string) => {
-      if (!dragSourceId || dragSourceId === targetId) {
-        setDragSourceId(null);
-        return;
-      }
-      const oldIndex = sortedEvents.findIndex((e) => e.id === dragSourceId);
-      const newIndex = sortedEvents.findIndex((e) => e.id === targetId);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const reordered = [...sortedEvents];
-        const [moved] = reordered.splice(oldIndex, 1);
-        reordered.splice(newIndex, 0, moved);
-        updateEvents(reordered.map((e, i) => ({ ...e, displayOrder: i })));
-      }
-      setDragSourceId(null);
-    },
-    [dragSourceId, sortedEvents, updateEvents],
-  );
 
   const chartData = useMemo(() => {
     return data.map((point) => {
@@ -1825,8 +1760,6 @@ export function AdvancedChartSection({
                         updateEvents(events.filter((e) => e.id !== id))
                       }
                       onSetIncubation={handleSetIncubation}
-                      onDragStart={(id) => setDragSourceId(id)}
-                      onDrop={handleEventDrop}
                     />
                   ))}
                 </div>
