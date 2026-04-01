@@ -7,7 +7,7 @@ import {
   computeXDomain,
 } from "@/lib/chartXAxis";
 import type { TSICDataPoint } from "@/lib/tsicDataParsing";
-import { Plus, RefreshCw, X } from "lucide-react";
+import { GripVertical, Plus, RefreshCw, X } from "lucide-react";
 import React, {
   useCallback,
   useEffect,
@@ -63,12 +63,36 @@ export interface EventConfig {
   id: string;
   timestamp: number; // ms since epoch
   label: string;
+  displayOrder?: number;
 }
 
 export interface AdvancedChartConfig {
   formulas: FormulaLine[];
   bands: BandConfig[];
   events?: EventConfig[];
+  testStartMs?: number;
+}
+
+// ─── Incubation helpers ───────────────────────────────────────────────────────
+function msToIncubation(durationMs: number): string {
+  const totalMinutes = Math.floor(durationMs / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return `D${String(days).padStart(2, "0")} H${String(hours).padStart(2, "0")} M${String(minutes).padStart(2, "0")}`;
+}
+
+function incubationToMs(str: string): number | null {
+  const dMatch = str.match(/D(\d+)/i);
+  const hMatch = str.match(/H(\d+)/i);
+  const mMatch = str.match(/M(\d+)/i);
+  const d = dMatch ? Number.parseInt(dMatch[1]) : 0;
+  const h = hMatch ? Number.parseInt(hMatch[1]) : 0;
+  const m = mMatch ? Number.parseInt(mMatch[1]) : 0;
+  if (dMatch || hMatch || mMatch) {
+    return ((d * 24 + h) * 60 + m) * 60000;
+  }
+  return null;
 }
 
 interface AdvancedChartSectionProps {
@@ -504,8 +528,13 @@ function AdvancedHoverPanel({
 interface EventRowProps {
   ev: EventConfig;
   index: number;
+  testStartMs?: number;
   onUpdate: (updated: EventConfig) => void;
   onDelete: (id: string) => void;
+  onSetIncubation: (evId: string, incubationMs: number) => void;
+  onDragStart?: (id: string) => void;
+  onDragOver?: (id: string) => void;
+  onDrop?: (id: string) => void;
 }
 function toDatetimeLocal(ms: number) {
   const d = new Date(ms);
@@ -513,10 +542,22 @@ function toDatetimeLocal(ms: number) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function EventRow({ ev, onUpdate, onDelete }: EventRowProps) {
+function EventRow({
+  ev,
+  onUpdate,
+  onDelete,
+  onSetIncubation,
+  testStartMs,
+  onDragStart,
+  onDragOver,
+  onDrop,
+}: EventRowProps) {
   const [localLabel, setLocalLabel] = useState(ev.label);
   const [localDatetime, setLocalDatetime] = useState(
     toDatetimeLocal(ev.timestamp),
+  );
+  const [localIncubation, setLocalIncubation] = useState(
+    testStartMs !== undefined ? msToIncubation(ev.timestamp - testStartMs) : "",
   );
   const prevId = useRef(ev.id);
   useEffect(() => {
@@ -526,8 +567,49 @@ function EventRow({ ev, onUpdate, onDelete }: EventRowProps) {
       setLocalDatetime(toDatetimeLocal(ev.timestamp));
     }
   }, [ev.id, ev.label, ev.timestamp]);
+  useEffect(() => {
+    setLocalIncubation(
+      testStartMs !== undefined
+        ? msToIncubation(ev.timestamp - testStartMs)
+        : "",
+    );
+  }, [testStartMs, ev.timestamp]);
+
   return (
-    <div className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0">
+    <div
+      className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0"
+      draggable
+      onDragStart={
+        onDragStart
+          ? (e) => {
+              e.dataTransfer.effectAllowed = "move";
+              onDragStart(ev.id);
+            }
+          : undefined
+      }
+      onDragOver={
+        onDragOver
+          ? (e) => {
+              e.preventDefault();
+            }
+          : undefined
+      }
+      onDrop={
+        onDrop
+          ? (e) => {
+              e.preventDefault();
+              onDrop(ev.id);
+            }
+          : undefined
+      }
+    >
+      <button
+        type="button"
+        className="cursor-grab text-muted-foreground hover:text-foreground flex-shrink-0"
+        title="Drag to reorder"
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
       <input
         type="datetime-local"
         value={localDatetime}
@@ -538,6 +620,19 @@ function EventRow({ ev, onUpdate, onDelete }: EventRowProps) {
         }}
         className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
         style={{ width: 175 }}
+      />
+      <input
+        type="text"
+        value={localIncubation}
+        onChange={(e) => setLocalIncubation(e.target.value)}
+        onBlur={() => {
+          const ms = incubationToMs(localIncubation);
+          if (ms !== null) onSetIncubation(ev.id, ms);
+        }}
+        placeholder="D00 H00 M00"
+        title="Incubation time (e.g. D05 H14 M30)"
+        className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
+        style={{ width: 110 }}
       />
       <Input
         value={localLabel}
@@ -773,6 +868,7 @@ export function AdvancedChartSection({
   const [formulas, setFormulas] = useState<FormulaLine[]>([]);
   const [bands, setBands] = useState<BandConfig[]>([]);
   const [events, setEvents] = useState<EventConfig[]>([]);
+  const [testStartMs, setTestStartMs] = useState<number | undefined>(undefined);
   const [loaded, setLoaded] = useState(false);
   const [showReset, setShowReset] = useState(false);
 
@@ -812,6 +908,7 @@ export function AdvancedChartSection({
           setFormulas(cfg.formulas ?? []);
           setBands(cfg.bands ?? []);
           setEvents(cfg.events ?? []);
+          setTestStartMs(cfg.testStartMs);
           savedRef.current = initialConfigJson;
         } catch {
           setFormulas([]);
@@ -835,6 +932,7 @@ export function AdvancedChartSection({
             setFormulas(cfg.formulas ?? []);
             setBands(cfg.bands ?? []);
             setEvents(cfg.events ?? []);
+            setTestStartMs(cfg.testStartMs);
             savedRef.current = json;
           } catch {
             setFormulas([]);
@@ -856,12 +954,20 @@ export function AdvancedChartSection({
       newFormulas: FormulaLine[],
       newBands: BandConfig[],
       newEvents?: EventConfig[],
+      newTestStartMs?: number | undefined | null,
     ) => {
       const evs = newEvents !== undefined ? newEvents : events;
+      const tsMs =
+        newTestStartMs !== null && newTestStartMs !== undefined
+          ? newTestStartMs
+          : newTestStartMs === null
+            ? undefined
+            : testStartMs;
       const json = JSON.stringify({
         formulas: newFormulas,
         bands: newBands,
         events: evs,
+        testStartMs: tsMs,
       });
       if (json === savedRef.current) return;
       savedRef.current = json;
@@ -878,7 +984,16 @@ export function AdvancedChartSection({
           .catch(() => {});
       }, 800);
     },
-    [actor, isAdmin, loaded, selectedId, events, localOnly, onConfigChange],
+    [
+      actor,
+      isAdmin,
+      loaded,
+      selectedId,
+      events,
+      testStartMs,
+      localOnly,
+      onConfigChange,
+    ],
   );
 
   const handleFormulaUpdate = useCallback(
@@ -941,11 +1056,60 @@ export function AdvancedChartSection({
   );
 
   const updateEvents = useCallback(
-    (updated: EventConfig[]) => {
+    (updated: EventConfig[], newTestStartMs?: number | undefined) => {
       setEvents(updated);
-      saveConfig(formulas, bands, updated);
+      saveConfig(
+        formulas,
+        bands,
+        updated,
+        newTestStartMs !== undefined ? newTestStartMs : null,
+      );
     },
     [formulas, bands, saveConfig],
+  );
+
+  const handleSetIncubation = useCallback(
+    (evId: string, incubationMs: number) => {
+      const ev = events.find((e) => e.id === evId);
+      if (!ev) return;
+      const newStartMs = ev.timestamp - incubationMs;
+      setTestStartMs(newStartMs);
+      saveConfig(formulas, bands, events, newStartMs);
+    },
+    [events, formulas, bands, saveConfig],
+  );
+
+  const [dragSourceId, setDragSourceId] = useState<string | null>(null);
+
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => {
+      if (a.displayOrder !== undefined && b.displayOrder !== undefined)
+        return a.displayOrder - b.displayOrder;
+      return a.timestamp - b.timestamp;
+    });
+  }, [events]);
+
+  const hasSyntheticStart =
+    testStartMs !== undefined &&
+    !events.some((e) => e.timestamp === testStartMs);
+
+  const handleEventDrop = useCallback(
+    (targetId: string) => {
+      if (!dragSourceId || dragSourceId === targetId) {
+        setDragSourceId(null);
+        return;
+      }
+      const oldIndex = sortedEvents.findIndex((e) => e.id === dragSourceId);
+      const newIndex = sortedEvents.findIndex((e) => e.id === targetId);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = [...sortedEvents];
+        const [moved] = reordered.splice(oldIndex, 1);
+        reordered.splice(newIndex, 0, moved);
+        updateEvents(reordered.map((e, i) => ({ ...e, displayOrder: i })));
+      }
+      setDragSourceId(null);
+    },
+    [dragSourceId, sortedEvents, updateEvents],
   );
 
   const chartData = useMemo(() => {
@@ -1617,18 +1781,40 @@ export function AdvancedChartSection({
                   Add Event
                 </Button>
               </div>
-              {events.length === 0 ? (
+              {events.length === 0 && testStartMs === undefined ? (
                 <p className="text-xs text-muted-foreground italic">
                   No events yet. Add one to mark a moment on the chart with a
                   vertical line and label.
                 </p>
               ) : (
                 <div className="space-y-0">
-                  {events.map((ev, i) => (
+                  {hasSyntheticStart && testStartMs !== undefined && (
+                    <div className="flex items-center gap-2 py-2 border-b border-border/30 opacity-60">
+                      <div className="w-4 h-4 flex-shrink-0" />
+                      <input
+                        type="datetime-local"
+                        value={toDatetimeLocal(testStartMs)}
+                        disabled
+                        className="h-7 text-xs rounded border border-border bg-muted px-1.5 flex-shrink-0"
+                        style={{ width: 175 }}
+                      />
+                      <span
+                        className="h-7 text-xs px-1.5 flex items-center rounded border border-border bg-muted flex-shrink-0"
+                        style={{ width: 110 }}
+                      >
+                        D00 H00 M00
+                      </span>
+                      <span className="h-7 text-xs px-1.5 flex items-center flex-1 italic text-muted-foreground">
+                        START
+                      </span>
+                    </div>
+                  )}
+                  {sortedEvents.map((ev, i) => (
                     <EventRow
                       key={ev.id}
                       ev={ev}
                       index={i}
+                      testStartMs={testStartMs}
                       onUpdate={(updated) => {
                         const next = events.map((e) =>
                           e.id === updated.id ? updated : e,
@@ -1638,6 +1824,9 @@ export function AdvancedChartSection({
                       onDelete={(id) =>
                         updateEvents(events.filter((e) => e.id !== id))
                       }
+                      onSetIncubation={handleSetIncubation}
+                      onDragStart={(id) => setDragSourceId(id)}
+                      onDrop={handleEventDrop}
                     />
                   ))}
                 </div>
