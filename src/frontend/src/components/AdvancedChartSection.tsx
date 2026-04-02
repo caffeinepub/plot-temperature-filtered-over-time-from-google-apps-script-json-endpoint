@@ -569,46 +569,50 @@ function EventRow({
   }, [testStartMs, ev.timestamp]);
 
   return (
-    <div className="flex items-center gap-2 py-2 border-b border-border/30 last:border-0">
-      <input
-        type="datetime-local"
-        value={localDatetime}
-        onChange={(e) => setLocalDatetime(e.target.value)}
-        onBlur={() => {
-          const ms = new Date(localDatetime).getTime();
-          if (!Number.isNaN(ms)) onUpdate({ ...ev, timestamp: ms });
-        }}
-        className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
-        style={{ width: 175 }}
-      />
-      <input
-        type="text"
-        value={localIncubation}
-        onChange={(e) => setLocalIncubation(e.target.value)}
-        onBlur={() => {
-          const ms = incubationToMs(localIncubation);
-          if (ms !== null) onSetIncubation(ev.id, ms);
-        }}
-        placeholder="D00 H00 M00"
-        title="Incubation time (e.g. D05 H14 M30)"
-        className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
-        style={{ width: 110 }}
-      />
-      <Input
-        value={localLabel}
-        onChange={(e) => setLocalLabel(e.target.value)}
-        onBlur={() => onUpdate({ ...ev, label: localLabel })}
-        placeholder="Event label"
-        className="h-7 text-xs flex-1"
-      />
-      <button
-        type="button"
-        onClick={() => onDelete(ev.id)}
-        className="w-6 h-6 rounded text-xs border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex-shrink-0"
-        title="Delete event"
-      >
-        <X className="w-3 h-3 mx-auto" />
-      </button>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 py-2 border-b border-border/30 last:border-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <input
+          type="datetime-local"
+          value={localDatetime}
+          onChange={(e) => setLocalDatetime(e.target.value)}
+          onBlur={() => {
+            const ms = new Date(localDatetime).getTime();
+            if (!Number.isNaN(ms)) onUpdate({ ...ev, timestamp: ms });
+          }}
+          className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
+          style={{ width: 175 }}
+        />
+        <input
+          type="text"
+          value={localIncubation}
+          onChange={(e) => setLocalIncubation(e.target.value)}
+          onBlur={() => {
+            const ms = incubationToMs(localIncubation);
+            if (ms !== null) onSetIncubation(ev.id, ms);
+          }}
+          placeholder="D00 H00 M00"
+          title="Incubation time (e.g. D05 H14 M30)"
+          className="h-7 text-xs rounded border border-border bg-background px-1.5 flex-shrink-0"
+          style={{ width: 110 }}
+        />
+      </div>
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <Input
+          value={localLabel}
+          onChange={(e) => setLocalLabel(e.target.value)}
+          onBlur={() => onUpdate({ ...ev, label: localLabel })}
+          placeholder="Event label"
+          className="h-7 text-xs flex-1"
+        />
+        <button
+          type="button"
+          onClick={() => onDelete(ev.id)}
+          className="w-6 h-6 rounded text-xs border border-border text-muted-foreground hover:text-destructive hover:border-destructive flex-shrink-0"
+          title="Delete event"
+        >
+          <X className="w-3 h-3 mx-auto" />
+        </button>
+      </div>
     </div>
   );
 }
