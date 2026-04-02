@@ -54,6 +54,7 @@ actor {
   stable var loggerIdLoggerLabels = Map.empty<Nat, Text>();
   stable var sensorGroupsPerIdJson = Map.empty<Nat, Text>();
   stable var advancedChartConfigPerIdJson = Map.empty<Nat, Text>();
+  stable var conceptMachineAdvancedConfigJson : Text = "";
   stable var backupNextId = 0;
   stable var backups = Map.empty<Nat, BackupEntry>();
   let HARDCODED_ADMIN = Principal.fromText("nq44w-zh7mz-vkidk-kanua-rfijv-g2ail-o6b4k-ts6iu-qwwlh-e4le5-vqe");
@@ -337,7 +338,7 @@ actor {
     sensorGroupsPerIdJson.add(id, json);
   };
 
-  // ========= ADVANCED CHART CONFIG =========
+  // ========= ADVANCED CHART CONFIG (TSIC per ID) =========
   public query ({ caller }) func getAdvancedChartConfigForId(id : Nat) : async Text {
     if (not isEffectiveAdmin(caller)) {
       Runtime.trap("Unauthorized: Only admins can query advanced chart config");
@@ -353,6 +354,21 @@ actor {
       Runtime.trap("Unauthorized: Only admins can save advanced chart config");
     };
     advancedChartConfigPerIdJson.add(id, json);
+  };
+
+  // ========= CONCEPTMACHINE ADVANCED CHART CONFIG (global) =========
+  public query ({ caller }) func getConceptMachineAdvancedConfig() : async Text {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can query conceptmachine advanced config");
+    };
+    conceptMachineAdvancedConfigJson;
+  };
+
+  public shared ({ caller }) func saveConceptMachineAdvancedConfig(json : Text) : async () {
+    if (not isEffectiveAdmin(caller)) {
+      Runtime.trap("Unauthorized: Only admins can save conceptmachine advanced config");
+    };
+    conceptMachineAdvancedConfigJson := json;
   };
 
   // ========= BACKUP =========
@@ -415,4 +431,3 @@ actor {
     backups.remove(id);
   };
 };
-

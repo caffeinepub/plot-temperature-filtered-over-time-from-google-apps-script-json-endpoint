@@ -1,4 +1,5 @@
 import { CO2Chart } from "@/components/CO2Chart";
+import { ConceptmachineAdvancedSection } from "@/components/ConceptmachineAdvancedSection";
 import { CoolingHeatingVentilationChart } from "@/components/CoolingHeatingVentilationChart";
 import { DashboardCard } from "@/components/DashboardCard";
 import { FanVoltageFlowControlChart } from "@/components/FanVoltageFlowControlChart";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useIsCallerAdmin } from "@/hooks/useIsCallerAdmin";
 import { useSyncedTimeWindow } from "@/hooks/useSyncedTimeWindow";
 import { useTemperatureSeries } from "@/hooks/useTemperatureSeries";
 import { AlertCircle, Calendar, RefreshCw, RotateCcw } from "lucide-react";
@@ -35,6 +37,7 @@ export function TemperatureDashboardPage() {
   const { visibleRange, setRange, resetZoom, isZoomed } = useSyncedTimeWindow(
     data?.length || 0,
   );
+  const { isAdmin } = useIsCallerAdmin();
 
   // Raw text inputs from user (DD/MM/JJJJ)
   const [startDateText, setStartDateText] = useState("");
@@ -248,6 +251,9 @@ export function TemperatureDashboardPage() {
               onRangeChange={setRange}
             />
           </DashboardCard>
+
+          {/* Advanced Chart Section */}
+          <ConceptmachineAdvancedSection isAdmin={isAdmin} />
         </>
       )}
     </main>

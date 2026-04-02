@@ -1,33 +1,74 @@
-# Conceptmachine Dashboard
+# R&D Data Logger Dashboard
 
 ## Current State
-Events in the Advanced Chart section have: `id`, `timestamp` (ms epoch), `label`. No incubation time concept exists. Events are listed in a static order.
+The Conceptmachine page has 4 time-series charts (Temperature, CO2, Cooling/Heating/Ventilation, Fan/Flow Control). There is no Advanced section. The TSIC Loggers page has a full AdvancedChartSection with formulas, bands, events, and hover legend.
+
+The backend stores advanced chart config per TSIC logger ID as JSON blobs via `getAdvancedChartConfigForId(id)` / `saveAdvancedChartConfigForId(id, json)`. There is no global Conceptmachine advanced config storage.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `testStartMs?: number` field to `AdvancedChartConfig` (stored in advancedConfigJson per logger ID)
-- `displayOrder?: number` field to `EventConfig` for drag-and-drop visual ordering
-- Incubation time display and input per event row (format: D## H## M##)
-- When user edits incubation time for any event: recalculate `testStartMs = event.timestamp - incubationMs`, then all other events show auto-computed incubation time
-- If `testStartMs` is set but no event exists exactly at that timestamp, show a synthetic read-only "START" event at the top (D00 H00 M00) — not stored, just displayed
-- If a user creates an event with incubation D00 H00 M00, that event IS the START event
-- Drag-and-drop reordering of event rows (visual order only — timestamp and incubation values don't change)
+- `getConceptMachineAdvancedConfig()` — backend query, returns Text (JSON), admin-only
+- `saveConceptMachineAdvancedConfig(json: Text)` — backend update, admin-only
+- New stable var `conceptMachineAdvancedConfigJson` in main.mo
+- New frontend component `ConceptmachineAdvancedSection.tsx`
+- Wire component into `TemperatureDashboardPage.tsx` below the existing charts
 
 ### Modify
-- `EventConfig` interface: add optional `displayOrder?: number`
-- `EventRow` component: add incubation time field (editable), recalculate all events when changed
-- `AdvancedChartConfig`: add `testStartMs?: number`
-- Event list rendering: sort by `displayOrder`, render drag handles with @dnd-kit (already installed)
+- `backend.d.ts` — add two new function signatures
+- `TemperatureDashboardPage.tsx` — fetch raw data from new endpoint, add Advanced section at bottom
 
 ### Remove
-- Nothing removed
+- Nothing
 
 ## Implementation Plan
-1. Extend `EventConfig` with `displayOrder?: number`
-2. Extend `AdvancedChartConfig` with `testStartMs?: number`
-3. Add incubation time parse/format helpers: `msToIncubation(ms)` → `"D05 H14 M30"`, `incubationToMs("D05 H14 M30")` → ms
-4. Update `EventRow` to show incubation field; on blur, compute new `testStartMs` and trigger recalc of all events
-5. Add synthetic START event rendering when `testStartMs` is set and no real event is at that time
-6. Wire @dnd-kit `DndContext` + `SortableContext` around the events list for drag-to-reorder (update `displayOrder` on drop)
-7. All changes are frontend-only — persisted via existing `advancedConfigJson` save flow
+
+### Backend
+1. Add `stable var conceptMachineAdvancedConfigJson : Text = ""` to main.mo
+2. Add `getConceptMachineAdvancedConfig()` public query (admin-only, returns the JSON string)
+3. Add `saveConceptMachineAdvancedConfig(json)` public shared (admin-only, saves JSON string)
+4. Update backend.d.ts with the two new function signatures
+
+### Frontend — ConceptmachineAdvancedSection.tsx
+New self-contained component. Keep it simple:
+- Collapsible panel (collapsed by default)
+- **Multiple tabs**: each tab has a name, list of FormulaLine[], list of BandConfig[]
+- Tab bar: click to switch, + button to add tab, rename (double-click), delete (x button)
+- Per tab: formula editor rows (name, expression using the 24 variable names, color, L/R Y-axis toggle, bold, dotted, visible, delete)
+- Per tab: band editor rows (name, sensor list, color, L/R Y-axis toggle, visible, delete)
+- Reference list of 24 variable names always visible (collapsed by default or as a small expandable)
+- Chart: ComposedChart with left + right YAxis, Lines for formulas, BandPolygon for bands
+- Hover legend: fixed right panel on desktop, below chart on mobile (same pattern as TSIC Advanced)
+- No events
+- Raw data fetched from new endpoint URL, parsed to { timestamp, Temperature, TemperatureFiltered, ... } objects
+- Config persisted globally via `saveConceptMachineAdvancedConfig`
+
+### Data mapping (raw JSON key → variable name)
+- `Temperature(F)` → `Temperature`
+- `Temperature Filtered(F)` → `TemperatureFiltered`
+- `Temperature CSV(F)` → `TemperatureCSV`
+- `Fan 1(V)` → `Fan1`
+- `Fan 2(V)` → `Fan2`
+- `Fan 3(V)` → `Fan3`
+- `Heating(PWM)` → `HeatingPWM`
+- `Heating(%)` → `HeatingPct`
+- `Cooling(V)` → `CoolingV`
+- `Min value cooling(V)` → `MinCoolingV`
+- `Max value Cooling(V)` → `MaxCoolingV`
+- `Ventilation(V)` → `VentilationV`
+- `Max value ventilation(V)` → `MaxVentilationV`
+- `Min value ventilation(V)` → `MinVentilationV`
+- `Max value heating(V)` → `MaxHeatingV`
+- `Min value heating(V)` → `MinHeatingV`
+- `Stuursignaal debiet(Pa)` → `FlowControlPa`
+- `CO2 CSV(%)` → `CO2CSV`
+- `CO2 Rechts` → `CO2Right`
+- `CO2 Links` → `CO2Left`
+- `P` → `P`
+- `I` → `I`
+- `Kp` → `Kp`
+- `Ti(s)` → `Ti`
+
+### Wire-up in TemperatureDashboardPage.tsx
+- Add `<ConceptmachineAdvancedSection isAdmin={isAdmin} />` after the last DashboardCard
+- The component fetches its own raw data internally (separate from the parsed TemperatureSeries)
