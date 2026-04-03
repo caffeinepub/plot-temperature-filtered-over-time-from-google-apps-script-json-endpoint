@@ -15,11 +15,13 @@ import React, {
   useState,
 } from "react";
 import {
+  Brush,
   CartesianGrid,
   ComposedChart,
   Customized,
   Line,
   ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -45,6 +47,8 @@ export interface CmBandConfig {
   id: string;
   name: string;
   variables: string[];
+  minExpr?: string;
+  maxExpr?: string;
   color: string;
   visible: boolean;
   yAxis?: "left" | "right";
@@ -142,8 +146,60 @@ function preprocessCmFunctions(
   expr: string,
   vars: Record<string, number | undefined | null>,
 ): string | null {
-  const funcRegex = /\b(avg|min|max|median|range)\(([^()]*)\)/i;
+  // Handle clamp(expr, lower, upper) — evaluate inner expression, then clamp
   let result = expr;
+  let safeCount2 = 0;
+  while (result.includes("clamp(") && safeCount2++ < 100) {
+    const idx = result.indexOf("clamp(");
+    if (idx === -1) break;
+    // Find matching closing paren
+    let depth = 0;
+    let end = -1;
+    for (let ci = idx + 5; ci < result.length; ci++) {
+      if (result[ci] === "(") depth++;
+      else if (result[ci] === ")") {
+        depth--;
+        if (depth === 0) {
+          end = ci;
+          break;
+        }
+      }
+    }
+    if (end === -1) break;
+    const inner = result.slice(idx + 6, end);
+    // Split by commas at depth 0 to get (valueExpr, lower, upper)
+    const parts: string[] = [];
+    let cur = "";
+    let d2 = 0;
+    for (const ch of inner) {
+      if (ch === "(") {
+        d2++;
+        cur += ch;
+      } else if (ch === ")") {
+        d2--;
+        cur += ch;
+      } else if (ch === "," && d2 === 0) {
+        parts.push(cur.trim());
+        cur = "";
+      } else cur += ch;
+    }
+    parts.push(cur.trim());
+    if (parts.length !== 3) break;
+    const [valExpr, lowerStr, upperStr] = parts;
+    const lower = Number.parseFloat(lowerStr);
+    const upper = Number.parseFloat(upperStr);
+    if (Number.isNaN(lower) || Number.isNaN(upper)) break;
+    // Recursively preprocess the value expression
+    const processedVal = preprocessCmFunctions(valExpr, vars);
+    if (processedVal === null) break;
+    const valNum = Number.parseFloat(processedVal);
+    const clamped = Number.isNaN(valNum)
+      ? 0
+      : Math.min(upper, Math.max(lower, valNum));
+    result = result.slice(0, idx) + clamped.toString() + result.slice(end + 1);
+  }
+
+  const funcRegex = /\b(avg|min|max|median|range)\(([^()]*)\)/i;
   let iterations = 0;
   let match = funcRegex.exec(result);
   while (match !== null) {
@@ -457,7 +513,9 @@ function CmHoverPanel({
   chartData: Record<string, unknown>[];
 }) {
   const visibleFormulas = formulas.filter((f) => f.visible && f.expression);
-  const visibleBands = bands.filter((b) => b.visible && b.variables.length > 0);
+  const visibleBands = bands.filter(
+    (b) => b.visible && (b.variables.length > 0 || !!b.minExpr || !!b.maxExpr),
+  );
   const hasContent = visibleFormulas.length > 0 || visibleBands.length > 0;
   if (!hasContent) return null;
 
@@ -679,22 +737,38 @@ interface CmBandRowProps {
 
 function CmBandRow({ b, index, onUpdate, onDelete }: CmBandRowProps) {
   const [localName, setLocalName] = useState(b.name);
-  const [localVars, setLocalVars] = useState(b.variables.join(", "));
+  const [localMinExpr, setLocalMinExpr] = useState(
+    b.minExpr ?? b.variables[0] ?? "",
+  );
+  const [localMaxExpr, setLocalMaxExpr] = useState(
+    b.maxExpr ?? b.variables[1] ?? b.variables[0] ?? "",
+  );
   const prevId = useRef(b.id);
 
   useEffect(() => {
     if (prevId.current !== b.id) {
       prevId.current = b.id;
       setLocalName(b.name);
-      setLocalVars(b.variables.join(", "));
+      setLocalMinExpr(b.minExpr ?? b.variables[0] ?? "");
+      setLocalMaxExpr(b.maxExpr ?? b.variables[1] ?? b.variables[0] ?? "");
     }
-  }, [b.id, b.name, b.variables]);
+  }, [b.id, b.name, b.variables, b.minExpr, b.maxExpr]);
 
-  function parseVars(s: string): string[] {
-    return s
-      .split(/[,;\s]+/)
-      .map((x) => x.trim())
-      .filter((x) => ALL_VARIABLES.includes(x));
+  function commitBand() {
+    // Parse plain variable lists for backward compat, but store as minExpr/maxExpr
+    const variables = [localMinExpr, localMaxExpr].flatMap((e) =>
+      e
+        .split(/[,;\s]+/)
+        .map((x) => x.trim())
+        .filter((x) => ALL_VARIABLES.includes(x)),
+    );
+    onUpdate({
+      ...b,
+      name: localName,
+      minExpr: localMinExpr,
+      maxExpr: localMaxExpr,
+      variables: [...new Set(variables)],
+    });
   }
 
   return (
@@ -710,19 +784,26 @@ function CmBandRow({ b, index, onUpdate, onDelete }: CmBandRowProps) {
         <Input
           value={localName}
           onChange={(e) => setLocalName(e.target.value)}
-          onBlur={() => onUpdate({ ...b, name: localName })}
+          onBlur={commitBand}
           placeholder="Band name"
           className="h-7 text-xs mb-1"
         />
         <Input
-          value={localVars}
-          onChange={(e) => setLocalVars(e.target.value)}
-          onBlur={() => onUpdate({ ...b, variables: parseVars(localVars) })}
-          placeholder="e.g. Temperature, TemperatureFiltered"
+          value={localMinExpr}
+          onChange={(e) => setLocalMinExpr(e.target.value)}
+          onBlur={commitBand}
+          placeholder="Min expression (e.g. Temperature, CoolingV*10)"
+          className="h-7 text-xs mb-1"
+        />
+        <Input
+          value={localMaxExpr}
+          onChange={(e) => setLocalMaxExpr(e.target.value)}
+          onBlur={commitBand}
+          placeholder="Max expression (e.g. TemperatureFiltered, CoolingV*10+5)"
           className="h-7 text-xs"
         />
         <p className="text-[10px] text-muted-foreground mt-0.5">
-          Comma-separated variable names for min/max band.
+          Min/max expressions for band — supports variables and arithmetic.
         </p>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
@@ -789,6 +870,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
 
   const [hoverPayload, setHoverPayload] = useState<any[]>([]);
   const [hoverTimestamp, setHoverTimestamp] = useState<number | null>(null);
+  const [hoverX, setHoverX] = useState<number | null>(null);
 
   // Auto-zoom to last day on mount/data change
   useEffect(() => {
@@ -821,19 +903,25 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
       }
 
       for (const b of tab.bands) {
-        if (b.visible && b.variables.length > 0) {
-          const values = b.variables
-            .map((v) => vars[v])
-            .filter(
-              (v): v is number =>
-                v !== undefined && v !== null && !Number.isNaN(v) && v !== 0,
-            );
-          if (values.length > 0) {
-            const minVal = Math.min(...values);
-            const maxVal = Math.max(...values);
-            row[`band_area_${b.id}`] = [minVal, maxVal];
-            row[`band_min_${b.id}`] = minVal;
-            row[`band_max_${b.id}`] = maxVal;
+        if (b.visible) {
+          // Support minExpr/maxExpr (arithmetic expressions) or fall back to variables
+          const minExpr = b.minExpr ?? b.variables[0] ?? "";
+          const maxExpr = b.maxExpr ?? b.variables[1] ?? b.variables[0] ?? "";
+          if (minExpr || maxExpr) {
+            const minVal = minExpr ? evaluateCmFormula(minExpr, vars) : null;
+            const maxVal = maxExpr ? evaluateCmFormula(maxExpr, vars) : null;
+            if (
+              minVal !== null &&
+              maxVal !== null &&
+              !Number.isNaN(minVal) &&
+              !Number.isNaN(maxVal)
+            ) {
+              const lo = Math.min(minVal, maxVal);
+              const hi = Math.max(minVal, maxVal);
+              row[`band_area_${b.id}`] = [lo, hi];
+              row[`band_min_${b.id}`] = lo;
+              row[`band_max_${b.id}`] = hi;
+            }
           }
         }
       }
@@ -849,13 +937,13 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
   const { xTicks, xDomain } = useMemo(() => {
     if (data.length === 0)
       return { xTicks: [], xDomain: [0, 1] as [number, number] };
-    const firstTs = (data[startIndex] ?? data[0]).timestamp;
-    const lastTs = (data[endIndex] ?? data[data.length - 1]).timestamp;
+    const firstTs = data[0].timestamp;
+    const lastTs = data[data.length - 1].timestamp;
     return {
       xTicks: buildXTicks(firstTs, lastTs),
       xDomain: computeXDomain(firstTs, lastTs),
     };
-  }, [data, startIndex, endIndex]);
+  }, [data]);
 
   const yDomain = useMemo((): [number | string, number | string] => {
     if (visibleData.length === 0) return ["auto", "auto"];
@@ -866,7 +954,9 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
     );
     const visB = tab.bands.filter(
       (b) =>
-        b.visible && b.variables.length > 0 && (!b.yAxis || b.yAxis === "left"),
+        b.visible &&
+        (!b.yAxis || b.yAxis === "left") &&
+        (b.variables.length > 0 || !!b.minExpr || !!b.maxExpr),
     );
     for (const row of visibleData) {
       for (const f of visF) {
@@ -909,7 +999,10 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
       (f) => f.visible && f.expression && f.yAxis === "right",
     );
     const visB = tab.bands.filter(
-      (b) => b.visible && b.variables.length > 0 && b.yAxis === "right",
+      (b) =>
+        b.visible &&
+        b.yAxis === "right" &&
+        (b.variables.length > 0 || !!b.minExpr || !!b.maxExpr),
     );
     for (const row of visibleData) {
       for (const f of visF) {
@@ -949,6 +1042,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
     if (e?.activePayload?.length) {
       setHoverPayload(e.activePayload);
       setHoverTimestamp(Number(e.activeLabel) ?? null);
+      setHoverX(e.activeLabel != null ? Number(e.activeLabel) : null);
     }
     if (selectingRef.current && e?.activeLabel)
       setRefAreaRight(String(e.activeLabel));
@@ -982,6 +1076,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
   const handleMouseLeave = useCallback(() => {
     setHoverPayload([]);
     setHoverTimestamp(null);
+    setHoverX(null);
     if (selectingRef.current) {
       selectingRef.current = false;
       setRefAreaLeft(null);
@@ -996,7 +1091,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
 
   const visibleFormulas = tab.formulas.filter((f) => f.visible && f.expression);
   const visibleBands = tab.bands.filter(
-    (b) => b.visible && b.variables.length > 0,
+    (b) => b.visible && (b.variables.length > 0 || !!b.minExpr || !!b.maxExpr),
   );
 
   return (
@@ -1031,8 +1126,9 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
                   ))}
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-2">
-                  Functions: avg(), min(), max(), median(), range() — all skip
-                  zero values
+                  Functions: avg(), min(), max(), median(), range() (skip zeros)
+                  · clamp(expr, min, max) · Full arithmetic: +, -, *, / · Band
+                  expressions support arithmetic too
                 </p>
               </div>
             )}
@@ -1135,14 +1231,14 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
               <p className="text-[10px] text-muted-foreground mb-1">
                 Click &amp; drag to zoom · Double-click to reset
               </p>
-              <ResponsiveContainer width="100%" height={400}>
+              <ResponsiveContainer width="100%" height={900}>
                 <ComposedChart
-                  data={visibleData}
+                  data={chartData}
                   margin={{
                     top: 10,
                     right: hasRightAxis ? 60 : 10,
                     left: 0,
-                    bottom: 60,
+                    bottom: 20,
                   }}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
@@ -1201,7 +1297,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
                           xAxisMap={props.xAxisMap}
                           yAxisMap={props.yAxisMap}
                           offset={props.offset}
-                          chartData={visibleData as Record<string, unknown>[]}
+                          chartData={chartData as Record<string, unknown>[]}
                           band={b}
                         />
                       )}
@@ -1236,6 +1332,36 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
                       fillOpacity={0.1}
                     />
                   )}
+
+                  {/* Vertical hover line */}
+                  {hoverX !== null && (
+                    <ReferenceLine
+                      x={hoverX}
+                      yAxisId="left"
+                      stroke="#888888"
+                      strokeWidth={1}
+                      strokeDasharray="4 2"
+                    />
+                  )}
+
+                  {/* Brush for horizontal scrolling */}
+                  <Brush
+                    dataKey="timestamp"
+                    height={40}
+                    stroke="var(--border)"
+                    fill="var(--background)"
+                    tickFormatter={(v: number) => {
+                      const d = new Date(Number(v));
+                      return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}`;
+                    }}
+                    startIndex={startIndex ?? 0}
+                    endIndex={endIndex ?? Math.max(0, chartData.length - 1)}
+                    onChange={(e: any) => {
+                      if (e.startIndex !== undefined)
+                        setStartIndex(e.startIndex);
+                      if (e.endIndex !== undefined) setEndIndex(e.endIndex);
+                    }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -1246,7 +1372,7 @@ function CmTabChart({ tab, data, isAdmin, onTabChange }: CmTabChartProps) {
               activeTimestamp={hoverTimestamp}
               formulas={tab.formulas}
               bands={tab.bands}
-              chartData={visibleData as Record<string, unknown>[]}
+              chartData={chartData as Record<string, unknown>[]}
             />
           </div>
         )}

@@ -773,7 +773,6 @@ export function SensorGroupManager({
 
       {/* ── Groups grid ── */}
       {groups.length > 0 && (
-        // biome-ignore lint/a11y/useKeyWithClickEvents: drag container
         <div
           className="grid gap-2"
           style={{

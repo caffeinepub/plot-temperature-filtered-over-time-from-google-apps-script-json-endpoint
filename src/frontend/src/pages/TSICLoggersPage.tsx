@@ -928,7 +928,6 @@ export function TSICLoggersPage() {
                         title="Download raw JSON"
                         data-ocid="tsic.backup.download_button"
                       >
-                        {/* biome-ignore lint/a11y/noSvgWithoutTitle: icon button has title attr */}
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width="14"
